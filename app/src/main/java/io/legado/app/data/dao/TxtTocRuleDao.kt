@@ -1,0 +1,67 @@
+package io.legado.app.data.dao
+
+import androidx.room.*
+import io.legado.app.data.entities.TxtTocRule
+import kotlinx.coroutines.flow.Flow
+
+@Dao
+interface TxtTocRuleDao {
+
+    @Query("select * from txtTocRules order by serialNumber")
+    fun observeAll(): Flow<List<TxtTocRule>>
+
+    /**
+     * 按名称模糊搜索TXT目录规则
+     * @param key 搜索关键词，使用SQL的LIKE语句进行模糊匹配
+     */
+    @Query("select * from txtTocRules where name like :key order by serialNumber")
+    fun observeSearch(key: String): Flow<List<TxtTocRule>>
+
+    /**
+     * 获取所有已启用的TXT目录规则
+     */
+    @Query("select * from txtTocRules where enable = 1 order by serialNumber")
+    fun observeEnabled(): Flow<List<TxtTocRule>>
+
+    /**
+     * 获取所有已禁用的TXT目录规则
+     */
+    @Query("select * from txtTocRules where enable != 1 order by serialNumber")
+    fun observeDisabled(): Flow<List<TxtTocRule>>
+
+    @get:Query("select * from txtTocRules order by serialNumber")
+    val all: List<TxtTocRule>
+
+    @get:Query("select * from txtTocRules where enable = 1 order by serialNumber")
+    val enabled: List<TxtTocRule>
+
+    @get:Query("select * from txtTocRules where enable != 1 order by serialNumber")
+    val disabled: List<TxtTocRule>
+
+    @get:Query("select count(*) from txtTocRules")
+    val count: Int
+
+    @Query("select * from txtTocRules where id = :id")
+    fun get(id: Long): TxtTocRule?
+
+    @get:Query("select ifNull(min(serialNumber), 0) from txtTocRules")
+    val minOrder: Int
+
+    @get:Query("select ifNull(max(serialNumber), 0) from txtTocRules")
+    val maxOrder: Int
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    fun insert(vararg rule: TxtTocRule)
+
+    @Update(onConflict = OnConflictStrategy.REPLACE)
+    fun update(vararg rule: TxtTocRule)
+
+    @Delete
+    fun delete(vararg rule: TxtTocRule)
+
+    @Query("delete from txtTocRules")
+    fun deleteAll()
+
+    @Query("delete from txtTocRules where id < 0")
+    fun deleteDefault()
+}

@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <item
+        android:id="@+id/menu_select"
+        android:icon="@drawable/ic_check"
+        android:title="@string/select_rule"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/menu_add"
+        android:icon="@drawable/ic_add"
+        android:title="@string/add"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/menu_preset"
+        android:icon="@drawable/ic_bubble_chart"
+        android:title="@string/preset_rules"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/menu_import"
+        android:icon="@drawable/ic_import"
+        android:title="@string/import_rules"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/menu_group"
+        android:icon="@drawable/ic_groups"
+        android:title="@string/group_manage"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/menu_share"
+        android:icon="@drawable/ic_share"
+        android:title="@string/share_rules"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/menu_export"
+        android:icon="@drawable/ic_export"
+        android:title="@string/export_rules"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/menu_reset"
+        android:icon="@drawable/ic_restore"
+        android:title="@string/restore_default"
+        app:showAsAction="never" />
+
+</menu>

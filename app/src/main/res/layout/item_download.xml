@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:padding="16dp">
+
+    <io.legado.app.ui.widget.image.CoverImageView
+        android:id="@+id/iv_cover"
+        android:layout_width="44dp"
+        android:layout_height="60dp"
+        android:contentDescription="@string/img_cover"
+        android:scaleType="centerCrop"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        tools:src="@drawable/ic_book" />
+
+    <TextView
+        android:id="@+id/tv_name"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="12dp"
+        android:singleLine="true"
+        android:textColor="@color/primaryText"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        app:layout_constraintLeft_toRightOf="@+id/iv_cover"
+        app:layout_constraintRight_toLeftOf="@+id/iv_download"
+        app:layout_constraintTop_toTopOf="parent"
+        tools:text="@string/name" />
+
+    <TextView
+        android:id="@+id/tv_author"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="12dp"
+        android:layout_marginTop="2dp"
+        android:singleLine="true"
+        android:textColor="@color/secondaryText"
+        android:textSize="14sp"
+        app:layout_constraintLeft_toRightOf="@+id/iv_cover"
+        app:layout_constraintRight_toLeftOf="@+id/iv_download"
+        app:layout_constraintTop_toBottomOf="@+id/tv_name"
+        tools:text="@string/author" />
+
+    <TextView
+        android:id="@+id/tv_download"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="12dp"
+        android:layout_marginTop="2dp"
+        android:singleLine="true"
+        android:textColor="@color/secondaryText"
+        android:textSize="12sp"
+        app:layout_constraintLeft_toRightOf="@+id/iv_cover"
+        app:layout_constraintRight_toLeftOf="@+id/iv_download"
+        app:layout_constraintTop_toBottomOf="@id/tv_author"
+        tools:text="@string/action_download" />
+
+    <ImageView
+        android:id="@+id/iv_clear_cache"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:contentDescription="@string/clear_cache"
+        android:padding="6dp"
+        android:src="@drawable/ic_clear"
+        app:layout_constraintBottom_toBottomOf="@+id/tv_download"
+        app:layout_constraintRight_toLeftOf="@+id/tv_export"
+        app:layout_constraintTop_toTopOf="@id/tv_name"
+        app:tint="@color/primaryText" />
+
+    <ImageView
+        android:id="@+id/iv_download"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:contentDescription="@string/start"
+        android:padding="6dp"
+        android:src="@drawable/ic_play_24dp"
+        app:layout_constraintBottom_toBottomOf="@+id/tv_download"
+        app:layout_constraintRight_toLeftOf="@+id/iv_clear_cache"
+        app:layout_constraintTop_toTopOf="@id/tv_name"
+        app:tint="@color/primaryText" />
+
+
+    <TextView
+        android:id="@+id/tv_export"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:background="?attr/selectableItemBackground"
+        android:padding="10dp"
+        android:text="@string/export"
+        android:textColor="@color/primaryText"
+        app:layout_constraintBottom_toBottomOf="@+id/tv_download"
+        app:layout_constraintRight_toRightOf="parent"
+        app:layout_constraintTop_toTopOf="@id/tv_name" />
+
+    <TextView
+        android:id="@+id/tv_msg"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textColor="@color/secondaryText"
+        android:visibility="gone"
+        app:layout_constraintTop_toBottomOf="@id/tv_download" />
+
+    <io.legado.app.lib.theme.view.ThemeProgressBar
+        android:id="@+id/progress_export"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:visibility="gone"
+        app:layout_constraintTop_toBottomOf="@id/tv_download" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

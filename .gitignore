@@ -1,0 +1,27 @@
+# 构建产物
+/build/
+/app/build/
+/modules/*/build/
+
+# Gradle 缓存
+.gradle/
+/local.properties
+
+# Kotlin 缓存
+.kotlin/
+
+# IDE
+.idea/
+*.iml
+.DS_Store
+
+# Cronet 下载的 jar/so（由 app:downloadCronet 重新生成）
+/app/cronetlib/*.jar
+/app/so/
+
+# 原始备份
+*.zip
+*.tar.gz
+
+# 日志
+*.log

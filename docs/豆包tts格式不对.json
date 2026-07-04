@@ -1,0 +1,26 @@
+{
+  "id": 1778065422324,
+  "name": "豆包TTS语音合成",
+  "url": "@js:doubaoTTS(speakText,speakSpeed);",
+  "contentType": "audio/aac",
+  "concurrentRate": "",
+  "loginUrl": "function login(){var speaker=result['音色'];var info=source.getLoginInfoMap();info['音色']=speaker||'桃子女声';info['音调']=result['音调']||'0';source.putLoginInfo(JSON.stringify(info));java.clearTtsCache();java.toast('已切换音色：'+info['音色'])}",
+  "loginUi": [
+    {
+      "name": "音色",
+      "viewName": "'音色：'",
+      "type": "select",
+      "chars": ["桃子女声", "爽快女声", "甜美女声", "清澈女声", "阳光男声", "沉稳男声", "英文女声"]
+    },
+    {
+      "name": "音调",
+      "viewName": "'音调(-100~100)：'",
+      "type": "text"
+    }
+  ],
+  "loginCheckJs": "result",
+  "header": "",
+  "enabledCookieJar": false,
+  "jsLib": "var doubaoApiBase='https://api.sway99.com/api/app/api/doubao_tts';var doubaoApiKey='8c97b4c7-4ecb-5dc2-3d9b-5987571224c2';var speakerMap={'桃子女声':'taozi','爽快女声':'shuangkuai','甜美女声':'tianmei','清澈女声':'qingche','阳光男声':'male','沉稳男声':'chenwen','英文女声':'en_female'};function doubaoTTS(text,speed){var info=this.source.getLoginInfoMap();var speaker=info.get('音色')||'桃子女声';var speakerId=speakerMap[speaker]||'taozi';var apiSpeed=Math.max(-100,Math.min(100,(speed-5)*20));var pitch=info.get('音调')||'0';var url=doubaoApiBase+'?action=synthesize&text='+encodeURIComponent(text)+'&speaker='+speakerId+'&speed='+apiSpeed+'&pitch='+pitch+'&api_key='+doubaoApiKey;var response=java.ajax(url);var json=JSON.parse(response);if(json.code===0&&json.data&&json.data.audio_url){return json.data.audio_url}else{throw new Error(json.msg||'TTS合成失败')}}",
+  "lastUpdateTime": 1778065986928
+}

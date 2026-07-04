@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.preference.PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <io.legado.app.lib.prefs.NameListPreference
+        android:defaultValue="scroll"
+        android:entries="@array/manga_read_mode_title"
+        android:entryValues="@array/manga_read_mode_value"
+        android:key="mangaReadMode"
+        android:title="@string/manga_read_mode"
+        app:iconSpaceReserved="false"
+        app:isBottomBackground="true" />
+
+    <io.legado.app.lib.prefs.Preference
+        android:key="mangaPreDownloadNum"
+        android:title="@string/pre_download"
+        app:iconSpaceReserved="false"
+        app:isBottomBackground="true" />
+
+    <io.legado.app.lib.prefs.SwitchPreference
+        android:defaultValue="false"
+        android:key="disableMangaPageAnim"
+        android:title="@string/manga_disable_page_anim"
+        app:iconSpaceReserved="false"
+        app:isBottomBackground="true" />
+
+    <io.legado.app.lib.prefs.SwitchPreference
+        android:defaultValue="true"
+        android:key="disableMangaScale"
+        android:title="@string/disable_manga_scale"
+        app:iconSpaceReserved="false"
+        app:isBottomBackground="true" />
+
+    <io.legado.app.lib.prefs.SwitchPreference
+        android:defaultValue="false"
+        android:key="disableClickScroll"
+        android:title="@string/disable_manga_click_scroll"
+        app:iconSpaceReserved="false"
+        app:isBottomBackground="true" />
+
+    <io.legado.app.lib.prefs.SwitchPreference
+        android:defaultValue="false"
+        android:key="hideMangaTitle"
+        android:title="@string/hide_manga_title"
+        app:iconSpaceReserved="false"
+        app:isBottomBackground="true" />
+
+    <io.legado.app.lib.prefs.SwitchPreference
+        android:defaultValue="false"
+        android:key="mangaHideFooterInfo"
+        android:title="@string/manga_hide_footer_info"
+        app:iconSpaceReserved="false"
+        app:isBottomBackground="true" />
+
+</androidx.preference.PreferenceScreen>

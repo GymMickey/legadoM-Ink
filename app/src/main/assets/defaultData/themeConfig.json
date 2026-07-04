@@ -1,0 +1,90 @@
+[
+  {
+    "themeName": "红柚白",
+    "isNightTheme": false,
+    "primaryColor": "#fff5f5f5",
+    "accentColor": "#fff44336",
+    "backgroundColor": "#fffbfbfb",
+    "bottomBackground": "#fff5f5f5"
+  },
+  {
+    "themeName": "经典白",
+    "isNightTheme": false,
+    "primaryColor": "#fffbf9fd",
+    "accentColor": "#ffd4d0da",
+    "backgroundColor": "#fff5f5f5",
+    "bottomBackground": "#fffbf9fd"
+  },
+  {
+    "themeName": "经典棕",
+    "isNightTheme": false,
+    "primaryColor": "#795548",
+    "accentColor": "#E53935",
+    "backgroundColor": "#F5F5F5",
+    "bottomBackground": "#EEEEEE"
+  },
+  {
+    "themeName": "蓝煤灰",
+    "isNightTheme": false,
+    "primaryColor": "#ffecedef",
+    "accentColor": "#ff768c9d",
+    "backgroundColor": "#ffecedef",
+    "bottomBackground": "#fffefefe"
+  },
+  {
+    "themeName": "纯白梦境",
+    "isNightTheme": false,
+    "primaryColor": "#fff8f8f8",
+    "accentColor": "#ff8f8f8f",
+    "backgroundColor": "#fffdfdfd",
+    "bottomBackground": "#fffdfdfd"
+  },
+  {
+    "themeName": "典雅蓝",
+    "isNightTheme": false,
+    "primaryColor": "#03A9F4",
+    "accentColor": "#AD1457",
+    "backgroundColor": "#F5F5F5",
+    "bottomBackground": "#EEEEEE"
+  },
+  {
+    "themeName": "塔罗牌 女祭司 日间",
+    "isNightTheme": false,
+    "primaryColor": "#ffffffff",
+    "accentColor": "#fff0e8af",
+    "backgroundColor": "#ffffffff",
+    "bottomBackground": "#ffffffff"
+  },
+  {
+    "themeName": "黑白",
+    "isNightTheme": true,
+    "primaryColor": "#303030",
+    "accentColor": "#E0E0E0",
+    "backgroundColor": "#424242",
+    "bottomBackground": "#424242"
+  },
+  {
+    "themeName": "黑猫慢生活·夜",
+    "isNightTheme": true,
+    "primaryColor": "#ff3b3a38",
+    "accentColor": "#ffc4c4c4",
+    "backgroundColor": "#ff3b3a38",
+    "bottomBackground": "#ff3b3a38"
+  },
+  {
+    "themeName": "塔罗牌·女祭司",
+    "isNightTheme": true,
+    "primaryColor": "#ff000000",
+    "accentColor": "#ffcca759",
+    "backgroundColor": "#ff000000",
+    "bottomBackground": "#ff000000"
+  },
+  {
+    "themeName": "A屏黑",
+    "isNightTheme": true,
+    "primaryColor": "#000000",
+    "accentColor": "#FFFFFF",
+    "backgroundColor": "#000000",
+    "bottomBackground": "#000000"
+  }
+]

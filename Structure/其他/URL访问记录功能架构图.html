@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>URL访问记录功能架构图</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0a0e17;
+            --bg-secondary: #111827;
+            --bg-card: #1a2234;
+            --border-color: #2d3a52;
+            --text-primary: #e8edf5;
+            --text-secondary: #8b9dc3;
+            --text-muted: #5a6a8a;
+            --accent-blue: #3b82f6;
+            --accent-cyan: #06b6d4;
+            --accent-green: #10b981;
+            --accent-orange: #f59e0b;
+            --accent-purple: #8b5cf6;
+            --accent-pink: #ec4899;
+            --accent-red: #ef4444;
+            --glow-blue: rgba(59, 130, 246, 0.3);
+            --glow-cyan: rgba(6, 182, 212, 0.3);
+            --glow-green: rgba(16, 185, 129, 0.3);
+            --glow-purple: rgba(139, 92, 246, 0.3);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Noto Sans SC', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 60px;
+            position: relative;
+        }
+
+        h1 {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-blue), var(--accent-purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 16px;
+            letter-spacing: -1px;
+        }
+
+        .subtitle {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+            font-weight: 300;
+        }
+
+        .architecture {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 30px;
+        }
+
+        .layer {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 24px;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .layer::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: var(--layer-color);
+        }
+
+        .layer:hover {
+            transform: translateY(-4px);
+            border-color: var(--layer-color);
+            box-shadow: 0 20px 40px -10px var(--layer-glow);
+        }
+
+        .layer-network { --layer-color: var(--accent-cyan); --layer-glow: var(--glow-cyan); }
+        .layer-data { --layer-color: var(--accent-green); --layer-glow: var(--glow-green); }
+        .layer-config { --layer-color: var(--accent-orange); --layer-glow: rgba(245, 158, 11, 0.3); }
+        .layer-ui { --layer-color: var(--accent-purple); --layer-glow: var(--glow-purple); }
+
+        .layer-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .layer-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            background: var(--layer-color);
+            color: white;
+        }
+
+        .layer-title {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .layer-subtitle {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        .components {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 16px;
+        }
+
+        .component {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 16px;
+            transition: all 0.2s ease;
+        }
+
+        .component:hover {
+            border-color: var(--layer-color);
+            background: rgba(26, 34, 52, 0.8);
+        }
+
+        .component-name {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--layer-color);
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .component-name::before {
+            content: '◆';
+            font-size: 0.7rem;
+        }
+
+        .component-desc {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            line-height: 1.5;
+            margin-bottom: 12px;
+        }
+
+        .component-details {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .tag {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.7rem;
+            padding: 4px 8px;
+            border-radius: 4px;
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-muted);
+            border: 1px solid var(--border-color);
+        }
+
+        .tag-key {
+            color: var(--accent-cyan);
+        }
+
+        .tag-flow {
+            color: var(--accent-green);
+        }
+
+        .tag-suspend {
+            color: var(--accent-orange);
+        }
+
+        .tag-state {
+            color: var(--accent-purple);
+        }
+
+        /* Flow arrows */
+        .flow-section {
+            display: flex;
+            justify-content: center;
+            padding: 20px 0;
+        }
+
+        .flow-arrow {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-muted);
+            font-size: 0.8rem;
+        }
+
+        .arrow-down {
+            width: 2px;
+            height: 40px;
+            background: linear-gradient(to bottom, var(--accent-cyan), var(--accent-purple));
+            position: relative;
+        }
+
+        .arrow-down::after {
+            content: '';
+            position: absolute;
+            bottom: -8px;
+            left: 50%;
+            transform: translateX(-50%);
+            border-left: 8px solid transparent;
+            border-right: 8px solid transparent;
+            border-top: 10px solid var(--accent-purple);
+        }
+
+        .flow-label {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            background: var(--bg-secondary);
+            padding: 4px 12px;
+            border-radius: 20px;
+            border: 1px solid var(--border-color);
+        }
+
+        /* Data flow diagram */
+        .data-flow {
+            margin-top: 60px;
+            padding: 40px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+        }
+
+        .data-flow h2 {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.5rem;
+            margin-bottom: 30px;
+            text-align: center;
+            color: var(--text-primary);
+        }
+
+        .flow-diagram {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .flow-node {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .flow-box {
+            padding: 16px 24px;
+            border-radius: 12px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-align: center;
+            min-width: 140px;
+            transition: all 0.3s ease;
+        }
+
+        .flow-box:hover {
+            transform: scale(1.05);
+        }
+
+        .flow-box-network { background: var(--accent-cyan); color: var(--bg-primary); }
+        .flow-box-interceptor { background: rgba(6, 182, 212, 0.2); color: var(--accent-cyan); border: 1px solid var(--accent-cyan); }
+        .flow-box-database { background: var(--accent-green); color: var(--bg-primary); }
+        .flow-box-viewmodel { background: var(--accent-purple); color: white; }
+        .flow-box-activity { background: rgba(139, 92, 246, 0.2); color: var(--accent-purple); border: 1px solid var(--accent-purple); }
+
+        .flow-arrow-h {
+            font-size: 1.5rem;
+            color: var(--text-muted);
+        }
+
+        .flow-label-small {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+        }
+
+        /* Features section */
+        .features {
+            margin-top: 60px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .feature-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 24px;
+            transition: all 0.3s ease;
+        }
+
+        .feature-card:hover {
+            border-color: var(--accent-blue);
+            transform: translateY(-2px);
+        }
+
+        .feature-icon {
+            font-size: 2rem;
+            margin-bottom: 12px;
+        }
+
+        .feature-title {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: var(--text-primary);
+        }
+
+        .feature-desc {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        /* Animations */
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .layer {
+            animation: slideIn 0.5s ease forwards;
+        }
+
+        .layer:nth-child(1) { animation-delay: 0.1s; }
+        .layer:nth-child(2) { animation-delay: 0.2s; }
+        .layer:nth-child(3) { animation-delay: 0.3s; }
+        .layer:nth-child(4) { animation-delay: 0.4s; }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            h1 { font-size: 1.8rem; }
+            .components { grid-template-columns: 1fr; }
+            .flow-diagram { flex-direction: column; }
+            .flow-arrow-h { transform: rotate(90deg); }
+        }
+
+        /* Code snippet style */
+        .code-snippet {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 8px 12px;
+            border-radius: 6px;
+            margin-top: 8px;
+            color: var(--accent-cyan);
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>URL访问记录功能架构</h1>
+            <p class="subtitle">Legado Plus · 网络请求追踪系统</p>
+        </header>
+
+        <div class="architecture">
+            <!-- Network Layer -->
+            <div class="layer layer-network">
+                <div class="layer-header">
+                    <div class="layer-icon">🌐</div>
+                    <div>
+                        <div class="layer-title">Network Layer</div>
+                        <div class="layer-subtitle">网络层 - 请求拦截与记录</div>
+                    </div>
+                </div>
+                <div class="components">
+                    <div class="component">
+                        <div class="component-name">UrlRecordInterceptor</div>
+                        <div class="component-desc">OkHttp拦截器，拦截所有网络请求并记录详细信息。通过AppConfig.recordUrl控制开关。</div>
+                        <div class="component-details">
+                            <span class="tag">object</span>
+                            <span class="tag">Interceptor</span>
+                            <span class="tag-suspend">CoroutineScope</span>
+                        </div>
+                        <div class="code-snippet">scope.launch { appDb.urlRecordDao.insert(record) }</div>
+                    </div>
+                    <div class="component">
+                        <div class="component-name">HttpHelper</div>
+                        <div class="component-desc">HTTP客户端配置中心，注册UrlRecordInterceptor到OkHttp客户端。</div>
+                        <div class="component-details">
+                            <span class="tag">object</span>
+                            <span class="tag">OkHttpClient</span>
+                        </div>
+                        <div class="code-snippet">builder.addInterceptor(UrlRecordInterceptor)</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flow-section">
+                <div class="flow-arrow">
+                    <div class="arrow-down"></div>
+                    <span class="flow-label">异步写入</span>
+                </div>
+            </div>
+
+            <!-- Data Layer -->
+            <div class="layer layer-data">
+                <div class="layer-header">
+                    <div class="layer-icon">💾</div>
+                    <div>
+                        <div class="layer-title">Data Layer</div>
+                        <div class="layer-subtitle">数据层 - 实体定义与数据访问</div>
+                    </div>
+                </div>
+                <div class="components">
+                    <div class="component">
+                        <div class="component-name">UrlRecord</div>
+                        <div class="component-desc">URL记录实体类，包含请求URL、域名、方法、响应码、耗时、来源等字段。</div>
+                        <div class="component-details">
+                            <span class="tag">@Entity</span>
+                            <span class="tag">tableName: url_records</span>
+                            <span class="tag">@Index: timestamp, domain</span>
+                        </div>
+                    </div>
+                    <div class="component">
+                        <div class="component-name">UrlRecordDao</div>
+                        <div class="component-desc">数据访问对象，提供CRUD操作和Flow查询接口。</div>
+                        <div class="component-details">
+                            <span class="tag">@Dao</span>
+                            <span class="tag-flow">flowAll()</span>
+                            <span class="tag-flow">flowSearch()</span>
+                            <span class="tag-flow">flowByDomain()</span>
+                        </div>
+                    </div>
+                    <div class="component">
+                        <div class="component-name">AppDatabase</div>
+                        <div class="component-desc">Room数据库，版本93新增url_records表。</div>
+                        <div class="component-details">
+                            <span class="tag">@Database v93</span>
+                            <span class="tag">@AutoMigration 92→93</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flow-section">
+                <div class="flow-arrow">
+                    <div class="arrow-down"></div>
+                    <span class="flow-label">StateFlow观察</span>
+                </div>
+            </div>
+
+            <!-- UI Layer -->
+            <div class="layer layer-ui">
+                <div class="layer-header">
+                    <div class="layer-icon">🎨</div>
+                    <div>
+                        <div class="layer-title">UI Layer</div>
+                        <div class="layer-subtitle">界面层 - 状态管理与视图展示</div>
+                    </div>
+                </div>
+                <div class="components">
+                    <div class="component">
+                        <div class="component-name">UrlRecordUIState</div>
+                        <div class="component-desc">UI状态密封类，封装Loading/Success/Error/Empty四种状态。</div>
+                        <div class="component-details">
+                            <span class="tag">sealed class</span>
+                            <span class="tag-state">Loading</span>
+                            <span class="tag-state">Success</span>
+                            <span class="tag-state">Error</span>
+                            <span class="tag-state">Empty</span>
+                        </div>
+                    </div>
+                    <div class="component">
+                        <div class="component-name">UrlRecordViewModel</div>
+                        <div class="component-desc">视图模型，管理UI状态、域名列表、搜索筛选逻辑。</div>
+                        <div class="component-details">
+                            <span class="tag">BaseViewModel</span>
+                            <span class="tag-flow">StateFlow&lt;UIState&gt;</span>
+                            <span class="tag-suspend">clearAll()</span>
+                        </div>
+                    </div>
+                    <div class="component">
+                        <div class="component-name">UrlRecordActivity</div>
+                        <div class="component-desc">主界面Activity，实现搜索监听、域名筛选菜单、记录清除功能。</div>
+                        <div class="component-details">
+                            <span class="tag">VMBaseActivity</span>
+                            <span class="tag">SearchView.OnQueryTextListener</span>
+                        </div>
+                    </div>
+                    <div class="component">
+                        <div class="component-name">UrlRecordAdapter</div>
+                        <div class="component-desc">RecyclerView适配器，展示URL记录列表项，支持状态码颜色标识。</div>
+                        <div class="component-details">
+                            <span class="tag">RecyclerView.Adapter</span>
+                            <span class="tag">ViewBinding</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Config Layer -->
+            <div class="layer layer-config">
+                <div class="layer-header">
+                    <div class="layer-icon">⚙️</div>
+                    <div>
+                        <div class="layer-title">Config Layer</div>
+                        <div class="layer-subtitle">配置层 - 开关控制与持久化</div>
+                    </div>
+                </div>
+                <div class="components">
+                    <div class="component">
+                        <div class="component-name">AppConfig</div>
+                        <div class="component-desc">应用配置管理，recordUrl属性控制URL记录开关。</div>
+                        <div class="component-details">
+                            <span class="tag">object</span>
+                            <span class="tag-key">recordUrl: Boolean</span>
+                        </div>
+                    </div>
+                    <div class="component">
+                        <div class="component-name">PreferKey</div>
+                        <div class="component-desc">SharedPreferences键常量定义。</div>
+                        <div class="component-details">
+                            <span class="tag">object</span>
+                            <span class="tag-key">const recordUrl</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Data Flow Diagram -->
+        <div class="data-flow">
+            <h2>📊 数据流向图</h2>
+            <div class="flow-diagram">
+                <div class="flow-node">
+                    <div class="flow-box flow-box-network">网络请求</div>
+                    <span class="flow-label-small">OkHttp</span>
+                </div>
+                <span class="flow-arrow-h">→</span>
+                <div class="flow-node">
+                    <div class="flow-box flow-box-interceptor">拦截器</div>
+                    <span class="flow-label-small">UrlRecordInterceptor</span>
+                </div>
+                <span class="flow-arrow-h">→</span>
+                <div class="flow-node">
+                    <div class="flow-box flow-box-database">数据库</div>
+                    <span class="flow-label-small">Room / url_records</span>
+                </div>
+                <span class="flow-arrow-h">→</span>
+                <div class="flow-node">
+                    <div class="flow-box flow-box-viewmodel">ViewModel</div>
+                    <span class="flow-label-small">StateFlow</span>
+                </div>
+                <span class="flow-arrow-h">→</span>
+                <div class="flow-node">
+                    <div class="flow-box flow-box-activity">Activity</div>
+                    <span class="flow-label-small">UI渲染</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Features -->
+        <div class="features">
+            <div class="feature-card">
+                <div class="feature-icon">🔍</div>
+                <div class="feature-title">实时搜索</div>
+                <div class="feature-desc">支持搜索URL、域名、来源名称，输入即搜索，响应式更新结果。</div>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🏷️</div>
+                <div class="feature-title">域名筛选</div>
+                <div class="feature-desc">动态生成域名菜单，按域名分类查看请求记录，单选模式。</div>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🧹</div>
+                <div class="feature-title">智能清理</div>
+                <div class="feature-desc">支持清除7天前、30天前或全部记录，显示删除数量确认。</div>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">⚡</div>
+                <div class="feature-title">异步记录</div>
+                <div class="feature-desc">使用协程异步写入数据库，不阻塞网络请求，性能无影响。</div>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🎨</div>
+                <div class="feature-title">状态可视化</div>
+                <div class="feature-desc">响应码颜色标识：绿色成功、橙色异常、红色错误，一目了然。</div>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">📊</div>
+                <div class="feature-title">耗时统计</div>
+                <div class="feature-desc">记录每个请求的耗时毫秒数，便于性能分析和问题排查。</div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

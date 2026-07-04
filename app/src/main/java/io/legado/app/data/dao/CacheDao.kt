@@ -1,0 +1,84 @@
+package io.legado.app.data.dao
+
+import androidx.room.Dao
+import androidx.room.Insert
+import androidx.room.OnConflictStrategy
+import androidx.room.Query
+import io.legado.app.data.entities.Cache
+
+/**
+ * 缓存数据访问接口
+ */
+@Dao
+interface CacheDao {
+
+    @Query("select * from caches where `key` = :key")
+    fun get(key: String): Cache?
+
+    @Query("select value from caches where `key` = :key and (deadline = 0 or deadline > :now)")
+    fun get(key: String, now: Long): String?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    fun insert(vararg cache: Cache)
+
+    @Query("delete from caches where `key` = :key")
+    fun delete(key: String)
+
+    @Query(
+        """select * from caches
+        where (`key` like 'v_%'
+        or `key` like 'userInfo_%'
+        or `key` like 'loginHeader_%'
+        or `key` like 'sourceVariable_%'
+        or `key` like 'infoMap_%')
+        and (deadline = 0 or deadline > :now)"""
+    )
+    fun getRuntimeSourceCaches(now: Long): List<Cache>
+
+    @Query(
+        """select count(*) from caches
+        where (`key` like 'v_%'
+        or `key` like 'userInfo_%'
+        or `key` like 'loginHeader_%'
+        or `key` like 'sourceVariable_%'
+        or `key` like 'infoMap_%')
+        and (deadline = 0 or deadline > :now)"""
+    )
+    fun getRuntimeSourceCacheCount(now: Long): Int
+
+    @Query(
+        """select * from caches
+        where substr(`key`, 1, 2) = 'v_'
+        or substr(`key`, 1, 9) = 'userInfo_'
+        or substr(`key`, 1, 12) = 'loginHeader_'
+        or substr(`key`, 1, 15) = 'sourceVariable_'
+        or substr(`key`, 1, 8) = 'infoMap_'"""
+    )
+    fun getAllRuntimeSourceCaches(): List<Cache>
+
+    @Query(
+        """delete from caches where `key` like 'v_' || :key || '_%'
+        or `key` = 'userInfo_' || :key
+        or `key` = 'loginHeader_' || :key
+        or `key` = 'sourceVariable_' || :key
+        or `key` = 'infoMap_' || :key"""
+    )
+    fun deleteSourceVariables(key: String)
+
+    @Query(
+        """delete from caches
+        where `key` like 'v_%'
+        or `key` like 'userInfo_%'
+        or `key` like 'loginHeader_%'
+        or `key` like 'sourceVariable_%'
+        or `key` like 'infoMap_%'"""
+    )
+    fun deleteAllRuntimeSourceCaches()
+
+    @Query("delete from caches where substr(`key`, 1, length(:prefix)) = :prefix")
+    fun deleteRuntimeSourceCachesByPrefix(prefix: String)
+
+    @Query("delete from caches where deadline > 0 and deadline < :now")
+    fun clearDeadline(now: Long)
+
+}

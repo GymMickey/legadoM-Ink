@@ -1,0 +1,853 @@
+package io.legado.app.ui.book.search
+
+import android.content.Context
+import android.content.Intent
+import android.graphics.Color
+import android.os.Bundle
+import android.view.Menu
+import android.view.MenuItem
+import android.view.View.GONE
+import android.view.View.VISIBLE
+import android.widget.SeekBar
+import android.widget.TextView
+import android.widget.LinearLayout
+import androidx.activity.viewModels
+import androidx.appcompat.widget.SearchView
+import androidx.core.os.bundleOf
+import androidx.core.view.isVisible
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+import com.google.android.flexbox.FlexboxLayoutManager
+import io.legado.app.R
+import io.legado.app.base.VMBaseActivity
+import io.legado.app.constant.AppLog
+import io.legado.app.constant.PreferKey
+import io.legado.app.data.appDb
+import io.legado.app.data.entities.Book
+import io.legado.app.data.entities.BookSource
+import io.legado.app.data.entities.BookSourcePart
+import io.legado.app.data.entities.SearchBook
+import io.legado.app.data.entities.SearchKeyword
+import io.legado.app.databinding.ActivityBookSearchBinding
+import io.legado.app.domain.model.BookShelfState
+import io.legado.app.lib.dialogs.alert
+import io.legado.app.lib.theme.Selector
+import io.legado.app.lib.theme.accentColor
+import io.legado.app.lib.theme.backgroundColor
+import io.legado.app.lib.theme.primaryColor
+import io.legado.app.lib.theme.primaryTextColor
+import io.legado.app.ui.about.AppLogDialog
+import io.legado.app.model.blockrule.BlockRuleStore
+import io.legado.app.ui.blockrule.BlockRuleConfigDialog
+import io.legado.app.ui.book.info.BookInfoActivity
+import io.legado.app.ui.book.source.manage.BookSourceActivity
+import io.legado.app.ui.theme.LegadoTheme
+import io.legado.app.ui.widget.components.BookBottomSheet
+import androidx.compose.ui.platform.ComposeView
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import io.legado.app.utils.ColorUtils
+import io.legado.app.utils.applyNavigationBarMargin
+import io.legado.app.utils.applyNavigationBarPadding
+import io.legado.app.utils.applyTint
+import io.legado.app.utils.getPrefBoolean
+import io.legado.app.utils.getPrefInt
+import io.legado.app.utils.gone
+import io.legado.app.utils.invisible
+import io.legado.app.utils.putPrefBoolean
+import io.legado.app.utils.putPrefInt
+import io.legado.app.utils.setEdgeEffectColor
+import io.legado.app.utils.showDialogFragment
+import io.legado.app.utils.startActivity
+import io.legado.app.utils.transaction
+import io.legado.app.utils.viewbindingdelegate.viewBinding
+import io.legado.app.utils.visible
+import kotlinx.coroutines.Dispatchers.IO
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.conflate
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import splitties.init.appCtx
+import kotlin.math.abs
+
+class SearchActivity : VMBaseActivity<ActivityBookSearchBinding, SearchViewModel>(),
+    BookAdapter.CallBack,
+    HistoryKeyAdapter.CallBack,
+    SearchScopeDialog.Callback,
+    SearchAdapter.CallBack {
+
+    override val binding by viewBinding(ActivityBookSearchBinding::inflate)
+    override val viewModel by viewModels<SearchViewModel>()
+
+    private val adapter by lazy { SearchAdapter(this, this) }
+    private val bookAdapter by lazy {
+        BookAdapter(this, this).apply {
+            setHasStableIds(true)
+        }
+    }
+    private val historyKeyAdapter by lazy {
+        HistoryKeyAdapter(this, this).apply {
+            setHasStableIds(true)
+        }
+    }
+    private val searchView: SearchView by lazy {
+        binding.titleBar.findViewById(R.id.search_view)
+    }
+    private var menu: Menu? = null
+    private var groups: List<String>? = null
+    private var historyFlowJob: Job? = null
+    private var booksFlowJob: Job? = null
+    private var precisionSearchMenuItem: MenuItem? = null
+    private var showSearchProgressMenuItem: MenuItem? = null
+    private var searchProgressFontSizeMenuItem: MenuItem? = null
+    private var isManualStopSearch = false
+    /** 原始未过滤的搜索结果，用于屏蔽规则变化时重新过滤 */
+    private var rawSearchBooks: List<SearchBook> = emptyList()
+    /** 当前被屏蔽的搜索结果数量（合并去重后） */
+    private var blockedCount = 0
+
+    /** 书籍底部弹窗状态 */
+    private var showBookSheet by mutableStateOf(false)
+    private var selectedBook by mutableStateOf<SearchBook?>(null)
+    private var selectedBookShelfState by mutableStateOf(BookShelfState.NOT_IN_SHELF)
+    /** 书籍弹窗 ComposeView */
+    private var bookSheetComposeView: ComposeView? = null
+
+    override fun onActivityCreated(savedInstanceState: Bundle?) {
+        binding.llInputHelp.setBackgroundColor(backgroundColor)
+        initRecyclerView()
+        initSearchView()
+        initOtherView()
+        initData()
+        receiptIntent(intent)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        receiptIntent(intent)
+    }
+
+    override fun onCompatCreateOptionsMenu(menu: Menu): Boolean {
+        menuInflater.inflate(R.menu.book_search, menu)
+        this.menu = menu
+        precisionSearchMenuItem = menu.findItem(R.id.menu_precision_search)
+        precisionSearchMenuItem?.isChecked = getPrefBoolean(PreferKey.precisionSearch)
+        showSearchProgressMenuItem = menu.findItem(R.id.menu_show_search_progress)
+        showSearchProgressMenuItem?.isChecked = getPrefBoolean(PreferKey.showSearchProgress)
+        searchProgressFontSizeMenuItem = menu.findItem(R.id.menu_search_progress_font_size)
+        searchProgressFontSizeMenuItem?.isVisible = getPrefBoolean(PreferKey.showSearchProgress)
+        return super.onCompatCreateOptionsMenu(menu)
+    }
+
+    override fun onMenuOpened(featureId: Int, menu: Menu): Boolean {
+        menu.transaction {
+            menu.removeGroup(R.id.menu_group_1)
+            menu.removeGroup(R.id.menu_group_2)
+            menu.removeItem(ID_MENU_MORE)
+            var hasChecked = false
+            val searchScopeNames = viewModel.searchScope.displayNames
+            if (viewModel.searchScope.isSource()) {
+                // 多书源模式下为每个书源添加菜单项，超过5个时折叠显示
+                val maxShow = 5
+                searchScopeNames.take(maxShow).forEach { name ->
+                    menu.add(R.id.menu_group_1, Menu.NONE, Menu.NONE, name).apply {
+                        isChecked = true
+                    }
+                }
+                if (searchScopeNames.size > maxShow) {
+                    menu.add(Menu.NONE, ID_MENU_MORE, Menu.NONE,
+                        "...+${searchScopeNames.size - maxShow}").apply {
+                        isEnabled = false
+                    }
+                }
+                hasChecked = true
+            } else {
+                // 分组模式：scope 非空即视为有效选中（支持临时选择未启用分组）
+                if (searchScopeNames.isNotEmpty()) {
+                    hasChecked = true
+                }
+            }
+            val allSourceMenu =
+                menu.add(R.id.menu_group_2, R.id.menu_1, Menu.NONE, getString(R.string.all_source))
+                    .apply {
+                        if (searchScopeNames.isEmpty()) {
+                            isChecked = true
+                            hasChecked = true
+                        }
+                    }
+            // 菜单只显示已启用分组
+            groups?.forEach {
+                if (searchScopeNames.contains(it)) {
+                    menu.add(R.id.menu_group_1, Menu.NONE, Menu.NONE, it).apply {
+                        isChecked = true
+                    }
+                } else {
+                    menu.add(R.id.menu_group_2, Menu.NONE, Menu.NONE, it)
+                }
+            }
+            if (!hasChecked) {
+                viewModel.searchScope.update("")
+                allSourceMenu.isChecked = true
+            }
+            menu.setGroupCheckable(R.id.menu_group_1, true, false)
+            menu.setGroupCheckable(R.id.menu_group_2, true, true)
+        }
+        // 动态联动：字号调节选项仅在搜索进度开关开启时可见
+        searchProgressFontSizeMenuItem?.isVisible =
+            getPrefBoolean(PreferKey.showSearchProgress)
+        return super.onMenuOpened(featureId, menu)
+    }
+
+    override fun onCompatOptionsItemSelected(item: MenuItem): Boolean {
+        when (item.itemId) {
+            R.id.menu_precision_search -> {
+                putPrefBoolean(
+                    PreferKey.precisionSearch,
+                    !getPrefBoolean(PreferKey.precisionSearch)
+                )
+                precisionSearchMenuItem?.isChecked = getPrefBoolean(PreferKey.precisionSearch)
+                searchView.query?.toString()?.trim()?.let {
+                    searchView.setQuery(it, true)
+                }
+            }
+            R.id.menu_show_search_progress -> {
+                putPrefBoolean(
+                    PreferKey.showSearchProgress,
+                    !getPrefBoolean(PreferKey.showSearchProgress)
+                )
+                showSearchProgressMenuItem?.isChecked =
+                    getPrefBoolean(PreferKey.showSearchProgress)
+                // 联动更新字号调节选项可见性
+                searchProgressFontSizeMenuItem?.isVisible =
+                    getPrefBoolean(PreferKey.showSearchProgress)
+            }
+            R.id.menu_search_progress_font_size -> showSearchProgressFontSizeDialog()
+            R.id.menu_block_rule -> showBlockRuleConfig()
+            R.id.menu_search_scope -> alertSearchScope()
+            R.id.menu_source_manage -> startActivity<BookSourceActivity>()
+            R.id.menu_log -> showDialogFragment(AppLogDialog())
+            R.id.menu_1 -> viewModel.searchScope.update("")
+            else -> {
+                if (item.groupId == R.id.menu_group_1) {
+                    viewModel.searchScope.remove(item.title.toString())
+                } else if (item.groupId == R.id.menu_group_2) {
+                    viewModel.searchScope.update(item.title.toString())
+                }
+            }
+        }
+        return super.onCompatOptionsItemSelected(item)
+    }
+
+    private fun initSearchView() {
+        searchView.applyTint(primaryTextColor)
+        searchView.isSubmitButtonEnabled = true
+        searchView.queryHint = getString(R.string.search_book_key)
+        searchView.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
+            override fun onQueryTextSubmit(query: String): Boolean {
+                searchView.clearFocus()
+                query.trim().let { searchKey ->
+                    isManualStopSearch = false
+                    viewModel.saveSearchKey(searchKey)
+                    viewModel.searchKey = ""
+                    viewModel.search(searchKey)
+                }
+                visibleInputHelp(false)
+                return true
+            }
+            override fun onQueryTextChange(newText: String): Boolean {
+                viewModel.stop()
+                binding.fbStartStop.invisible()
+                upHistory(newText.trim())
+                return false
+            }
+        })
+        searchView.setOnQueryTextFocusChangeListener { _, hasFocus ->
+            if (binding.refreshProgressBar.isAutoLoading || (!hasFocus && adapter.isNotEmpty() && searchView.query.isNotBlank())) {
+                visibleInputHelp(false)
+            } else {
+                visibleInputHelp(true)
+            }
+        }
+        visibleInputHelp(true)
+    }
+
+    private fun initRecyclerView() {
+        binding.recyclerView.setEdgeEffectColor(primaryColor)
+        binding.rvBookshelfSearch.setEdgeEffectColor(primaryColor)
+        binding.rvHistoryKey.setEdgeEffectColor(primaryColor)
+        binding.rvBookshelfSearch.layoutManager = FlexboxLayoutManager(this)
+        binding.rvBookshelfSearch.adapter = bookAdapter
+        binding.rvBookshelfSearch.applyNavigationBarMargin()
+        binding.rvHistoryKey.layoutManager = FlexboxLayoutManager(this)
+        binding.rvHistoryKey.adapter = historyKeyAdapter
+        binding.rvHistoryKey.applyNavigationBarMargin()
+        binding.recyclerView.layoutManager = LinearLayoutManager(this)
+        binding.recyclerView.adapter = adapter
+        binding.recyclerView.itemAnimator = null
+        binding.recyclerView.applyNavigationBarPadding()
+        adapter.registerAdapterDataObserver(object : RecyclerView.AdapterDataObserver() {
+            override fun onItemRangeInserted(positionStart: Int, itemCount: Int) {
+                super.onItemRangeInserted(positionStart, itemCount)
+                if (positionStart == 0) {
+                    binding.recyclerView.scrollToPosition(0)
+                }
+            }
+            override fun onItemRangeMoved(fromPosition: Int, toPosition: Int, itemCount: Int) {
+                super.onItemRangeMoved(fromPosition, toPosition, itemCount)
+                if (toPosition == 0) {
+                    binding.recyclerView.scrollToPosition(0)
+                }
+            }
+        })
+        binding.recyclerView.addOnScrollListener(object : RecyclerView.OnScrollListener() {
+            override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
+                super.onScrolled(recyclerView, dx, dy)
+                if (!recyclerView.canScrollVertically(1)) {
+                    val layoutManager = recyclerView.layoutManager as LinearLayoutManager
+                    val lastPosition = layoutManager.findLastCompletelyVisibleItemPosition()
+                    if (lastPosition == RecyclerView.NO_POSITION) {
+                        return
+                    }
+                    val lastView = layoutManager.findViewByPosition(lastPosition)
+                    if (lastView == null) {
+                        scrollToBottom()
+                        return
+                    }
+                    val bottom =
+                        abs(lastView.bottom - recyclerView.height) - recyclerView.paddingBottom
+                    if (bottom <= 1) {
+                        scrollToBottom()
+                    }
+                }
+            }
+        })
+    }
+
+    private fun initOtherView() {
+        binding.fbStartStop.backgroundTintList =
+            Selector.colorBuild()
+                .setDefaultColor(accentColor)
+                .setPressedColor(ColorUtils.darkenColor(accentColor))
+                .create()
+        binding.fbStartStop.setOnClickListener {
+            if (viewModel.isSearchLiveData.value == true) {
+                isManualStopSearch = true
+                viewModel.stop()
+                binding.refreshProgressBar.isAutoLoading = false
+            } else {
+                viewModel.search("")
+            }
+        }
+        binding.fbStartStop.applyNavigationBarMargin(true)
+        binding.tvClearHistory.setOnClickListener { alertClearHistory() }
+        binding.tvSearchProgress.setOnClickListener { showSearchSourceStatusDialog() }
+    }
+
+    private fun initData() {
+        viewModel.searchScope.stateLiveData.observe(this) {
+            if (!binding.llInputHelp.isVisible) {
+                searchView.query?.toString()?.trim()?.let {
+                    searchView.setQuery(it, true)
+                }
+            }
+        }
+        viewModel.isSearchLiveData.observe(this) {
+            if (it) {
+                startSearch()
+            } else {
+                searchFinally()
+            }
+        }
+        viewModel.searchBookLiveData.observe(this) {
+            rawSearchBooks = it
+            val filtered = BlockRuleStore.filterSearchBooks(this, it)
+            blockedCount = it.size - filtered.size
+            adapter.setItems(filtered)
+            // 搜索结果更新后，同步刷新进度条（确保屏蔽数与结果数口径一致）
+            viewModel.sourceRecordsLiveData.value?.let { records ->
+                updateSearchProgressChip(records)
+            }
+        }
+        viewModel.sourceRecordsLiveData.observe(this) { records ->
+            updateSearchProgressChip(records)
+        }
+        lifecycleScope.launch {
+            appDb.bookSourceDao.flowEnabledGroups().collect {
+                groups = it
+            }
+        }
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.RESUMED) {
+                viewModel.resume()
+                try {
+                    awaitCancellation()
+                } finally {
+                    viewModel.pause()
+                }
+            }
+        }
+    }
+
+    /**
+     * 更新搜索进度芯片，合并已屏蔽、慢书源、未返回失败书源信息
+     * 点击芯片打开诊断面板
+     */
+    private fun updateSearchProgressChip(records: List<io.legado.app.model.webBook.SourceSearchRecord>) {
+        if (!getPrefBoolean(PreferKey.showSearchProgress)) {
+            binding.tvSearchProgress.gone()
+            return
+        }
+
+        // 直接从 records 判断搜索是否进行中：还有 PENDING 或 RUNNING 的源就是搜索中
+        val isSearching = records.any {
+            it.status == io.legado.app.model.webBook.SourceSearchRecord.Status.PENDING
+                    || it.status == io.legado.app.model.webBook.SourceSearchRecord.Status.RUNNING
+        }
+
+        val builder = StringBuilder()
+
+        val resultCount = rawSearchBooks.size
+        builder.append("结果${resultCount}")
+
+        val completed = records.count {
+            it.status == io.legado.app.model.webBook.SourceSearchRecord.Status.SUCCESS
+                    || it.status == io.legado.app.model.webBook.SourceSearchRecord.Status.EMPTY
+                    || it.status == io.legado.app.model.webBook.SourceSearchRecord.Status.FAILED
+        }
+        val total = records.size
+        builder.append("~进度${completed}/${total}")
+
+        if (isSearching) {
+            val slowRecords = records.filter {
+                it.status == io.legado.app.model.webBook.SourceSearchRecord.Status.RUNNING
+                        && it.duration > 10000
+            }
+            if (slowRecords.isNotEmpty()) {
+                builder.append("~慢")
+                slowRecords.take(2).forEachIndexed { index, record ->
+                    if (index > 0) builder.append(",")
+                    builder.append(record.sourceName)
+                }
+                if (slowRecords.size > 2) {
+                    builder.append("+${slowRecords.size - 2}")
+                }
+            }
+        } else {
+            val failedRecords = records.filter {
+                it.status == io.legado.app.model.webBook.SourceSearchRecord.Status.FAILED
+            }
+            if (failedRecords.isNotEmpty()) {
+                builder.append("~未返回${failedRecords.size}")
+                failedRecords.take(2).forEachIndexed { index, record ->
+                    if (index > 0) builder.append(",")
+                    builder.append(record.sourceName)
+                }
+                if (failedRecords.size > 2) {
+                    builder.append("+${failedRecords.size - 2}")
+                }
+            }
+        }
+
+        if (blockedCount > 0) {
+            builder.append("~屏蔽${blockedCount}")
+        }
+
+        val text = builder.toString()
+        if (text.isNotEmpty()) {
+            binding.tvSearchProgress.setTextColor(accentColor)
+            binding.tvSearchProgress.text = text
+            // 应用用户自定义的字号
+            val fontSize = getPrefInt(PreferKey.searchProgressFontSize, 10)
+            binding.tvSearchProgress.textSize = fontSize.toFloat()
+            binding.tvSearchProgress.visible()
+        } else {
+            binding.tvSearchProgress.gone()
+        }
+    }
+
+    /**
+     * 处理传入数据
+     */
+    private fun receiptIntent(intent: Intent? = null) {
+        val searchScope = intent?.getStringExtra("searchScope")
+        searchScope?.let {
+            viewModel.searchScope.update(searchScope, postValue = false, save = false)
+        }
+        val key = intent?.getStringExtra("key")
+        if (key.isNullOrBlank()) {
+            searchView.findViewById<TextView>(androidx.appcompat.R.id.search_src_text)
+                .requestFocus()
+        } else {
+            searchView.setQuery(key, true)
+        }
+    }
+
+    /**
+     * 滚动到底部事件
+     */
+    private fun scrollToBottom() {
+        if (isManualStopSearch) {
+            return
+        }
+        if (viewModel.isSearchLiveData.value == false
+            && viewModel.searchKey.isNotEmpty()
+            && viewModel.hasMore
+        ) {
+            viewModel.search("")
+        }
+    }
+
+    /**
+     * 打开关闭输入帮助
+     */
+    private fun visibleInputHelp(visible: Boolean) {
+        if (visible) {
+            upHistory(searchView.query.toString())
+            binding.llInputHelp.visibility = VISIBLE
+        } else {
+            binding.llInputHelp.visibility = GONE
+        }
+    }
+
+    /**
+     * 更新搜索历史
+     */
+    private fun upHistory(key: String? = null) {
+        booksFlowJob?.cancel()
+        booksFlowJob = lifecycleScope.launch {
+            if (key.isNullOrBlank()) {
+                binding.tvBookShow.gone()
+                binding.rvBookshelfSearch.gone()
+            } else {
+                appDb.bookDao.flowSearch(key).conflate().collect {
+                    if (it.isEmpty()) {
+                        binding.tvBookShow.gone()
+                        binding.rvBookshelfSearch.gone()
+                    } else {
+                        binding.tvBookShow.visible()
+                        binding.rvBookshelfSearch.visible()
+                    }
+                    bookAdapter.setItems(it)
+                }
+            }
+        }
+        historyFlowJob?.cancel()
+        historyFlowJob = lifecycleScope.launch {
+            when {
+                key.isNullOrBlank() -> appDb.searchKeywordDao.flowByTime()
+                else -> appDb.searchKeywordDao.flowSearch(key)
+            }.catch {
+                AppLog.put("搜索界面获取搜索历史数据失败\n${it.localizedMessage}", it)
+            }.flowOn(IO).conflate().collect {
+                historyKeyAdapter.setItems(it)
+                if (it.isEmpty()) {
+                    binding.tvClearHistory.invisible()
+                } else {
+                    binding.tvClearHistory.visible()
+                }
+            }
+        }
+    }
+
+    /**
+     * 开始搜索
+     */
+    private fun startSearch() {
+        binding.refreshProgressBar.visible()
+        binding.refreshProgressBar.isAutoLoading = true
+        binding.fbStartStop.setImageResource(R.drawable.ic_stop_black_24dp)
+        binding.fbStartStop.visible()
+    }
+
+    /**
+     * 搜索结束
+     */
+    private fun searchFinally() {
+        binding.refreshProgressBar.isAutoLoading = false
+        binding.refreshProgressBar.gone()
+        if (!isManualStopSearch && viewModel.hasMore) {
+            binding.fbStartStop.setImageResource(R.drawable.ic_play_24dp)
+        } else {
+            binding.fbStartStop.invisible()
+        }
+    }
+
+    override fun observeLiveBus() {
+        viewModel.upAdapterLiveData.observe(this) {
+            adapter.notifyItemRangeChanged(0, adapter.itemCount, bundleOf(it to null))
+        }
+        viewModel.searchFinishLiveData.observe(this) { isEmpty ->
+            if (!isEmpty || viewModel.searchScope.isAll()) return@observe
+            alert("搜索结果为空") {
+                val precisionSearch = appCtx.getPrefBoolean(PreferKey.precisionSearch)
+                val displayScope = viewModel.searchScope.display
+                if (precisionSearch) {
+                    setMessage("${displayScope}分组搜索结果为空，是否关闭精准搜索？")
+                    yesButton {
+                        appCtx.putPrefBoolean(PreferKey.precisionSearch, false)
+                        precisionSearchMenuItem?.isChecked = false
+                        viewModel.searchKey = ""
+                        viewModel.search(searchView.query.toString())
+                    }
+                } else {
+                    setMessage("${displayScope}分组搜索结果为空，是否切换到全部分组？")
+                    yesButton {
+                        viewModel.searchScope.update("")
+                    }
+                }
+                noButton()
+            }
+        }
+    }
+
+    /**
+     * 显示书籍详情
+     */
+    override fun showBookInfo(name: String, author: String, bookUrl: String) {
+        startActivity<BookInfoActivity> {
+            putExtra("name", name)
+            putExtra("author", author)
+            putExtra("bookUrl", bookUrl)
+        }
+    }
+
+    /**
+     * 获取书籍在书架中的状态
+     */
+    override fun getBookShelfState(book: SearchBook): BookShelfState {
+        return viewModel.getBookShelfState(book)
+    }
+
+    /**
+     * 长按书籍事件
+     */
+    override fun onBookLongClick(book: SearchBook) {
+        selectedBook = book
+        selectedBookShelfState = viewModel.getBookShelfState(book)
+        showBookSheet = true
+        updateBookSheetView()
+    }
+
+    /**
+     * 显示书籍详情
+     */
+    override fun showBookInfo(book: Book) {
+        showBookInfo(book.name, book.author, book.bookUrl)
+    }
+
+    /**
+     * 点击历史关键字
+     */
+    override fun searchHistory(key: String) {
+        lifecycleScope.launch {
+            when {
+                searchView.query.toString() == key -> {
+                    searchView.setQuery(key, true)
+                }
+                withContext(IO) { appDb.bookDao.findByName(key).isEmpty() } -> {
+                    searchView.setQuery(key, true)
+                }
+                else -> {
+                    searchView.setQuery(key, false)
+                }
+            }
+        }
+    }
+
+    /**
+     * 删除搜索记录
+     */
+    override fun deleteHistory(searchKeyword: SearchKeyword) {
+        viewModel.deleteHistory(searchKeyword)
+    }
+
+    override fun onSearchScopeOk(searchScope: SearchScope) {
+        viewModel.searchScope.update(searchScope.toString())
+    }
+
+    private fun alertSearchScope() {
+        showDialogFragment<SearchScopeDialog>()
+    }
+
+    private fun alertClearHistory() {
+        alert(R.string.draw) {
+            setMessage(R.string.sure_clear_search_history)
+            yesButton {
+                viewModel.clearHistory()
+            }
+            noButton()
+        }
+    }
+
+    /**
+     * 打开屏蔽规则配置弹窗
+     */
+    private fun showBlockRuleConfig() {
+        val dialog = BlockRuleConfigDialog()
+        dialog.sourceUrl = ""
+        dialog.allBooks = rawSearchBooks
+        dialog.onRulesChanged = {
+            applyBlockRules()
+        }
+        dialog.show(supportFragmentManager, "searchBlockRuleConfig")
+    }
+
+    /**
+     * 屏蔽规则变化后重新过滤搜索结果
+     */
+    private fun applyBlockRules() {
+        BlockRuleStore.invalidateCache()
+        val filtered = BlockRuleStore.filterSearchBooks(this, rawSearchBooks)
+        blockedCount = rawSearchBooks.size - filtered.size
+        adapter.setItems(filtered)
+        // 屏蔽规则变化后，同步刷新进度条显示
+        viewModel.sourceRecordsLiveData.value?.let { records ->
+            updateSearchProgressChip(records)
+        }
+    }
+
+    private fun showSearchSourceStatusDialog() {
+        SearchSourceStatusDialog().show(supportFragmentManager, "searchSourceStatus")
+    }
+
+    /**
+     * 更新书籍底部弹窗的显示状态
+     */
+    private fun updateBookSheetView() {
+        val contentView = binding.root
+        if (showBookSheet) {
+            if (bookSheetComposeView == null) {
+                bookSheetComposeView = ComposeView(this).also { composeView ->
+                    composeView.setContent {
+                        LegadoTheme {
+                            BookBottomSheet(
+                                show = showBookSheet,
+                                book = selectedBook,
+                                shelfState = selectedBookShelfState,
+                                onDismiss = {
+                                    showBookSheet = false
+                                    updateBookSheetView()
+                                },
+                                onAddToShelf = { book ->
+                                    viewModel.addToBookshelf(book)
+                                },
+                                onShowInfo = { book ->
+                                    startActivity<BookInfoActivity> {
+                                        putExtra("name", book.name)
+                                        putExtra("author", book.author)
+                                        putExtra("bookUrl", book.bookUrl)
+                                    }
+                                }
+                            )
+                        }
+                    }
+                    val params = android.widget.FrameLayout.LayoutParams(
+                        android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
+                        android.widget.FrameLayout.LayoutParams.MATCH_PARENT
+                    )
+                    contentView.addView(composeView, params)
+                }
+            }
+        } else {
+            bookSheetComposeView?.let {
+                contentView.removeView(it)
+                bookSheetComposeView = null
+            }
+        }
+    }
+
+    /**
+     * 搜索进度字号调节对话框
+     * 提供 SeekBar 调节字号（8sp ~ 20sp），支持实时预览和恢复默认（10sp）
+     */
+    private fun showSearchProgressFontSizeDialog() {
+        val currentFontSize = getPrefInt(PreferKey.searchProgressFontSize, 10)
+        val minFontSize = 8
+        val maxFontSize = 20
+        val defaultFontSize = 10
+        val seekMax = maxFontSize - minFontSize
+
+        // 构建调节控件布局
+        val container = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(32, 16, 32, 8)
+        }
+
+        val valueLabel = TextView(this).apply {
+            text = getString(R.string.current_value, currentFontSize)
+            textSize = 14f
+            setPadding(0, 0, 0, 12)
+            // 根据对话框背景色明暗自动选择高对比文字色，确保所有主题可读
+            setTextColor(if (ColorUtils.isColorLight(backgroundColor)) Color.BLACK else Color.WHITE)
+        }
+
+        val seekBar = SeekBar(this).apply {
+            max = seekMax
+            progress = currentFontSize - minFontSize
+            applyTint(accentColor)
+            setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(seekBar: SeekBar, progress: Int, fromUser: Boolean) {
+                    val fontSize = progress + minFontSize
+                    valueLabel.text = getString(R.string.current_value, fontSize)
+                    // 实时预览：立即应用到搜索进度 TextView
+                    putPrefInt(PreferKey.searchProgressFontSize, fontSize)
+                    binding.tvSearchProgress.textSize = fontSize.toFloat()
+                }
+                override fun onStartTrackingTouch(seekBar: SeekBar) {}
+                override fun onStopTrackingTouch(seekBar: SeekBar) {}
+            })
+        }
+
+        container.addView(valueLabel)
+        container.addView(seekBar)
+
+        alert(titleResource = R.string.search_progress_font_size) {
+            setCustomView(container)
+            neutralButton(getString(R.string.reset_default)) {
+                putPrefInt(PreferKey.searchProgressFontSize, defaultFontSize)
+                binding.tvSearchProgress.textSize = defaultFontSize.toFloat()
+            }
+            positiveButton(android.R.string.ok)
+        }.applyTint()
+    }
+
+    override fun finish() {
+        if (searchView.hasFocus()) {
+            searchView.clearFocus()
+            return
+        }
+        super.finish()
+    }
+
+    companion object {
+        private const val ID_MENU_MORE = 99999
+
+        fun start(context: Context, key: String?, searchScope: String? = null) {
+            context.startActivity<SearchActivity> {
+                putExtra("key", key)
+                putExtra("searchScope", searchScope)
+            }
+        }
+
+        fun start(context: Context, source: BookSource, key: String? = null) {
+            context.startActivity<SearchActivity> {
+                putExtra("key", key)
+                putExtra("searchScope", SearchScope(source).toString())
+            }
+        }
+
+        fun start(context: Context, source: BookSourcePart, key: String? = null) {
+            context.startActivity<SearchActivity> {
+                putExtra("key", key)
+                putExtra("searchScope", SearchScope(source).toString())
+            }
+        }
+    }
+}

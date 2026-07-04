@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <item
+        android:id="@+id/menu_expand_all"
+        android:title="@string/expand_all"
+        app:showAsAction="never"/>
+
+    <item
+        android:id="@+id/menu_collapse_all"
+        android:title="@string/collapse_all"
+        app:showAsAction="never"/>
+
+    <item
+        android:id="@+id/menu_copy_source_urls"
+        android:title="@string/copy_matched_source_urls"
+        app:showAsAction="never"/>
+
+    <item
+        android:id="@+id/menu_export_sources"
+        android:title="@string/export_matched_sources"
+        app:showAsAction="never"/>
+
+    <item
+        android:id="@+id/menu_close"
+        android:title="@string/close"
+        app:showAsAction="always"/>
+</menu>

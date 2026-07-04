@@ -1,0 +1,413 @@
+package io.legado.app.ui.book.read
+
+import android.annotation.SuppressLint
+import android.app.SearchManager
+import android.content.Context
+import android.content.Intent
+import android.content.pm.ResolveInfo
+import android.net.Uri
+import android.os.Build
+import android.view.Gravity
+import android.view.LayoutInflater
+import android.view.Menu
+import android.view.View
+import android.view.ViewGroup
+import android.widget.PopupWindow
+import androidx.annotation.RequiresApi
+import androidx.appcompat.view.SupportMenuInflater
+import androidx.appcompat.view.menu.MenuBuilder
+import androidx.appcompat.view.menu.MenuItemImpl
+import androidx.core.view.isVisible
+import io.legado.app.R
+import io.legado.app.base.adapter.ItemViewHolder
+import io.legado.app.base.adapter.RecyclerAdapter
+import io.legado.app.constant.AppLog
+import io.legado.app.constant.PreferKey
+import io.legado.app.databinding.ItemTextBinding
+import io.legado.app.databinding.PopupActionMenuBinding
+import io.legado.app.help.config.AppConfig
+import io.legado.app.utils.getPrefBoolean
+import io.legado.app.utils.gone
+import io.legado.app.utils.isAbsUrl
+import io.legado.app.utils.printOnDebug
+import io.legado.app.utils.sendToClip
+import io.legado.app.utils.share
+import io.legado.app.utils.toastOnUi
+import io.legado.app.utils.visible
+
+/**
+ * 文本操作菜单
+ * 
+ * 功能说明：
+ * 1. 长按文本后显示的弹出菜单，提供复制、分享、朗读、书签、替换、搜索等操作
+ * 2. 支持集成系统文本处理菜单（Android 6.0+），如翻译、搜索等第三方应用
+ * 3. 支持展开/收起更多菜单项
+ * 4. 继承自PopupWindow，以弹出窗口形式显示
+ * 
+ * 使用场景：
+ * - 阅读界面长按文本选择后显示
+ * - 提供对选中文本的各种操作功能
+ */
+@SuppressLint("RestrictedApi")
+class TextActionMenu(private val context: Context, private val callBack: CallBack) :
+    PopupWindow(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT) {
+
+    /** 菜单布局绑定对象 */
+    private val binding = PopupActionMenuBinding.inflate(LayoutInflater.from(context))
+    
+    /** 菜单项适配器，用于显示菜单项列表 */
+    private val adapter = Adapter(context).apply {
+        setHasStableIds(true)
+    }
+    
+    /** 所有菜单项列表（包括自定义和系统菜单项） */
+    private var menuItems: List<MenuItemImpl> = emptyList()
+    
+    /** 可见菜单项列表（前7项） */
+    private val visibleMenuItems = arrayListOf<MenuItemImpl>()
+    
+    /** 更多菜单项列表（第7项之后的菜单项） */
+    private val moreMenuItems = arrayListOf<MenuItemImpl>()
+    
+    /** 是否展开文本菜单，从配置中读取 */
+    private val expandTextMenu get() = context.getPrefBoolean(PreferKey.expandTextMenu)
+    
+    /** 隐藏的菜单项ID集合，每次都从配置中读取 */
+    private val hiddenMenuItemIds: Set<Int>
+        get() = TextMenuConfig.getHiddenMenuItemIds(context)
+
+    init {
+        @SuppressLint("InflateParams")
+        contentView = binding.root
+
+        // 设置弹出窗口属性
+        isTouchable = true      // 可触摸
+        isOutsideTouchable = false  // 点击外部不关闭
+        isFocusable = false     // 不获取焦点
+
+        // 设置适配器
+        binding.recyclerView.adapter = adapter
+        binding.recyclerViewMore.adapter = adapter
+        
+        // 菜单消失时的回调
+        setOnDismissListener {
+            // 如果不是展开模式，恢复默认状态
+            if (!context.getPrefBoolean(PreferKey.expandTextMenu)) {
+                binding.ivMenuMore.setImageResource(R.drawable.ic_more_vert)
+                binding.recyclerViewMore.gone()
+                adapter.setItems(visibleMenuItems)
+                binding.recyclerView.visible()
+            }
+        }
+        
+        // 更多按钮点击事件：切换显示更多菜单项
+        binding.ivMenuMore.setOnClickListener {
+            if (binding.recyclerView.isVisible) {
+                // 显示更多菜单项
+                binding.ivMenuMore.setImageResource(R.drawable.ic_arrow_back)
+                adapter.setItems(moreMenuItems)
+                binding.recyclerView.gone()
+                binding.recyclerViewMore.visible()
+            } else {
+                // 返回主菜单项
+                binding.ivMenuMore.setImageResource(R.drawable.ic_more_vert)
+                binding.recyclerViewMore.gone()
+                adapter.setItems(visibleMenuItems)
+                binding.recyclerView.visible()
+            }
+        }
+        
+        // 加载菜单项并设置到适配器
+        reloadMenuItems()
+        
+        // 根据配置决定初始显示状态
+        if (expandTextMenu) {
+            // 展开模式：显示所有菜单项，隐藏更多按钮
+            adapter.setItems(menuItems)
+            binding.ivMenuMore.gone()
+        } else {
+            // 折叠模式：只显示前7项，按需显示更多按钮
+            adapter.setItems(visibleMenuItems)
+            binding.ivMenuMore.isVisible = moreMenuItems.isNotEmpty()
+        }
+    }
+    
+    /**
+     * 重新加载菜单项
+     * 从配置中读取隐藏的菜单项，重新构建菜单列表
+     */
+    private fun reloadMenuItems() {
+        // 构建菜单项
+        val myMenu = MenuBuilder(context)      // 自定义菜单
+        val otherMenu = MenuBuilder(context)    // 系统菜单（Android 6.0+）
+        SupportMenuInflater(context).inflate(R.menu.content_select_action, myMenu)
+        myMenu.visibleItems.forEach { menuItem ->
+            TextMenuConfig.getCustomMenuTitle(context, menuItem.itemId)?.let { customTitle ->
+                menuItem.title = customTitle
+            }
+        }
+        
+        // Android 6.0+ 支持系统文本处理菜单
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            onInitializeMenu(otherMenu)
+        }
+        
+        // 合并自定义菜单和系统菜单
+        val allMenuItems = myMenu.visibleItems + otherMenu.visibleItems
+        
+        // 过滤掉被隐藏的菜单项
+        menuItems = allMenuItems.filter { it.itemId !in hiddenMenuItemIds }
+        
+        // 清空旧数据
+        visibleMenuItems.clear()
+        moreMenuItems.clear()
+        
+        // 将菜单项分为可见项（前7项）和更多项（第7项之后）
+        val visibleCount = TextMenuConfig.getTextMenuVisibleCount(context)
+        if (menuItems.size > visibleCount) {
+            visibleMenuItems.addAll(menuItems.subList(0, visibleCount))
+            moreMenuItems.addAll(menuItems.subList(visibleCount, menuItems.size))
+        } else {
+            // 如果菜单项少于7个，全部显示在主菜单
+            visibleMenuItems.addAll(menuItems)
+        }
+    }
+
+    /**
+     * 更新菜单显示状态
+     * 根据配置决定是展开显示所有菜单项，还是折叠显示前7项
+     */
+    fun upMenu() {
+        // 重新加载菜单项，确保使用最新的配置
+        reloadMenuItems()
+        
+        if (expandTextMenu) {
+            // 展开模式：显示所有菜单项，隐藏更多按钮
+            adapter.setItems(menuItems)
+            binding.ivMenuMore.gone()
+        } else {
+            // 折叠模式：只显示前7项，按需显示更多按钮
+            adapter.setItems(visibleMenuItems)
+            binding.ivMenuMore.isVisible = moreMenuItems.isNotEmpty()
+        }
+    }
+
+    /**
+     * 显示文本操作菜单
+     * 
+     * @param view 父视图
+     * @param windowHeight 窗口高度
+     * @param startX 选择起始点X坐标
+     * @param startTopY 选择起始点顶部Y坐标
+     * @param startBottomY 选择起始点底部Y坐标
+     * @param endX 选择结束点X坐标
+     * @param endBottomY 选择结束点底部Y坐标
+     * 
+     * 显示策略（不依赖 contentView.measure，避免 RecyclerView+FlexboxLayout 测量不准）：
+     * - 上方空间充裕（>300px）→ Gravity.BOTTOM，菜单向上生长，绝不遮挡选中文字
+     * - 接近页眉 → Gravity.TOP at startBottomY，菜单紧贴选中文字起始位置下方
+     */
+    fun show(
+        view: View,
+        windowHeight: Int,
+        startX: Int,
+        startTopY: Int,
+        startBottomY: Int,
+        endX: Int,
+        endBottomY: Int
+    ) {
+        upMenu()
+        if (startTopY > 300) {
+            // 上方空间充裕：菜单底部对齐选中文字顶部，向上生长，绝不遮挡
+            showAtLocation(
+                view,
+                Gravity.BOTTOM or Gravity.START,
+                startX,
+                windowHeight - startTopY
+            )
+        } else {
+            // 接近页眉：菜单紧贴选中文字起始位置下方，向下生长
+            showAtLocation(
+                view,
+                Gravity.TOP or Gravity.START,
+                startX,
+                startBottomY
+            )
+        }
+    }
+
+    /**
+     * 菜单项适配器
+     * 用于在RecyclerView中显示菜单项列表
+     */
+    inner class Adapter(context: Context) :
+        RecyclerAdapter<MenuItemImpl, ItemTextBinding>(context) {
+
+        override fun getItemId(position: Int): Long {
+            return position.toLong()
+        }
+
+        override fun getViewBinding(parent: ViewGroup): ItemTextBinding {
+            return ItemTextBinding.inflate(inflater, parent, false)
+        }
+
+        override fun convert(
+            holder: ItemViewHolder,
+            binding: ItemTextBinding,
+            item: MenuItemImpl,
+            payloads: MutableList<Any>
+        ) {
+            with(binding) {
+                textView.text = item.title
+            }
+        }
+
+        /**
+         * 注册菜单项点击监听器
+         */
+        override fun registerListener(holder: ItemViewHolder, binding: ItemTextBinding) {
+            // 点击事件：执行菜单项操作
+            holder.itemView.setOnClickListener {
+                getItem(holder.layoutPosition)?.let {
+                    // 先尝试回调处理，如果回调返回false则自己处理
+                    if (!callBack.onMenuItemSelected(it.itemId)) {
+                        onMenuItemSelected(it)
+                    }
+                }
+                // 操作完成后通知回调
+                callBack.onMenuActionFinally()
+            }
+            
+            // 长按事件：切换朗读模式（朗读选中内容 vs 从选择位置开始朗读）
+            holder.itemView.setOnLongClickListener {
+                if (AppConfig.contentSelectSpeakMod == 0) {
+                    AppConfig.contentSelectSpeakMod = 1
+                    context.toastOnUi("切换为从选择的地方开始一直朗读")
+                } else {
+                    AppConfig.contentSelectSpeakMod = 0
+                    context.toastOnUi("切换为朗读选择内容")
+                }
+                true
+            }
+        }
+    }
+
+    /**
+     * 处理菜单项点击事件
+     * 处理复制、分享、浏览器搜索等基础操作
+     * 
+     * @param item 被点击的菜单项
+     */
+    private fun onMenuItemSelected(item: MenuItemImpl) {
+        when (item.itemId) {
+            // 复制文本到剪贴板
+            R.id.menu_copy -> context.sendToClip(callBack.selectedText)
+            
+            // 分享文本
+            R.id.menu_share_str -> context.share(callBack.selectedText)
+            
+            // 使用浏览器打开或搜索
+            R.id.menu_browser -> {
+                kotlin.runCatching {
+                    val intent = if (callBack.selectedText.isAbsUrl()) {
+                        // 如果是URL，直接打开
+                        Intent(Intent.ACTION_VIEW).apply {
+                            data = Uri.parse(callBack.selectedText)
+                        }
+                    } else {
+                        // 否则使用搜索引擎搜索
+                        Intent(Intent.ACTION_WEB_SEARCH).apply {
+                            putExtra(SearchManager.QUERY, callBack.selectedText)
+                        }
+                    }
+                    context.startActivity(intent)
+                }.onFailure {
+                    it.printOnDebug()
+                    context.toastOnUi(it.localizedMessage ?: "ERROR")
+                }
+            }
+
+            // 其他菜单项：系统文本处理菜单（Android 6.0+）
+            else -> item.intent?.let {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    kotlin.runCatching {
+                        // 将选中的文本传递给目标应用
+                        it.putExtra(Intent.EXTRA_PROCESS_TEXT, callBack.selectedText)
+                        context.startActivity(it)
+                    }.onFailure { e ->
+                        AppLog.put("执行文本菜单操作出错\n$e", e, true)
+                    }
+                }
+            }
+        }
+    }
+
+    @RequiresApi(Build.VERSION_CODES.M)
+    private fun createProcessTextIntent(): Intent {
+        return Intent()
+            .setAction(Intent.ACTION_PROCESS_TEXT)
+            .setType("text/plain")
+    }
+
+    @RequiresApi(Build.VERSION_CODES.M)
+    private fun getSupportedActivities(): List<ResolveInfo> {
+        return context.packageManager
+            .queryIntentActivities(createProcessTextIntent(), 0)
+    }
+
+    @RequiresApi(Build.VERSION_CODES.M)
+    private fun createProcessTextIntentForResolveInfo(info: ResolveInfo): Intent {
+        return createProcessTextIntent()
+            .putExtra(Intent.EXTRA_PROCESS_TEXT_READONLY, false)
+            .setClassName(info.activityInfo.packageName, info.activityInfo.name)
+    }
+
+    /**长按文字菜单
+     * 首先设置一个足够大的菜单项排序值
+     * 确保你的"PROCESS_TEXT"菜单项显示在
+     * 剪切、复制、粘贴等标准选择菜单项之后。
+     */
+    @RequiresApi(Build.VERSION_CODES.M)
+    private fun onInitializeMenu(menu: Menu) {
+        kotlin.runCatching {
+            val hiddenItems = TextMenuConfig.getHiddenProcessTextItems(context)
+            var menuItemOrder = 100
+            for (resolveInfo in getSupportedActivities()) {
+                val packageName = resolveInfo.activityInfo.packageName
+                val className = resolveInfo.activityInfo.name
+                val itemKey = TextMenuConfig.getProcessTextItemKey(packageName, className)
+                if (itemKey !in hiddenItems) {
+                    val title = TextMenuConfig.getCustomProcessTextTitle(context, itemKey)
+                        ?: resolveInfo.loadLabel(context.packageManager)
+                    menu.add(
+                        Menu.NONE, Menu.NONE,
+                        menuItemOrder++, title
+                    ).intent = createProcessTextIntentForResolveInfo(resolveInfo)
+                }
+            }
+        }.onFailure {
+            context.toastOnUi("获取文字操作菜单出错:${it.localizedMessage}")
+        }
+    }
+
+    /**
+     * 文本操作菜单回调接口
+     */
+    interface CallBack {
+        /** 获取当前选中的文本 */
+        val selectedText: String
+
+        /**
+         * 菜单项被选中时的回调
+         * @param itemId 菜单项ID
+         * @return true表示已处理，false表示未处理需要菜单自己处理
+         */
+        fun onMenuItemSelected(itemId: Int): Boolean
+
+        /**
+         * 菜单操作完成后的回调
+         * 用于执行清理工作，如关闭菜单、取消文本选择等
+         */
+        fun onMenuActionFinally()
+    }
+}

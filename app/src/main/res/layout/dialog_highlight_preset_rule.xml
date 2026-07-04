@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <LinearLayout
+        android:id="@+id/sheet_container"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_gravity="bottom"
+        android:background="@drawable/shape_highlight_rule_sheet"
+        android:clickable="true"
+        android:focusable="true"
+        android:orientation="vertical"
+        android:paddingTop="12dp">
+
+        <View
+            android:id="@+id/drag_handle"
+            android:layout_width="96dp"
+            android:layout_height="8dp"
+            android:layout_gravity="center_horizontal"
+            android:background="@drawable/shape_highlight_rule_handle" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="12dp"
+            android:paddingTop="10dp"
+            android:paddingEnd="12dp"
+            android:paddingBottom="8dp">
+
+            <ImageView
+                android:id="@+id/iv_back"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:background="@drawable/shape_highlight_rule_icon_button"
+                android:contentDescription="@string/back"
+                android:padding="8dp"
+                android:src="@drawable/ic_arrow_back"
+                android:tint="@color/primaryText" />
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/tv_page_title"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/highlight_rule_preset"
+                    android:textColor="@color/primaryText"
+                    android:textSize="24sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/tv_page_subtitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:gravity="center"
+                    android:text="点右侧加号，只把这一条预置规则加入当前列表。"
+                    android:textColor="@color/secondaryText"
+                    android:textSize="13sp" />
+            </LinearLayout>
+
+            <View
+                android:layout_width="36dp"
+                android:layout_height="36dp" />
+        </LinearLayout>
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/recycler_view"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:clipToPadding="false"
+            android:paddingStart="16dp"
+            android:paddingTop="12dp"
+            android:paddingEnd="16dp"
+            android:paddingBottom="28dp" />
+
+    </LinearLayout>
+</FrameLayout>

@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical">
+
+    <androidx.appcompat.widget.Toolbar
+        android:id="@+id/tool_bar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:theme="?attr/actionBarStyle"
+        app:popupTheme="@style/AppTheme.PopupOverlay"
+        app:title="@string/text_menu_config"
+        app:titleTextAppearance="@style/ToolbarTitle" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="16dp"
+        android:text="@string/text_menu_config_desc"
+        android:textColor="?android:attr/textColorSecondary"
+        android:textSize="14sp" />
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/recycler_view"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+        tools:ignore="SpeakableTextPresentCheck" />
+
+    <com.google.android.flexbox.FlexboxLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingLeft="12dp"
+        android:paddingRight="12dp"
+        app:flexWrap="wrap"
+        app:justifyContent="space_between">
+
+        <io.legado.app.ui.widget.text.AccentTextView
+            android:id="@+id/btn_reset"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:padding="12dp"
+            android:text="@string/reset_to_default"
+            tools:ignore="RtlHardcoded" />
+
+        <Space
+            android:layout_width="0dp"
+            android:layout_height="0dp" />
+
+        <io.legado.app.ui.widget.text.AccentTextView
+            android:id="@+id/btn_close"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:padding="12dp"
+            android:text="@string/close"
+            tools:ignore="RtlHardcoded" />
+
+    </com.google.android.flexbox.FlexboxLayout>
+
+</LinearLayout>

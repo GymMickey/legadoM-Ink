@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <item
+        android:id="@+id/menu_url_src"
+        android:title="@string/url_source_code"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/menu_result_src"
+        android:title="@string/result_source_code"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/menu_preview"
+        android:title="@string/preview"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/menu_help"
+        android:title="@string/help"
+        app:showAsAction="never" />
+
+</menu>

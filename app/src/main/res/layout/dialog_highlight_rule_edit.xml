@@ -1,0 +1,664 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <LinearLayout
+        android:id="@+id/sheet_container"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:background="@drawable/shape_highlight_rule_sheet"
+        android:clickable="true"
+        android:focusable="true"
+        android:orientation="vertical">
+
+        <View
+            android:id="@+id/drag_handle"
+            android:layout_width="40dp"
+            android:layout_height="4dp"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginTop="8dp"
+            android:background="@drawable/shape_highlight_rule_handle" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="16dp"
+            android:paddingTop="12dp"
+            android:paddingEnd="16dp"
+            android:paddingBottom="8dp">
+
+            <ImageView
+                android:id="@+id/iv_back"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:background="@drawable/shape_highlight_rule_icon_button"
+                android:padding="8dp"
+                android:src="@drawable/ic_arrow_back"
+                android:tint="@color/primaryText" />
+
+            <TextView
+                android:id="@+id/tv_page_title"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:textColor="@color/primaryText"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tv_save_action"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:background="@drawable/shape_highlight_rule_save"
+                android:gravity="center"
+                android:paddingStart="16dp"
+                android:paddingEnd="16dp"
+                android:text="@string/action_save"
+                android:textColor="@color/white"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <ScrollView
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:fillViewport="true"
+            android:overScrollMode="ifContentScrolls">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="12dp">
+
+                <LinearLayout
+                    android:id="@+id/card_info"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/shape_highlight_rule_card"
+                    android:elevation="3dp"
+                    android:orientation="vertical"
+                    android:padding="14dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="关键词"
+                        android:textColor="@color/primaryText"
+                        android:textSize="13sp" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <EditText
+                            android:id="@+id/et_pattern"
+                            android:layout_width="0dp"
+                            android:layout_height="42dp"
+                            android:layout_weight="1"
+                            android:background="@drawable/shape_highlight_rule_input"
+                            android:hint="输入要高亮的关键词"
+                            android:inputType="text"
+                            android:paddingStart="12dp"
+                            android:paddingEnd="12dp"
+                            android:textSize="14sp" />
+
+                        <TextView
+                            android:id="@+id/tv_regex_toggle"
+                            android:layout_width="wrap_content"
+                            android:layout_height="42dp"
+                            android:layout_marginStart="8dp"
+                            android:background="@drawable/shape_highlight_rule_input"
+                            android:gravity="center"
+                            android:paddingStart="12dp"
+                            android:paddingEnd="12dp"
+                            android:text="正则"
+                            android:textSize="13sp" />
+                    </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/tv_pattern_error"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:textColor="@color/error"
+                        android:textSize="12sp"
+                        android:visibility="gone" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="14dp"
+                        android:text="规则名称"
+                        android:textColor="@color/primaryText"
+                        android:textSize="13sp" />
+
+                    <EditText
+                        android:id="@+id/et_name"
+                        android:layout_width="match_parent"
+                        android:layout_height="42dp"
+                        android:layout_marginTop="8dp"
+                        android:background="@drawable/shape_highlight_rule_input"
+                        android:hint="可选，默认使用关键词"
+                        android:inputType="text"
+                        android:paddingStart="12dp"
+                        android:paddingEnd="12dp"
+                        android:textSize="14sp" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="14dp"
+                        android:text="所属分组"
+                        android:textColor="@color/primaryText"
+                        android:textSize="13sp" />
+
+                    <Spinner
+                        android:id="@+id/sp_group"
+                        android:layout_width="match_parent"
+                        android:layout_height="42dp"
+                        android:layout_marginTop="8dp"
+                        android:background="@drawable/shape_highlight_rule_input"
+                        android:paddingStart="8dp"
+                        android:paddingEnd="8dp" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="14dp"
+                        android:text="作用范围"
+                        android:textColor="@color/primaryText"
+                        android:textSize="13sp" />
+
+                    <Spinner
+                        android:id="@+id/sp_target"
+                        android:layout_width="match_parent"
+                        android:layout_height="42dp"
+                        android:layout_marginTop="8dp"
+                        android:background="@drawable/shape_highlight_rule_input"
+                        android:paddingStart="8dp"
+                        android:paddingEnd="8dp" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="14dp"
+                        android:text="@string/highlight_rule_scope"
+                        android:textColor="@color/primaryText"
+                        android:textSize="13sp" />
+
+                    <EditText
+                        android:id="@+id/et_scope"
+                        android:layout_width="match_parent"
+                        android:layout_height="42dp"
+                        android:layout_marginTop="8dp"
+                        android:background="@drawable/shape_highlight_rule_input"
+                        android:hint="@string/highlight_rule_scope_hint"
+                        android:inputType="text"
+                        android:paddingStart="12dp"
+                        android:paddingEnd="12dp"
+                        android:textSize="14sp" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="14dp"
+                        android:text="@string/highlight_rule_exclude_scope"
+                        android:textColor="@color/primaryText"
+                        android:textSize="13sp" />
+
+                    <EditText
+                        android:id="@+id/et_exclude_scope"
+                        android:layout_width="match_parent"
+                        android:layout_height="42dp"
+                        android:layout_marginTop="8dp"
+                        android:background="@drawable/shape_highlight_rule_input"
+                        android:hint="@string/highlight_rule_exclude_scope_hint"
+                        android:inputType="text"
+                        android:paddingStart="12dp"
+                        android:paddingEnd="12dp"
+                        android:textSize="14sp" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="14dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="启用规则"
+                            android:textColor="@color/primaryText"
+                            android:textSize="13sp" />
+
+                        <androidx.appcompat.widget.SwitchCompat
+                            android:id="@+id/switch_enable"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content" />
+                    </LinearLayout>
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/card_style"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:background="@drawable/shape_highlight_rule_card"
+                    android:elevation="3dp"
+                    android:orientation="vertical"
+                    android:padding="12dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="文字颜色"
+                        android:textColor="@color/primaryText"
+                        android:textSize="13sp" />
+
+                    <LinearLayout
+                        android:id="@+id/ll_text_color"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <View
+                            android:id="@+id/view_text_color_preview"
+                            android:layout_width="26dp"
+                            android:layout_height="26dp"
+                            android:background="@drawable/shape_highlight_rule_color_preview" />
+
+                        <EditText
+                            android:id="@+id/et_text_color"
+                            android:layout_width="0dp"
+                            android:layout_height="42dp"
+                            android:layout_weight="1"
+                            android:layout_marginStart="10dp"
+                            android:background="@drawable/shape_highlight_rule_input"
+                            android:hint="未设置"
+                            android:inputType="textCapCharacters"
+                            android:paddingStart="12dp"
+                            android:paddingEnd="12dp"
+                            android:textSize="14sp" />
+                    </LinearLayout>
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="14dp"
+                        android:text="下划线颜色"
+                        android:textColor="@color/primaryText"
+                        android:textSize="13sp" />
+
+                    <LinearLayout
+                        android:id="@+id/ll_underline_color"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <View
+                            android:id="@+id/view_underline_color_preview"
+                            android:layout_width="26dp"
+                            android:layout_height="26dp"
+                            android:background="@drawable/shape_highlight_rule_color_preview" />
+
+                        <EditText
+                            android:id="@+id/et_underline_color"
+                            android:layout_width="0dp"
+                            android:layout_height="42dp"
+                            android:layout_weight="1"
+                            android:layout_marginStart="10dp"
+                            android:background="@drawable/shape_highlight_rule_input"
+                            android:hint="未设置"
+                            android:inputType="textCapCharacters"
+                            android:paddingStart="12dp"
+                            android:paddingEnd="12dp"
+                            android:textSize="14sp" />
+                    </LinearLayout>
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="14dp"
+                        android:text="下划线样式"
+                        android:textColor="@color/primaryText"
+                        android:textSize="13sp" />
+
+                    <Spinner
+                        android:id="@+id/sp_underline_mode"
+                        android:layout_width="match_parent"
+                        android:layout_height="42dp"
+                        android:layout_marginTop="8dp"
+                        android:background="@drawable/shape_highlight_rule_input"
+                        android:paddingStart="8dp"
+                        android:paddingEnd="8dp" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="14dp"
+                        android:text="下划线宽度"
+                        android:textColor="@color/primaryText"
+                        android:textSize="13sp" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:orientation="vertical">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal">
+
+                            <TextView
+                                android:id="@+id/tv_width_minus"
+                                android:layout_width="38dp"
+                                android:layout_height="38dp"
+                                android:background="@drawable/shape_highlight_rule_input"
+                                android:gravity="center"
+                                android:text="−"
+                                android:textSize="18sp" />
+
+                            <EditText
+                                android:id="@+id/et_underline_width"
+                                android:layout_width="56dp"
+                                android:layout_height="38dp"
+                                android:layout_marginStart="6dp"
+                                android:background="@drawable/shape_highlight_rule_input"
+                                android:gravity="center"
+                                android:hint="1.0"
+                                android:inputType="numberDecimal"
+                                android:textSize="14sp" />
+
+                            <TextView
+                                android:id="@+id/tv_width_plus"
+                                android:layout_width="38dp"
+                                android:layout_height="38dp"
+                                android:layout_marginStart="6dp"
+                                android:background="@drawable/shape_highlight_rule_input"
+                                android:gravity="center"
+                                android:text="+"
+                                android:textSize="18sp" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="6dp"
+                                android:text="dp"
+                                android:textColor="@color/secondaryText"
+                                android:textSize="12sp" />
+                        </LinearLayout>
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="10dp"
+                            android:text="远近"
+                            android:textColor="@color/primaryText"
+                            android:textSize="13sp" />
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal">
+
+                            <TextView
+                                android:id="@+id/tv_offset_minus"
+                                android:layout_width="38dp"
+                                android:layout_height="38dp"
+                                android:background="@drawable/shape_highlight_rule_input"
+                                android:gravity="center"
+                                android:text="－"
+                                android:textSize="18sp" />
+
+                            <EditText
+                                android:id="@+id/et_underline_offset"
+                                android:layout_width="56dp"
+                                android:layout_height="38dp"
+                                android:layout_marginStart="6dp"
+                                android:background="@drawable/shape_highlight_rule_input"
+                                android:gravity="center"
+                                android:hint="2"
+                                android:inputType="numberDecimal"
+                                android:textSize="14sp" />
+
+                            <TextView
+                                android:id="@+id/tv_offset_plus"
+                                android:layout_width="38dp"
+                                android:layout_height="38dp"
+                                android:layout_marginStart="6dp"
+                                android:background="@drawable/shape_highlight_rule_input"
+                                android:gravity="center"
+                                android:text="+"
+                                android:textSize="18sp" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="6dp"
+                                android:text="dp"
+                                android:textColor="@color/secondaryText"
+                                android:textSize="12sp" />
+                        </LinearLayout>
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:id="@+id/ll_svg_path"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:visibility="gone">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="14dp"
+                            android:text="SVG路径"
+                            android:textColor="@color/primaryText"
+                            android:textSize="13sp" />
+
+                        <EditText
+                            android:id="@+id/et_svg_path"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:background="@drawable/shape_highlight_rule_input"
+                            android:gravity="top|start"
+                            android:hint="M0,50 Q25,0 50,50 Q75,100 100,50"
+                            android:inputType="textMultiLine"
+                            android:minHeight="56dp"
+                            android:padding="10dp"
+                            android:textSize="13sp" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp"
+                            android:text="坐标范围：X(0-100)，Y(0-100)，Y=50为基准线"
+                            android:textColor="@color/secondaryText"
+                            android:textSize="11sp" />
+                    </LinearLayout>
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="14dp"
+                        android:text="背景"
+                        android:textColor="@color/primaryText"
+                        android:textSize="13sp" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <View
+                            android:id="@+id/view_bg_image_preview"
+                            android:layout_width="26dp"
+                            android:layout_height="26dp"
+                            android:background="@drawable/shape_highlight_rule_color_preview" />
+
+                        <EditText
+                            android:id="@+id/et_bg_image"
+                            android:layout_width="0dp"
+                            android:layout_height="42dp"
+                            android:layout_weight="1"
+                            android:layout_marginStart="10dp"
+                            android:background="@drawable/shape_highlight_rule_input"
+                            android:hint="assets路径或文件路径或颜色值"
+                            android:inputType="text"
+                            android:paddingStart="12dp"
+                            android:paddingEnd="12dp"
+                            android:textSize="14sp" />
+
+                        <TextView
+                            android:id="@+id/tv_bg_image_pick"
+                            android:layout_width="wrap_content"
+                            android:layout_height="42dp"
+                            android:layout_marginStart="8dp"
+                            android:background="@drawable/shape_highlight_rule_input"
+                            android:gravity="center"
+                            android:paddingStart="12dp"
+                            android:paddingEnd="12dp"
+                            android:text="选择"
+                            android:textSize="13sp" />
+                    </LinearLayout>
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text="支持 assets://bg/山水画.jpg 或本地文件路径或颜色值如 #FF0000，留空则不使用"
+                        android:textColor="@color/secondaryText"
+                        android:textSize="11sp" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="适配方式"
+                            android:textColor="@color/primaryText"
+                            android:textSize="13sp" />
+
+                        <Spinner
+                            android:id="@+id/sp_bg_image_fit"
+                            android:layout_width="wrap_content"
+                            android:layout_height="36dp"
+                            android:layout_marginStart="10dp"
+                            android:background="@drawable/shape_highlight_rule_input"
+                            android:paddingStart="8dp"
+                            android:paddingEnd="8dp" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="图片大小"
+                            android:textColor="@color/primaryText"
+                            android:textSize="13sp" />
+
+                        <SeekBar
+                            android:id="@+id/sb_bg_image_scale"
+                            android:layout_width="0dp"
+                            android:layout_height="36dp"
+                            android:layout_weight="1"
+                            android:layout_marginStart="10dp"
+                            android:max="50"
+                            android:progress="10" />
+
+                        <TextView
+                            android:id="@+id/tv_bg_image_scale"
+                            android:layout_width="40dp"
+                            android:layout_height="wrap_content"
+                            android:gravity="center"
+                            android:text="1.0x"
+                            android:textColor="@color/primaryText"
+                            android:textSize="13sp" />
+                    </LinearLayout>
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/card_preview"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:background="@drawable/shape_highlight_rule_card"
+                    android:elevation="3dp"
+                    android:orientation="vertical"
+                    android:padding="12dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="预览效果"
+                        android:textColor="@color/primaryText"
+                        android:textSize="13sp" />
+
+                    <EditText
+                        android:id="@+id/et_sample_text"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="6dp"
+                        android:background="@drawable/shape_highlight_rule_input"
+                        android:hint="输入预览文本，留空使用默认"
+                        android:inputType="textMultiLine"
+                        android:lineSpacingExtra="2dp"
+                        android:maxLines="4"
+                        android:minHeight="36dp"
+                        android:paddingStart="12dp"
+                        android:paddingTop="8dp"
+                        android:paddingEnd="12dp"
+                        android:paddingBottom="8dp"
+                        android:textSize="13sp" />
+
+                    <TextView
+                        android:id="@+id/tv_preview"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:background="@drawable/shape_highlight_rule_preview"
+                        android:lineSpacingExtra="4dp"
+                        android:minHeight="70dp"
+                        android:padding="12dp"
+                        android:textSize="15sp" />
+                </LinearLayout>
+            </LinearLayout>
+        </ScrollView>
+    </LinearLayout>
+
+</FrameLayout>

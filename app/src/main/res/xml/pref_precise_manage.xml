@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.preference.PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:divider="@color/transparent"
+    app:allowDividerBelow="false">
+
+    <io.legado.app.lib.prefs.Preference
+        android:icon="@drawable/ic_link"
+        android:key="urlRecord"
+        android:summary="@string/record_url_switch"
+        android:title="@string/url_record"
+        app:iconSpaceReserved="false" />
+
+    <io.legado.app.lib.prefs.Preference
+        android:icon="@drawable/ic_storage_black_24dp"
+        android:key="storageManage"
+        android:summary="@string/storage_manage_summary"
+        android:title="@string/storage_manage"
+        app:iconSpaceReserved="false" />
+
+    <io.legado.app.lib.prefs.Preference
+        android:icon="@drawable/ic_download"
+        android:key="downloadManage"
+        android:summary="@string/download_manage_summary"
+        android:title="@string/download_manage"
+        app:iconSpaceReserved="false" />
+
+    <io.legado.app.lib.prefs.Preference
+        android:icon="@drawable/ic_settings"
+        android:key="moduleStatus"
+        android:summary="@string/module_status_summary"
+        android:title="@string/module_status"
+        app:iconSpaceReserved="false" />
+
+    <io.legado.app.lib.prefs.Preference
+        android:icon="@drawable/ic_outline_delete"
+        android:key="sourceRecycleBin"
+        android:summary="@string/source_recycle_bin_summary"
+        android:title="@string/source_recycle_bin"
+        app:iconSpaceReserved="false" />
+
+    <io.legado.app.lib.prefs.Preference
+        android:icon="@drawable/ic_folder_outline"
+        android:key="fileManage"
+        android:summary="@string/file_manage_summary"
+        android:title="@string/file_manage"
+        app:iconSpaceReserved="false" />
+
+</androidx.preference.PreferenceScreen>

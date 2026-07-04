@@ -1,0 +1,23 @@
+package io.legado.app.ui.book.read.page.entities.column
+
+/**
+ * 文字基列
+ */
+interface TextBaseColumn : BaseColumn {
+    override var start: Float
+    override var end: Float
+    val charData: String
+    val textColor: Int?
+    val underlineMode: Int
+    val underlineColor: Int?
+    val underlineWidth: Float
+    val underlineOffset: Float
+    val underlineSvgPath: String
+    val bgColor: Int?
+    val bgImage: String
+    val bgImageFit: Int
+    val bgImageScale: Float
+    var selected: Boolean
+    var isSearchResult: Boolean
+    var isCurrentSearchResult: Boolean
+}

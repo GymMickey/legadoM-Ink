@@ -1,0 +1,1180 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>订阅源调试界面设计</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0d1117;
+            --bg-secondary: #161b22;
+            --bg-tertiary: #21262d;
+            --bg-card: #1c2128;
+            --border-color: #30363d;
+            --border-light: #484f58;
+            --text-primary: #e6edf3;
+            --text-secondary: #8b949e;
+            --text-muted: #6e7681;
+            --accent-blue: #58a6ff;
+            --accent-green: #3fb950;
+            --accent-red: #f85149;
+            --accent-yellow: #d29922;
+            --accent-purple: #a371f7;
+            --accent-cyan: #39c5cf;
+            --accent-orange: #f0883e;
+            --glow-blue: rgba(88, 166, 255, 0.15);
+            --glow-green: rgba(63, 185, 80, 0.15);
+            --glow-red: rgba(248, 81, 73, 0.15);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Noto Sans SC', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        .mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 24px;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 24px;
+            border-radius: 12px;
+        }
+
+        .header-title {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .header-title h1 {
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .source-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 12px;
+            background: var(--glow-blue);
+            border: 1px solid var(--accent-blue);
+            border-radius: 20px;
+            font-size: 13px;
+            color: var(--accent-blue);
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: 1px solid transparent;
+        }
+
+        .btn-primary {
+            background: var(--accent-blue);
+            color: #fff;
+        }
+
+        .btn-primary:hover {
+            background: #79b8ff;
+            box-shadow: 0 0 20px var(--glow-blue);
+        }
+
+        .btn-secondary {
+            background: var(--bg-tertiary);
+            border-color: var(--border-color);
+            color: var(--text-primary);
+        }
+
+        .btn-secondary:hover {
+            background: var(--border-color);
+        }
+
+        .section {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            margin-bottom: 16px;
+            overflow: hidden;
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 20px;
+            background: var(--bg-tertiary);
+            border-bottom: 1px solid var(--border-color);
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .section-header:hover {
+            background: var(--border-color);
+        }
+
+        .section-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 600;
+            font-size: 15px;
+        }
+
+        .section-icon {
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+
+        .section-content {
+            padding: 20px;
+        }
+
+        .stats-row {
+            display: flex;
+            gap: 24px;
+            flex-wrap: wrap;
+        }
+
+        .stat-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .stat-icon {
+            font-size: 18px;
+        }
+
+        .stat-value {
+            font-weight: 600;
+            font-size: 16px;
+        }
+
+        .stat-label {
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        .config-grid {
+            display: grid;
+            gap: 8px;
+        }
+
+        .config-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 12px 16px;
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            border-left: 3px solid transparent;
+            transition: all 0.2s ease;
+        }
+
+        .config-item:hover {
+            background: var(--bg-tertiary);
+        }
+
+        .config-item.success {
+            border-left-color: var(--accent-green);
+        }
+
+        .config-item.failed {
+            border-left-color: var(--accent-red);
+            background: var(--glow-red);
+        }
+
+        .config-item.skipped {
+            border-left-color: var(--text-muted);
+        }
+
+        .config-status {
+            font-size: 16px;
+            width: 20px;
+            flex-shrink: 0;
+        }
+
+        .config-content {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .config-name {
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+
+        .config-value {
+            font-size: 13px;
+            color: var(--text-secondary);
+            word-break: break-all;
+        }
+
+        .config-value.mono {
+            font-size: 12px;
+            background: var(--bg-primary);
+            padding: 4px 8px;
+            border-radius: 4px;
+            display: inline-block;
+        }
+
+        .network-detail {
+            display: grid;
+            gap: 16px;
+        }
+
+        .network-url {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 16px;
+            background: var(--bg-secondary);
+            border-radius: 8px;
+        }
+
+        .method-badge {
+            padding: 4px 10px;
+            background: var(--accent-green);
+            color: #fff;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .url-text {
+            flex: 1;
+            font-size: 14px;
+            color: var(--accent-cyan);
+        }
+
+        .status-badge {
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .status-badge.success {
+            background: var(--glow-green);
+            color: var(--accent-green);
+        }
+
+        .headers-section {
+            margin-top: 16px;
+        }
+
+        .headers-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .headers-list {
+            display: grid;
+            gap: 4px;
+        }
+
+        .header-item {
+            display: flex;
+            gap: 8px;
+            padding: 8px 12px;
+            background: var(--bg-secondary);
+            border-radius: 4px;
+            font-size: 13px;
+        }
+
+        .header-key {
+            color: var(--accent-yellow);
+            flex-shrink: 0;
+        }
+
+        .header-value {
+            color: var(--text-secondary);
+            word-break: break-all;
+        }
+
+        .rule-tree {
+            display: grid;
+            gap: 20px;
+        }
+
+        .rule-group {
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .rule-group-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 16px;
+            background: var(--bg-tertiary);
+            cursor: pointer;
+        }
+
+        .rule-group-header:hover {
+            background: var(--border-color);
+        }
+
+        .rule-tree-icon {
+            font-size: 20px;
+        }
+
+        .rule-name {
+            font-weight: 500;
+        }
+
+        .rule-content {
+            flex: 1;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .rule-group-body {
+            padding: 16px;
+            display: grid;
+            gap: 12px;
+        }
+
+        .rule-step {
+            display: grid;
+            gap: 8px;
+            padding-left: 24px;
+            border-left: 2px solid var(--border-color);
+            margin-left: 12px;
+        }
+
+        .step-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .step-index {
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--bg-tertiary);
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-secondary);
+        }
+
+        .step-type-icon {
+            font-size: 16px;
+        }
+
+        .step-info {
+            flex: 1;
+        }
+
+        .step-name {
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .step-rule {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .step-duration {
+            font-size: 12px;
+            color: var(--text-muted);
+            padding: 2px 8px;
+            background: var(--bg-tertiary);
+            border-radius: 4px;
+        }
+
+        .step-detail {
+            display: grid;
+            gap: 6px;
+            padding: 12px;
+            background: var(--bg-primary);
+            border-radius: 6px;
+            margin-left: 38px;
+        }
+
+        .detail-row {
+            display: flex;
+            gap: 8px;
+            font-size: 13px;
+        }
+
+        .detail-label {
+            flex-shrink: 0;
+            width: 60px;
+        }
+
+        .detail-label.input { color: var(--accent-orange); }
+        .detail-label.output { color: var(--accent-green); }
+        .detail-label.match { color: var(--accent-cyan); }
+
+        .detail-value {
+            color: var(--text-secondary);
+            word-break: break-all;
+        }
+
+        .js-context {
+            margin-top: 8px;
+            padding: 12px;
+            background: var(--bg-tertiary);
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+        }
+
+        .js-context-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--accent-purple);
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .js-vars {
+            display: grid;
+            gap: 4px;
+        }
+
+        .js-var {
+            display: flex;
+            gap: 8px;
+            font-size: 12px;
+            padding: 4px 8px;
+            background: var(--bg-primary);
+            border-radius: 4px;
+        }
+
+        .js-var-name {
+            color: var(--accent-yellow);
+            flex-shrink: 0;
+        }
+
+        .js-var-value {
+            color: var(--text-secondary);
+            word-break: break-all;
+        }
+
+        .extract-results {
+            display: grid;
+            gap: 8px;
+        }
+
+        .extract-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 12px 16px;
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            border-left: 3px solid transparent;
+        }
+
+        .extract-item.success {
+            border-left-color: var(--accent-green);
+        }
+
+        .extract-item.failed {
+            border-left-color: var(--accent-red);
+            background: var(--glow-red);
+        }
+
+        .extract-item.skipped {
+            border-left-color: var(--text-muted);
+        }
+
+        .extract-status {
+            font-size: 16px;
+            width: 20px;
+            flex-shrink: 0;
+        }
+
+        .extract-content {
+            flex: 1;
+        }
+
+        .extract-name {
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+
+        .extract-value {
+            font-size: 13px;
+            color: var(--text-secondary);
+            word-break: break-all;
+        }
+
+        .expand-icon {
+            transition: transform 0.2s ease;
+        }
+
+        .expand-icon.collapsed {
+            transform: rotate(-90deg);
+        }
+
+        .collapsible {
+            max-height: 2000px;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+
+        .collapsible.collapsed {
+            max-height: 0;
+        }
+
+        .timing-row {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .timing-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 13px;
+        }
+
+        .timing-icon {
+            font-size: 16px;
+        }
+
+        .timing-label {
+            color: var(--text-secondary);
+        }
+
+        .timing-value {
+            font-weight: 600;
+            color: var(--accent-cyan);
+        }
+
+        .redirect-chain {
+            margin-top: 16px;
+            padding: 12px;
+            background: var(--bg-secondary);
+            border-radius: 8px;
+        }
+
+        .redirect-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .redirect-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            font-size: 13px;
+        }
+
+        .redirect-code {
+            padding: 2px 8px;
+            background: var(--accent-yellow);
+            color: var(--bg-primary);
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .redirect-arrow {
+            color: var(--text-muted);
+        }
+
+        .redirect-url {
+            color: var(--accent-cyan);
+        }
+
+        .final-url {
+            color: var(--accent-green);
+            font-weight: 500;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .section {
+            animation: fadeIn 0.3s ease forwards;
+        }
+
+        .section:nth-child(1) { animation-delay: 0.05s; }
+        .section:nth-child(2) { animation-delay: 0.1s; }
+        .section:nth-child(3) { animation-delay: 0.15s; }
+        .section:nth-child(4) { animation-delay: 0.2s; }
+        .section:nth-child(5) { animation-delay: 0.25s; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="header-title">
+                <h1>订阅源调试</h1>
+                <span class="source-badge">
+                    <span>📡</span>
+                    <span>示例科技资讯源</span>
+                </span>
+            </div>
+            <div class="header-actions">
+                <button class="btn btn-secondary">
+                    <span>📋</span>
+                    <span>复制日志</span>
+                </button>
+                <button class="btn btn-primary">
+                    <span>🔄</span>
+                    <span>重新调试</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="section" onclick="toggleSection(this)">
+            <div class="section-header">
+                <div class="section-title">
+                    <span class="section-icon">📊</span>
+                    <span>执行概览</span>
+                </div>
+                <span class="expand-icon">▼</span>
+            </div>
+            <div class="section-content collapsible">
+                <div class="stats-row">
+                    <div class="stat-item">
+                        <span class="stat-icon" style="color: var(--accent-green)">✔</span>
+                        <span class="stat-value" style="color: var(--accent-green)">12</span>
+                        <span class="stat-label">成功</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-icon" style="color: var(--accent-red)">✘</span>
+                        <span class="stat-value" style="color: var(--accent-red)">1</span>
+                        <span class="stat-label">失败</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-icon" style="color: var(--text-muted)">⊘</span>
+                        <span class="stat-value">3</span>
+                        <span class="stat-label">跳过</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-icon">⏱️</span>
+                        <span class="stat-value" style="color: var(--accent-cyan)">1.2s</span>
+                        <span class="stat-label">总耗时</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-icon">📦</span>
+                        <span class="stat-value">10</span>
+                        <span class="stat-label">文章数</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section" onclick="toggleSection(this)">
+            <div class="section-header">
+                <div class="section-title">
+                    <span class="section-icon">⚙️</span>
+                    <span>配置检查</span>
+                </div>
+                <span class="expand-icon">▼</span>
+            </div>
+            <div class="section-content collapsible">
+                <div class="config-grid">
+                    <div class="config-item success">
+                        <span class="config-status" style="color: var(--accent-green)">✔</span>
+                        <div class="config-content">
+                            <div class="config-name">源URL</div>
+                            <div class="config-value mono">https://example.com/rss</div>
+                        </div>
+                    </div>
+                    <div class="config-item success">
+                        <span class="config-status" style="color: var(--accent-green)">✔</span>
+                        <div class="config-content">
+                            <div class="config-name">列表规则</div>
+                            <div class="config-value mono">@css:.article-list li</div>
+                        </div>
+                    </div>
+                    <div class="config-item skipped">
+                        <span class="config-status" style="color: var(--text-muted)">⊘</span>
+                        <div class="config-content">
+                            <div class="config-name">下一页规则</div>
+                            <div class="config-value">为空跳过执行</div>
+                        </div>
+                    </div>
+                    <div class="config-item success">
+                        <span class="config-status" style="color: var(--accent-green)">✔</span>
+                        <div class="config-content">
+                            <div class="config-name">标题规则</div>
+                            <div class="config-value mono">@css:.title@text</div>
+                        </div>
+                    </div>
+                    <div class="config-item success">
+                        <span class="config-status" style="color: var(--accent-green)">✔</span>
+                        <div class="config-content">
+                            <div class="config-name">发布日期规则</div>
+                            <div class="config-value mono">@css:.date@text</div>
+                        </div>
+                    </div>
+                    <div class="config-item skipped">
+                        <span class="config-status" style="color: var(--text-muted)">⊘</span>
+                        <div class="config-content">
+                            <div class="config-name">描述规则</div>
+                            <div class="config-value">为空跳过执行，将解析内容页</div>
+                        </div>
+                    </div>
+                    <div class="config-item success">
+                        <span class="config-status" style="color: var(--accent-green)">✔</span>
+                        <div class="config-content">
+                            <div class="config-name">链接规则</div>
+                            <div class="config-value mono">@css:a@href</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section" onclick="toggleSection(this)">
+            <div class="section-header">
+                <div class="section-title">
+                    <span class="section-icon">🌐</span>
+                    <span>网络请求</span>
+                </div>
+                <span class="expand-icon">▼</span>
+            </div>
+            <div class="section-content collapsible">
+                <div class="network-detail">
+                    <div class="network-url">
+                        <span class="method-badge">GET</span>
+                        <span class="url-text mono">https://example.com/rss?page=1</span>
+                        <span class="status-badge success">200 OK</span>
+                    </div>
+
+                    <div class="headers-section">
+                        <div class="headers-title">
+                            <span>📤</span>
+                            <span>请求头</span>
+                        </div>
+                        <div class="headers-list">
+                            <div class="header-item mono">
+                                <span class="header-key">User-Agent:</span>
+                                <span class="header-value">Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36</span>
+                            </div>
+                            <div class="header-item mono">
+                                <span class="header-key">Accept:</span>
+                                <span class="header-value">text/html,application/xhtml+xml,application/xml;q=0.9</span>
+                            </div>
+                            <div class="header-item mono">
+                                <span class="header-key">Cookie:</span>
+                                <span class="header-value">session=abc123; uid=456; token=xyz789</span>
+                            </div>
+                            <div class="header-item mono">
+                                <span class="header-key">Referer:</span>
+                                <span class="header-value">https://example.com/</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="headers-section">
+                        <div class="headers-title">
+                            <span>📥</span>
+                            <span>响应头</span>
+                        </div>
+                        <div class="headers-list">
+                            <div class="header-item mono">
+                                <span class="header-key">Content-Type:</span>
+                                <span class="header-value">text/html; charset=utf-8</span>
+                            </div>
+                            <div class="header-item mono">
+                                <span class="header-key">Content-Length:</span>
+                                <span class="header-value">45678</span>
+                            </div>
+                            <div class="header-item mono">
+                                <span class="header-key">Cache-Control:</span>
+                                <span class="header-value">max-age=3600</span>
+                            </div>
+                            <div class="header-item mono">
+                                <span class="header-key">Date:</span>
+                                <span class="header-value">Mon, 15 Jan 2024 10:30:00 GMT</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="redirect-chain">
+                        <div class="redirect-title">
+                            <span>🔄</span>
+                            <span>重定向链</span>
+                        </div>
+                        <div class="redirect-item">
+                            <span class="redirect-code">301</span>
+                            <span class="redirect-url mono">https://example.com/old</span>
+                            <span class="redirect-arrow">→</span>
+                            <span class="redirect-url mono">/rss</span>
+                        </div>
+                        <div class="redirect-item">
+                            <span style="color: var(--accent-green); font-size: 12px;">最终</span>
+                            <span class="final-url mono">https://example.com/rss</span>
+                        </div>
+                    </div>
+
+                    <div class="timing-row">
+                        <div class="timing-item">
+                            <span class="timing-icon">⏱️</span>
+                            <span class="timing-label">耗时:</span>
+                            <span class="timing-value">320ms</span>
+                        </div>
+                        <div class="timing-item">
+                            <span class="timing-icon">📦</span>
+                            <span class="timing-label">大小:</span>
+                            <span class="timing-value">45.6KB</span>
+                        </div>
+                        <div class="timing-item">
+                            <span class="timing-icon">🔗</span>
+                            <span class="timing-label">连接:</span>
+                            <span class="timing-value">85ms</span>
+                        </div>
+                        <div class="timing-item">
+                            <span class="timing-icon">📄</span>
+                            <span class="timing-label">下载:</span>
+                            <span class="timing-value">235ms</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section" onclick="toggleSection(this)">
+            <div class="section-header">
+                <div class="section-title">
+                    <span class="section-icon">🌳</span>
+                    <span>规则执行路径</span>
+                </div>
+                <span class="expand-icon">▼</span>
+            </div>
+            <div class="section-content collapsible">
+                <div class="rule-tree">
+                    <div class="rule-group">
+                        <div class="rule-group-header" onclick="event.stopPropagation(); toggleRuleGroup(this)">
+                            <span class="rule-tree-icon">🌳</span>
+                            <span class="rule-name">列表规则</span>
+                            <span class="rule-content mono">@css:.article-list li</span>
+                            <span class="expand-icon">▼</span>
+                        </div>
+                        <div class="rule-group-body collapsible">
+                            <div class="rule-step">
+                                <div class="step-header">
+                                    <span class="step-index">1</span>
+                                    <span class="step-type-icon">🎨</span>
+                                    <div class="step-info">
+                                        <div class="step-name">CSS选择器</div>
+                                        <div class="step-rule mono">@css:.article-list</div>
+                                    </div>
+                                    <span class="step-duration">15ms</span>
+                                </div>
+                                <div class="step-detail">
+                                    <div class="detail-row">
+                                        <span class="detail-label input">⬇️ 输入:</span>
+                                        <span class="detail-value mono">&lt;html&gt;...&lt;body&gt;...&lt;/html&gt;</span>
+                                    </div>
+                                    <div class="detail-row">
+                                        <span class="detail-label match">📊 匹配:</span>
+                                        <span class="detail-value">1 个元素</span>
+                                    </div>
+                                    <div class="detail-row">
+                                        <span class="detail-label output">⬆️ 输出:</span>
+                                        <span class="detail-value mono">&lt;ul class="article-list"&gt;...&lt;/ul&gt;</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="rule-step">
+                                <div class="step-header">
+                                    <span class="step-index">2</span>
+                                    <span class="step-type-icon">🎨</span>
+                                    <div class="step-info">
+                                        <div class="step-name">子选择器</div>
+                                        <div class="step-rule mono">li</div>
+                                    </div>
+                                    <span class="step-duration">2ms</span>
+                                </div>
+                                <div class="step-detail">
+                                    <div class="detail-row">
+                                        <span class="detail-label match">📊 匹配:</span>
+                                        <span class="detail-value">10 个元素</span>
+                                    </div>
+                                    <div class="detail-row">
+                                        <span class="detail-label output">⬆️ 输出:</span>
+                                        <span class="detail-value mono">&lt;li class="article"&gt;...&lt;/li&gt; × 10</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="rule-group">
+                        <div class="rule-group-header" onclick="event.stopPropagation(); toggleRuleGroup(this)">
+                            <span class="rule-tree-icon">🌳</span>
+                            <span class="rule-name">标题规则</span>
+                            <span class="rule-content mono">@css:.title@text##{{js}}</span>
+                            <span class="expand-icon">▼</span>
+                        </div>
+                        <div class="rule-group-body collapsible">
+                            <div class="rule-step">
+                                <div class="step-header">
+                                    <span class="step-index">1</span>
+                                    <span class="step-type-icon">🎨</span>
+                                    <div class="step-info">
+                                        <div class="step-name">CSS选择器</div>
+                                        <div class="step-rule mono">@css:.title</div>
+                                    </div>
+                                    <span class="step-duration">3ms</span>
+                                </div>
+                                <div class="step-detail">
+                                    <div class="detail-row">
+                                        <span class="detail-label output">⬆️ 输出:</span>
+                                        <span class="detail-value mono">&lt;h2 class="title"&gt;AI技术突破：新模型性能提升50%&lt;/h2&gt;</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="rule-step">
+                                <div class="step-header">
+                                    <span class="step-index">2</span>
+                                    <span class="step-type-icon">📝</span>
+                                    <div class="step-info">
+                                        <div class="step-name">文本提取</div>
+                                        <div class="step-rule mono">@text</div>
+                                    </div>
+                                    <span class="step-duration">1ms</span>
+                                </div>
+                                <div class="step-detail">
+                                    <div class="detail-row">
+                                        <span class="detail-label output">⬆️ 输出:</span>
+                                        <span class="detail-value mono">"AI技术突破：新模型性能提升50%"</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="rule-step">
+                                <div class="step-header">
+                                    <span class="step-index">3</span>
+                                    <span class="step-type-icon">📜</span>
+                                    <div class="step-info">
+                                        <div class="step-name">JS替换</div>
+                                        <div class="step-rule mono">##{{js}}</div>
+                                    </div>
+                                    <span class="step-duration">5ms</span>
+                                </div>
+                                <div class="step-detail">
+                                    <div class="detail-row">
+                                        <span class="detail-label input">⬇️ 输入:</span>
+                                        <span class="detail-value mono">"AI技术突破：新模型性能提升50%"</span>
+                                    </div>
+                                    <div class="js-context">
+                                        <div class="js-context-title">
+                                            <span>🔧</span>
+                                            <span>JS执行环境</span>
+                                        </div>
+                                        <div class="js-vars">
+                                            <div class="js-var">
+                                                <span class="js-var-name">result:</span>
+                                                <span class="js-var-value mono">"AI技术突破：新模型性能提升50%"</span>
+                                            </div>
+                                            <div class="js-var">
+                                                <span class="js-var-name">src:</span>
+                                                <span class="js-var-value mono">"https://example.com/rss"</span>
+                                            </div>
+                                            <div class="js-var">
+                                                <span class="js-var-name">baseUrl:</span>
+                                                <span class="js-var-value mono">"https://example.com"</span>
+                                            </div>
+                                            <div class="js-var">
+                                                <span class="js-var-name">source.sourceName:</span>
+                                                <span class="js-var-value mono">"示例科技资讯源"</span>
+                                            </div>
+                                            <div class="js-var">
+                                                <span class="js-var-name">variables:</span>
+                                                <span class="js-var-value mono">{}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="detail-row" style="margin-top: 8px;">
+                                        <span class="detail-label output">⬆️ 输出:</span>
+                                        <span class="detail-value mono">"【AI技术突破：新模型性能提升50%】"</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="rule-group">
+                        <div class="rule-group-header" onclick="event.stopPropagation(); toggleRuleGroup(this)">
+                            <span class="rule-tree-icon">🌳</span>
+                            <span class="rule-name">链接规则</span>
+                            <span class="rule-content mono">@css:a@href</span>
+                            <span class="expand-icon">▼</span>
+                        </div>
+                        <div class="rule-group-body collapsible">
+                            <div class="rule-step">
+                                <div class="step-header">
+                                    <span class="step-index">1</span>
+                                    <span class="step-type-icon">🎨</span>
+                                    <div class="step-info">
+                                        <div class="step-name">CSS选择器</div>
+                                        <div class="step-rule mono">@css:a</div>
+                                    </div>
+                                    <span class="step-duration">2ms</span>
+                                </div>
+                                <div class="step-detail">
+                                    <div class="detail-row">
+                                        <span class="detail-label output">⬆️ 输出:</span>
+                                        <span class="detail-value mono">&lt;a href="/article/123"&gt;...&lt;/a&gt;</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="rule-step">
+                                <div class="step-header">
+                                    <span class="step-index">2</span>
+                                    <span class="step-type-icon">🔗</span>
+                                    <div class="step-info">
+                                        <div class="step-name">属性提取</div>
+                                        <div class="step-rule mono">@href</div>
+                                    </div>
+                                    <span class="step-duration">1ms</span>
+                                </div>
+                                <div class="step-detail">
+                                    <div class="detail-row">
+                                        <span class="detail-label output">⬆️ 输出:</span>
+                                        <span class="detail-value mono">"https://example.com/article/123"</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section" onclick="toggleSection(this)">
+            <div class="section-header">
+                <div class="section-title">
+                    <span class="section-icon">📋</span>
+                    <span>提取结果</span>
+                </div>
+                <span class="expand-icon">▼</span>
+            </div>
+            <div class="section-content collapsible">
+                <div class="extract-results">
+                    <div class="extract-item success">
+                        <span class="extract-status" style="color: var(--accent-green)">✔</span>
+                        <div class="extract-content">
+                            <div class="extract-name">标题</div>
+                            <div class="extract-value mono">"【AI技术突破：新模型性能提升50%】"</div>
+                        </div>
+                    </div>
+                    <div class="extract-item success">
+                        <span class="extract-status" style="color: var(--accent-green)">✔</span>
+                        <div class="extract-content">
+                            <div class="extract-name">发布日期</div>
+                            <div class="extract-value mono">"2024-01-15"</div>
+                        </div>
+                    </div>
+                    <div class="extract-item skipped">
+                        <span class="extract-status" style="color: var(--text-muted)">⊘</span>
+                        <div class="extract-content">
+                            <div class="extract-name">描述</div>
+                            <div class="extract-value">规则为空，将解析内容页</div>
+                        </div>
+                    </div>
+                    <div class="extract-item failed">
+                        <span class="extract-status" style="color: var(--accent-red)">✘</span>
+                        <div class="extract-content">
+                            <div class="extract-name">图片</div>
+                            <div class="extract-value">未匹配到元素</div>
+                        </div>
+                    </div>
+                    <div class="extract-item success">
+                        <span class="extract-status" style="color: var(--accent-green)">✔</span>
+                        <div class="extract-content">
+                            <div class="extract-name">链接</div>
+                            <div class="extract-value mono">https://example.com/article/123</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function toggleSection(section) {
+            const content = section.querySelector('.section-content');
+            const icon = section.querySelector('.expand-icon');
+            if (content && icon) {
+                content.classList.toggle('collapsed');
+                icon.classList.toggle('collapsed');
+            }
+        }
+
+        function toggleRuleGroup(header) {
+            const body = header.nextElementSibling;
+            const icon = header.querySelector('.expand-icon');
+            if (body && icon) {
+                body.classList.toggle('collapsed');
+                icon.classList.toggle('collapsed');
+            }
+        }
+    </script>
+</body>
+</html>

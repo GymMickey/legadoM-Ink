@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 发现列表网格模式简化卡片：仅显示封面和书名 -->
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content">
+
+    <!-- 封面：宽度填满，高度由 CoverImageView 内建 3:4 比例自控 -->
+    <io.legado.app.ui.widget.image.CoverImageView
+        android:id="@+id/iv_cover_grid"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:contentDescription="@string/img_cover"
+        android:scaleType="centerCrop"
+        android:src="@drawable/image_cover_default"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <ImageView
+        android:id="@+id/iv_in_bookshelf_grid"
+        android:layout_width="18dp"
+        android:layout_height="18dp"
+        android:layout_marginEnd="4dp"
+        android:layout_marginTop="4dp"
+        android:background="@drawable/bg_shelf_icon"
+        android:backgroundTint="?android:attr/colorBackground"
+        android:padding="2dp"
+        android:scaleType="centerInside"
+        android:src="@drawable/ic_check"
+        android:tint="?android:attr/textColorPrimary"
+        android:visibility="invisible"
+        app:layout_constraintRight_toRightOf="@id/iv_cover_grid"
+        app:layout_constraintTop_toTopOf="@id/iv_cover_grid" />
+
+    <!-- 书名：位于封面下方，最多两行 -->
+    <LinearLayout
+        android:id="@+id/ll_name_container_grid"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/iv_cover_grid">
+
+        <io.legado.app.ui.widget.image.CircleImageView
+            android:id="@+id/iv_in_bookshelf_dot_grid"
+            android:layout_width="6dp"
+            android:layout_height="6dp"
+            android:layout_marginEnd="3dp"
+            android:scaleType="centerCrop"
+            android:src="@color/md_green_600"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/tv_name_grid"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:gravity="center"
+            android:maxLines="2"
+            android:textColor="@color/primaryText"
+            android:textSize="12sp" />
+    </LinearLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

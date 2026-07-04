@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    app:cardBackgroundColor="@android:color/transparent"
+    app:cardCornerRadius="12dp"
+    app:cardElevation="0dp"
+    app:cardUseCompatPadding="false">
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@drawable/card_border_background"
+        android:padding="6dp">
+
+        <ImageView
+            android:id="@+id/iv_cover_waterfall"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:adjustViewBounds="true"
+            android:contentDescription="@string/img_cover"
+            android:scaleType="centerCrop"
+            android:src="@drawable/image_cover_default"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <ImageView
+            android:id="@+id/iv_in_bookshelf_waterfall"
+            android:layout_width="18dp"
+            android:layout_height="18dp"
+            android:layout_marginEnd="4dp"
+            android:layout_marginTop="4dp"
+            android:background="@drawable/bg_shelf_icon"
+            android:backgroundTint="?android:attr/colorBackground"
+            android:padding="2dp"
+            android:scaleType="centerInside"
+            android:src="@drawable/ic_check"
+            android:tint="?android:attr/textColorPrimary"
+            android:visibility="invisible"
+            app:layout_constraintRight_toRightOf="@id/iv_cover_waterfall"
+            app:layout_constraintTop_toTopOf="@id/iv_cover_waterfall" />
+
+        <LinearLayout
+            android:id="@+id/ll_name_container_waterfall"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/iv_cover_waterfall">
+
+            <io.legado.app.ui.widget.image.CircleImageView
+                android:id="@+id/iv_in_bookshelf_dot_waterfall"
+                android:layout_width="6dp"
+                android:layout_height="6dp"
+                android:layout_marginEnd="3dp"
+                android:scaleType="centerCrop"
+                android:src="@color/md_green_600"
+                android:visibility="gone" />
+
+            <TextView
+                android:id="@+id/tv_name_waterfall"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="2"
+                android:textColor="@color/primaryText"
+                android:textSize="13sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/tv_author_waterfall"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="3dp"
+            android:ellipsize="end"
+            android:lines="1"
+            android:textColor="@color/primaryText"
+            android:textSize="11sp"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/ll_name_container_waterfall" />
+
+        <io.legado.app.ui.widget.LabelsBar
+            android:id="@+id/ll_kind_waterfall"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="3dp"
+            android:orientation="horizontal"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/tv_author_waterfall" />
+
+        <TextView
+            android:id="@+id/tv_lasted_waterfall"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="3dp"
+            android:ellipsize="end"
+            android:lines="1"
+            android:textColor="@color/primaryText"
+            android:textSize="11sp"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/ll_kind_waterfall" />
+
+        <TextView
+            android:id="@+id/tv_introduce_waterfall"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="3dp"
+            android:ellipsize="end"
+            android:textColor="@color/primaryText"
+            android:textSize="11sp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/tv_lasted_waterfall" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+</androidx.cardview.widget.CardView>

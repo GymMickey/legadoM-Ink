@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<string-array name="book_type">
+		<item>Texto</item>
+		<item>脕udio</item>
+		<item>Image</item>
+		<item>File</item>
+	</string-array>
+
+	<string-array name="group_style">
+		<item>Aba</item>
+		<item>Pasta</item>
+	</string-array>
+
+	<string-array name="indent">
+		<item>@string/indent_0</item>
+		<item>@string/indent_1</item>
+		<item>@string/indent_2</item>
+		<item>@string/indent_3</item>
+		<item>@string/indent_4</item>
+	</string-array>
+
+	<string-array name="text_suffix">
+		<item>.txt</item>
+		<item>.json</item>
+		<item>.xml</item>
+	</string-array>
+
+	<string-array name="convert_s">
+		<item>@string/jf_convert_o</item>
+		<item>@string/jf_convert_j</item>
+		<item>@string/jf_convert_f</item>
+	</string-array>
+
+	<string-array name="theme_mode">
+		<item>Adaptar do sistema</item>
+		<item>Tema Claro</item>
+		<item>Tema Escuro</item>
+		<item>Tema E-Ink</item>
+	</string-array>
+
+	<string-array name="NavBarColors">
+		<item>Autom.</item>
+		<item>Escuro</item>
+		<item>Claro</item>
+		<item>Adaptado</item>
+	</string-array>
+
+	<string-array name="screen_time_out">
+		<item>Padr茫o</item>
+		<item>1 min</item>
+		<item>5 min</item>
+		<item>10 min</item>
+		<item>Sempre</item>
+	</string-array>
+
+	<string-array name="screen_direction_title">
+		<item>@string/screen_unspecified</item>
+		<item>@string/screen_portrait</item>
+		<item>@string/screen_landscape</item>
+		<item>@string/screen_sensor</item>
+		<item>@string/screen_portrait_reversed</item>
+        <item>@string/screen_landscape_reversed</item>
+	</string-array>
+
+	<string-array name="icon_names">
+		<item>铆conePrincipal</item>
+		<item>铆cone1</item>
+		<item>铆cone2</item>
+		<item>铆cone3</item>
+		<item>铆cone4</item>
+		<item>铆cone5</item>
+		<item>铆cone6</item>
+        <item>铆cone7</item>
+		<item>铆cone8</item>
+	</string-array>
+
+	<string-array name="chinese_mode">
+		<item>Desativado</item>
+		<item>Tradicional a Simplificado</item>
+		<item>Simplificado a Tradicional</item>
+	</string-array>
+
+	<string-array name="system_typefaces">
+		<item>Fonte padr茫o</item>
+		<item>Fonte Serif</item>
+		<item>Fonte Monospaced</item>
+	</string-array>
+
+	<string-array name="read_tip">
+		<item>Em branco</item>
+		<item>Nome do livro</item>
+		<item>T铆tulo</item>
+		<item>Tempo</item>
+		<item>Somente 铆cone da bateria</item>
+		<item>Bateria interna</item>
+		<item>Bateria%</item>
+		<item>P谩ginas</item>
+		<item>Progresso(%)</item>
+		<item>Progresso(xx/yyy)</item>
+		<item>P谩ginas e progresso</item>
+		<item>Tempo e bateria interna</item>
+		<item>Tempo e somente 铆cone da bateria</item>
+		<item>Tempo e Bateria%</item>
+	</string-array>
+
+	<string-array name="text_font_weight">
+		<item>Normal</item>
+		<item>Negrito</item>
+		<item>Claro</item>
+	</string-array>
+
+	<string-array name="language">
+		<item>Autom.</item>
+		<item>Chin锚s simplificado</item>
+		<item>Chin锚s tradicional</item>
+		<item>Ingl锚s</item>
+	</string-array>
+
+	<string-array name="rule_type">
+		<item>FonteLivro</item>
+		<item>FonteRSS</item>
+		<item>SubstituirRegra</item>
+	</string-array>
+
+</resources>

@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <!-- 选择分列：网格图标，标题显示当前列数，位于"第x页"左侧 -->
+    <item
+        android:id="@+id/menu_select_column"
+        android:icon="@drawable/ic_view_quilt"
+        android:title="2"
+        android:visible="false"
+        app:showAsAction="always" />
+
+    <item
+        android:id="@+id/menu_page"
+        android:title="@string/menu_page"
+        app:showAsAction="always" />
+
+    <item
+        android:id="@+id/menu_add_all_to_shelf"
+        android:title="@string/add_all_to_shelf"
+        app:showAsAction="never" />
+
+    <!-- 切换布局：控制网格/列表布局及选择分列控件栏的显示 -->
+    <item
+        android:id="@+id/menu_switch_layout"
+        android:title="@string/switch_layout"
+        app:showAsAction="never" />
+
+    <!-- 屏蔽规则：配置发现界面书籍屏蔽规则 -->
+    <item
+        android:id="@+id/menu_block_rule"
+        android:title="@string/explore_block_rule"
+        app:showAsAction="never" />
+
+    <!-- 显示分类Tab：在发现详情页显示分类Tab导航栏 -->
+    <item
+        android:id="@+id/menu_show_category_tab"
+        android:title="@string/show_category_tab"
+        android:checkable="true"
+        app:showAsAction="never" />
+
+    <!-- 预加载：预加载相邻分类内容 -->
+    <item
+        android:id="@+id/menu_preload"
+        android:title="@string/explore_preload"
+        android:checkable="true"
+        android:visible="false"
+        app:showAsAction="never" />
+
+</menu>

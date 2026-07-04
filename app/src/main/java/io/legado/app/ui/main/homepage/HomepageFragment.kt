@@ -22,11 +22,12 @@ import io.legado.app.help.AppWebDav
 import io.legado.app.ui.book.readRecord.ReadRecordActivity
 import io.legado.app.utils.startActivity
 import io.legado.app.ui.rss.read.ReadRssActivity
+import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import io.legado.app.ui.theme.LegadoThemeWithBackground
-import androidx.lifecycle.lifecycleScope
 import splitties.init.appCtx
 
 /**
@@ -61,6 +62,27 @@ class HomepageFragment() : Fragment(), MainFragmentInterface {
                     LegadoThemeWithBackground(
                         backgroundDrawable = backgroundDrawable
                     ) {
+                        @OptIn(DelicateCoroutinesApi::class)
+                        val onRestoreConfirm: (String) -> Unit = { backupName ->
+                            GlobalScope.launch(Dispatchers.Main) {
+                                try {
+                                    withContext(Dispatchers.IO) {
+                                        AppWebDav.restoreWebDav(backupName)
+                                    }
+                                    android.widget.Toast.makeText(
+                                        appCtx,
+                                        appCtx.getString(R.string.restore_success),
+                                        android.widget.Toast.LENGTH_SHORT
+                                    ).show()
+                                } catch (e: Exception) {
+                                    android.widget.Toast.makeText(
+                                        appCtx,
+                                        appCtx.getString(R.string.restore_fail, e.message),
+                                        android.widget.Toast.LENGTH_SHORT
+                                    ).show()
+                                }
+                            }
+                        }
                         HomepageScreen(
                         onReadRecordClick = {
                             startActivity<ReadRecordActivity>()
@@ -97,26 +119,7 @@ class HomepageFragment() : Fragment(), MainFragmentInterface {
                             }
                             startActivity(intent)
                         },
-                        onRestoreConfirm = { backupName ->
-                            viewLifecycleOwner.lifecycleScope.launch {
-                                try {
-                                    withContext(Dispatchers.IO) {
-                                        AppWebDav.restoreWebDav(backupName)
-                                    }
-                                    android.widget.Toast.makeText(
-                                        appCtx,
-                                        appCtx.getString(R.string.restore_success),
-                                        android.widget.Toast.LENGTH_SHORT
-                                    ).show()
-                                } catch (e: Exception) {
-                                    android.widget.Toast.makeText(
-                                        appCtx,
-                                        appCtx.getString(R.string.restore_fail, e.message),
-                                        android.widget.Toast.LENGTH_SHORT
-                                    ).show()
-                                }
-                            }
-                        },
+                        onRestoreConfirm = onRestoreConfirm,
                     )
                 }
             }

@@ -66,6 +66,7 @@ class HomepageViewModel(application: Application) : BaseViewModel(application) {
             val lastRead = shelfBooks.maxByOrNull { it.durChapterTime }
             val recent = shelfBooks
                 .sortedByDescending { it.durChapterTime }
+                .filter { it.bookUrl != lastRead?.bookUrl }
                 .take(10)
             Pair(lastRead, recent)
         },

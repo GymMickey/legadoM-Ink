@@ -2101,7 +2101,7 @@
     <string name="homepage_webdav_configured">Configured · Data is safe</string>
     <string name="homepage_webdav_last_backup">Configured · Last backup %1$s</string>
     <string name="homepage_webdav_not_configured">Not configured · Tap to set up</string>
-    <string name="homepage_webdav_backup">Backup Now</string>
+    <string name="homepage_webdav_backup">Backup</string>
     <string name="homepage_webdav_backing_up">Backing up…</string>
     <string name="homepage_webdav_restore">Restore</string>
     <string name="homepage_webdav_settings">Settings</string>

@@ -41,8 +41,8 @@ def gitCommits = 0
 def bundledReleaseStoreFile = rootProject.file(".github/workflows/legado.jks")
 def resolvedReleaseStoreFile = project.findProperty("RELEASE_STORE_FILE") ? file(project.property("RELEASE_STORE_FILE")) : (bundledReleaseStoreFile.exists() ? bundledReleaseStoreFile : null)
 def resolvedReleaseKeyAlias = project.findProperty("RELEASE_KEY_ALIAS") ?: "legado"
-def resolvedReleaseStorePassword = project.findProperty("RELEASE_STORE_PASSWORD") ?: "gedoor_legado"
-def resolvedReleaseKeyPassword = project.findProperty("RELEASE_KEY_PASSWORD") ?: "gedoor_legado"
+def resolvedReleaseStorePassword = project.findProperty("RELEASE_STORE_PASSWORD") ?: null
+def resolvedReleaseKeyPassword = project.findProperty("RELEASE_KEY_PASSWORD") ?: null
 try {
     def result = 'git rev-list HEAD --count'.execute().text.trim()
     if (result && result.isNumber()) {

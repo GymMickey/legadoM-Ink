@@ -26,6 +26,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -70,14 +71,18 @@ class HomepageViewModel(application: Application) : BaseViewModel(application) {
                 .sortedByDescending { it.durChapterTime }
                 .filter { it.bookUrl != lastRead?.bookUrl }
                 .take(10)
-            Triple(lastRead, recent, shelfBooks.size)
+            Triple(lastRead, recent, shelfBooks)
         },
         readRecordRepository.getTotalReadTime(),
+        // 获取累计阅读的书籍数（从 ReadRecord 表中统计）
+        flow {
+            emit(appDb.readRecordDao.count)
+        },
         _isBackingUp
-    ) { (lastRead, recent, bookCount), totalTime, backingUp ->
+    ) { (lastRead, recent, _), totalTime, readBooksCount, backingUp ->
         HomepageDashboardState(
             lastReadBook = lastRead,
-            totalBooksRead = bookCount,
+            totalBooksRead = readBooksCount,
             totalReadTimeMs = totalTime,
             recentBooks = recent,
             webDavConfigured = AppWebDav.isOk,

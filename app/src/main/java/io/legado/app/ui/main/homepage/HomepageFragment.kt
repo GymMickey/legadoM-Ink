@@ -69,11 +69,7 @@ class HomepageFragment() : Fragment(), MainFragmentInterface {
                                     withContext(Dispatchers.IO) {
                                         AppWebDav.restoreWebDav(backupName)
                                     }
-                                    android.widget.Toast.makeText(
-                                        appCtx,
-                                        appCtx.getString(R.string.restore_success),
-                                        android.widget.Toast.LENGTH_SHORT
-                                    ).show()
+                                    // 成功 Toast 已由 Restore.restore() 内部弹出，避免重复
                                 } catch (e: Exception) {
                                     android.widget.Toast.makeText(
                                         appCtx,

@@ -1702,7 +1702,7 @@
     <string name="homepage_webdav_configured">已配置 · 資料安全</string>
     <string name="homepage_webdav_last_backup">已配置 · 上次備份 %1$s</string>
     <string name="homepage_webdav_not_configured">未配置 · 點擊設定</string>
-    <string name="homepage_webdav_backup">立即備份</string>
+    <string name="homepage_webdav_backup">備份</string>
     <string name="homepage_webdav_backing_up">備份中…</string>
     <string name="homepage_webdav_restore">恢復</string>
     <string name="homepage_webdav_settings">設定</string>

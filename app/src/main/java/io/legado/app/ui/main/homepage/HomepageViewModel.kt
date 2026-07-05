@@ -68,15 +68,14 @@ class HomepageViewModel(application: Application) : BaseViewModel(application) {
                 .sortedByDescending { it.durChapterTime }
                 .filter { it.bookUrl != lastRead?.bookUrl }
                 .take(10)
-            Pair(lastRead, recent)
+            Triple(lastRead, recent, shelfBooks.size)
         },
         appDb.readRecordDao.getTotalReadTime(),
-        kotlinx.coroutines.flow.flow { emit(withContext(Dispatchers.IO) { appDb.readRecordDao.count }) },
         _isBackingUp
-    ) { (lastRead, recent), totalTime, readCount, backingUp ->
+    ) { (lastRead, recent, bookCount), totalTime, backingUp ->
         HomepageDashboardState(
             lastReadBook = lastRead,
-            totalBooksRead = readCount,
+            totalBooksRead = bookCount,
             totalReadTimeMs = totalTime ?: 0L,
             recentBooks = recent,
             webDavConfigured = AppWebDav.isOk,

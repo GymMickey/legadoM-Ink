@@ -12,6 +12,7 @@ import io.legado.app.R
 import io.legado.app.base.BaseViewModel
 import io.legado.app.data.appDb
 import io.legado.app.data.entities.Book
+import io.legado.app.data.repository.ReadRecordRepository
 import io.legado.app.domain.model.HomepageModuleType
 import io.legado.app.help.AppWebDav
 import io.legado.app.help.book.isNotShelf
@@ -55,6 +56,7 @@ class HomepageViewModel(application: Application) : BaseViewModel(application) {
     val effects = _effects.asSharedFlow()
 
     private val _isBackingUp = MutableStateFlow(false)
+    private val readRecordRepository = ReadRecordRepository(appDb.readRecordDao)
 
     /**
      * 仪表盘状态——组合书架数据与阅读统计。
@@ -70,13 +72,13 @@ class HomepageViewModel(application: Application) : BaseViewModel(application) {
                 .take(10)
             Triple(lastRead, recent, shelfBooks.size)
         },
-        appDb.readRecordDao.getTotalReadTime(),
+        readRecordRepository.getTotalReadTime(),
         _isBackingUp
     ) { (lastRead, recent, bookCount), totalTime, backingUp ->
         HomepageDashboardState(
             lastReadBook = lastRead,
             totalBooksRead = bookCount,
-            totalReadTimeMs = totalTime ?: 0L,
+            totalReadTimeMs = totalTime,
             recentBooks = recent,
             webDavConfigured = AppWebDav.isOk,
             isBackingUp = backingUp,

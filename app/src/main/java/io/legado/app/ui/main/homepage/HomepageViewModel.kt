@@ -66,8 +66,10 @@ class HomepageViewModel(application: Application) : BaseViewModel(application) {
     val dashboardState: StateFlow<HomepageDashboardState> = combine(
         appDb.bookDao.flowAll().mapLatest { books ->
             val shelfBooks = books.filterNot { it.isNotShelf }
-            val lastRead = shelfBooks.maxByOrNull { it.durChapterTime }
-            val recent = shelfBooks
+            // 过滤已实际阅读的书籍（durChapterIndex > 0 表示至少翻过一页）
+            val readBooks = shelfBooks.filter { it.durChapterIndex > 0 }
+            val lastRead = readBooks.maxByOrNull { it.durChapterTime }
+            val recent = readBooks
                 .sortedByDescending { it.durChapterTime }
                 .filter { it.bookUrl != lastRead?.bookUrl }
                 .take(10)

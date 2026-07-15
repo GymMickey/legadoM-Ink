@@ -22,17 +22,14 @@ import io.legado.app.ui.book.readRecord.ReadRecordActivity
 import io.legado.app.ui.book.storage.StorageManageActivity
 import io.legado.app.ui.book.bookmark.AllBookmarkActivity
 import io.legado.app.ui.book.source.manage.BookSourceActivity
-import io.legado.app.ui.book.toc.rule.TxtTocRuleActivity
 import io.legado.app.ui.config.ConfigActivity
 import io.legado.app.ui.config.ConfigTag
 import io.legado.app.ui.debug.DebugToolsActivity
-import io.legado.app.ui.dict.rule.DictRuleActivity
 import io.legado.app.ui.urlRecord.UrlRecordActivity
 import io.legado.app.ui.file.FileManageActivity
 import io.legado.app.ui.download.DownloadManageActivity
 import io.legado.app.ui.main.MainFragmentInterface
 import io.legado.app.help.config.AppConfig
-import io.legado.app.ui.replace.ReplaceRuleActivity
 import io.legado.app.service.WebService
 import io.legado.app.utils.LogUtils
 import io.legado.app.utils.getPrefBoolean
@@ -161,9 +158,9 @@ class MyFragment() : BaseFragment(R.layout.fragment_my_config), MainFragmentInte
         override fun onPreferenceTreeClick(preference: Preference): Boolean {
             when (preference.key) {
                 "bookSourceManage" -> startActivity<BookSourceActivity>()
-                "replaceManage" -> startActivity<ReplaceRuleActivity>()
-                "dictRuleManage" -> startActivity<DictRuleActivity>()
-                "txtTocRuleManage" -> startActivity<TxtTocRuleActivity>()
+                "ruleManage" -> startActivity<ConfigActivity> {
+                    putExtra("configTag", ConfigTag.RULE_MANAGE)
+                }
                 "debugTools" -> startActivity<DebugToolsActivity>()
                 "urlRecord" -> startActivity<UrlRecordActivity>()
                 "bookmark" -> startActivity<AllBookmarkActivity>()
@@ -175,6 +172,9 @@ class MyFragment() : BaseFragment(R.layout.fragment_my_config), MainFragmentInte
                 }
                 "web_dav_setting" -> startActivity<ConfigActivity> {
                     putExtra("configTag", ConfigTag.BACKUP_CONFIG)
+                }
+                "localBookManage" -> startActivity<ConfigActivity> {
+                    putExtra("configTag", ConfigTag.LOCAL_BOOK_CONFIG)
                 }
                 "theme_setting" -> startActivity<ConfigActivity> {
                     putExtra("configTag", ConfigTag.THEME_CONFIG)

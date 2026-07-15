@@ -23,6 +23,8 @@ class ConfigActivity : VMBaseActivity<ActivityConfigBinding, ConfigViewModel>() 
             ConfigTag.BACKUP_CONFIG -> replaceFragment<BackupConfigFragment>(configTag)
             ConfigTag.COVER_CONFIG -> replaceFragment<CoverConfigFragment>(configTag)
             ConfigTag.WELCOME_CONFIG -> replaceFragment<WelcomeConfigFragment>(configTag)
+            ConfigTag.LOCAL_BOOK_CONFIG -> replaceFragment<LocalBookConfigFragment>(configTag)
+            ConfigTag.RULE_MANAGE -> replaceFragment<RuleManageFragment>(configTag)
             else -> finish()
         }
     }

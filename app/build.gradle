@@ -72,6 +72,16 @@ android {
                 enableV3Signing = true
                 enableV4Signing = true
             }
+            debugConfig {
+                storeFile resolvedReleaseStoreFile
+                storePassword resolvedReleaseStorePassword
+                keyAlias resolvedReleaseKeyAlias
+                keyPassword resolvedReleaseKeyPassword
+                enableV1Signing = true
+                enableV2Signing = true
+                enableV3Signing = true
+                enableV4Signing = false
+            }
         }
     }
     defaultConfig {
@@ -127,15 +137,13 @@ android {
             if (resolvedReleaseStoreFile != null) {
                 signingConfig signingConfigs.myConfig
             }
-            applicationIdSuffix '.release'
-
             minifyEnabled true
             shrinkResources = true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro', 'cronet-proguard-rules.pro'
         }
         debug {
             if (resolvedReleaseStoreFile != null) {
-                signingConfig signingConfigs.myConfig
+                signingConfig signingConfigs.debugConfig
             }
             manifestPlaceholders.put("app_name", "@string/app_name_debug")
 

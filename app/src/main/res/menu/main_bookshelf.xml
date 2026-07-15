@@ -23,6 +23,12 @@
         app:showAsAction="never" />
 
     <item
+        android:id="@+id/menu_scan_local"
+        android:icon="@drawable/ic_add"
+        android:title="@string/scan_local"
+        app:showAsAction="never" />
+
+    <item
         android:id="@+id/menu_remote"
         android:icon="@drawable/ic_add"
         android:title="@string/add_remote_book"

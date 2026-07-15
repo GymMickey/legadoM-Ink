@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.preference.PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <io.legado.app.lib.prefs.Preference
+        android:icon="@drawable/ic_cfg_source"
+        android:key="txtTocRuleManage"
+        android:summary="@string/config_txt_toc_rule"
+        android:title="@string/txt_toc_rule"
+        app:iconSpaceReserved="false" />
+
+    <io.legado.app.lib.prefs.Preference
+        android:icon="@drawable/ic_cfg_replace"
+        android:key="replaceManage"
+        android:summary="@string/replace_purify_desc"
+        android:title="@string/replace_purify"
+        app:iconSpaceReserved="false" />
+
+    <io.legado.app.lib.prefs.Preference
+        android:icon="@drawable/ic_translate"
+        android:key="dictRuleManage"
+        android:summary="@string/config_dict_rule"
+        android:title="@string/dict_rule"
+        app:iconSpaceReserved="false" />
+
+</androidx.preference.PreferenceScreen>

@@ -61,7 +61,9 @@ class HttpServer(port: Int) : NanoHTTPD(port) {
         WebService.serve()
         var returnData: ReturnData? = null
         val ct = ContentType(session.headers["content-type"]).tryUTF8()
-        session.headers["content-type"] = ct.contentType
+        if (!ct.contentType.startsWith("multipart/")) {
+            session.headers["content-type"] = ct.contentType
+        }
         var uri = session.uri
 
         val startAt = System.currentTimeMillis()
@@ -212,7 +214,11 @@ class HttpServer(port: Int) : NanoHTTPD(port) {
             LogUtils.d(TAG) {
                 "${session.method.name} - $uri - ${session.queryParameterString} - Error End($startAt)\n$e\n${e.stackTraceStr}"
             }
-            return newFixedLengthResponse(e.message)
+            return newFixedLengthResponse(
+                Response.Status.INTERNAL_ERROR,
+                "application/json",
+                GSON.toJson(ReturnData().setErrorMsg(e.message ?: "unknown error"))
+            )
         }
 
     }

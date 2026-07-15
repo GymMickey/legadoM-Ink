@@ -174,11 +174,6 @@
             android:title="@string/web_service_token_title" />
 
         <io.legado.app.lib.prefs.Preference
-            android:key="defaultBookTreeUri"
-            android:summary="@string/book_tree_uri_s"
-            android:title="@string/book_tree_uri_t" />
-
-        <io.legado.app.lib.prefs.Preference
             android:key="sourceEditMaxLine"
             android:title="@string/source_edit_text_max_line" />
 

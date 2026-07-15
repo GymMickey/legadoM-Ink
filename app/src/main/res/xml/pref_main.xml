@@ -12,24 +12,10 @@
         app:iconSpaceReserved="false" />
 
     <io.legado.app.lib.prefs.Preference
-        android:icon="@drawable/ic_cfg_source"
-        android:key="txtTocRuleManage"
-        android:summary="@string/config_txt_toc_rule"
-        android:title="@string/txt_toc_rule"
-        app:iconSpaceReserved="false" />
-
-    <io.legado.app.lib.prefs.Preference
         android:icon="@drawable/ic_cfg_replace"
-        android:key="replaceManage"
-        android:summary="@string/replace_purify_desc"
-        android:title="@string/replace_purify"
-        app:iconSpaceReserved="false" />
-
-    <io.legado.app.lib.prefs.Preference
-        android:icon="@drawable/ic_translate"
-        android:key="dictRuleManage"
-        android:summary="@string/config_dict_rule"
-        android:title="@string/dict_rule"
+        android:key="ruleManage"
+        android:summary="@string/rule_manage_desc"
+        android:title="@string/rule_manage"
         app:iconSpaceReserved="false" />
 
     <io.legado.app.lib.prefs.Preference
@@ -65,6 +51,13 @@
         app:allowDividerAbove="false"
         app:allowDividerBelow="false"
         app:iconSpaceReserved="false">
+
+        <io.legado.app.lib.prefs.Preference
+            android:icon="@drawable/ic_folder_open"
+            android:key="localBookManage"
+            android:summary="@string/local_book_manage_desc"
+            android:title="@string/local_book_manage"
+            app:iconSpaceReserved="false" />
 
         <io.legado.app.lib.prefs.Preference
             android:icon="@drawable/ic_cfg_backup"

@@ -18,6 +18,7 @@ import io.legado.app.help.http.newCallResponseBody
 import io.legado.app.help.http.okHttpClient
 import io.legado.app.help.http.text
 import io.legado.app.model.analyzeRule.AnalyzeUrl
+import io.legado.app.model.localBook.AutoImportManager
 import io.legado.app.model.webBook.WebBook
 import io.legado.app.utils.FileUtils
 import io.legado.app.utils.GSON
@@ -235,6 +236,23 @@ class BookshelfViewModel(application: Application) : BaseViewModel(application) 
             it.printOnDebug()
         }.onFinally {
             context.toastOnUi(R.string.success)
+        }
+    }
+
+    /**
+     * 扫描默认书籍目录并导入新书。
+     * 跳过已在书架的书籍，仅导入新发现的文件。
+     */
+    fun scanLocalBooks() {
+        execute {
+            AutoImportManager.scanAndImport(context)
+        }.onSuccess { count ->
+            val msg = when {
+                count < 0 -> context.getString(R.string.default_book_tree_uri_not_set)
+                count == 0 -> context.getString(R.string.scan_local_no_new_books)
+                else -> context.getString(R.string.scan_local_done, count)
+            }
+            context.toastOnUi(msg)
         }
     }
 

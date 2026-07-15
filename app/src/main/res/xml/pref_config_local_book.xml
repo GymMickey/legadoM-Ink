@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.preference.PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <io.legado.app.lib.prefs.PreferenceCategory
+        android:title="@string/local_book_dir_category"
+        app:allowDividerAbove="false"
+        app:iconSpaceReserved="false">
+
+        <io.legado.app.lib.prefs.Preference
+            android:key="defaultBookTreeUri"
+            android:summary="@string/book_tree_uri_s"
+            android:title="@string/book_tree_uri_t"
+            app:iconSpaceReserved="false" />
+
+    </io.legado.app.lib.prefs.PreferenceCategory>
+
+    <io.legado.app.lib.prefs.PreferenceCategory
+        android:title="@string/local_book_scan_category"
+        app:allowDividerAbove="false"
+        app:iconSpaceReserved="false">
+
+        <io.legado.app.lib.prefs.SwitchPreference
+            android:defaultValue="true"
+            android:key="autoScanLocalBooks"
+            android:summary="@string/auto_scan_local_summary"
+            android:title="@string/auto_scan_local_title"
+            app:iconSpaceReserved="false" />
+
+        <io.legado.app.lib.prefs.SwitchPreference
+            android:defaultValue="true"
+            android:key="scanSubDirs"
+            android:summary="@string/scan_sub_dirs_summary"
+            android:title="@string/scan_sub_dirs_title"
+            app:iconSpaceReserved="false" />
+
+        <io.legado.app.lib.prefs.Preference
+            android:key="scanNow"
+            android:title="@string/scan_now"
+            app:iconSpaceReserved="false" />
+
+        <io.legado.app.lib.prefs.Preference
+            android:key="lastScanTime"
+            android:title="@string/last_scan_time"
+            android:selectable="false"
+            app:iconSpaceReserved="false" />
+
+    </io.legado.app.lib.prefs.PreferenceCategory>
+
+    <io.legado.app.lib.prefs.PreferenceCategory
+        android:title="@string/local_book_stats_category"
+        app:allowDividerAbove="false"
+        app:iconSpaceReserved="false">
+
+        <io.legado.app.lib.prefs.Preference
+            android:key="localBookCount"
+            android:title="@string/local_book_count_title"
+            android:selectable="false"
+            app:iconSpaceReserved="false" />
+
+    </io.legado.app.lib.prefs.PreferenceCategory>
+
+    <io.legado.app.lib.prefs.PreferenceCategory
+        android:title="@string/wifi_transfer"
+        app:allowDividerAbove="false"
+        app:iconSpaceReserved="false">
+
+        <io.legado.app.lib.prefs.Preference
+            android:key="startWifiTransfer"
+            android:title="@string/start_wifi_transfer"
+            android:summary="@string/start_wifi_transfer_summary"
+            app:iconSpaceReserved="false" />
+
+    </io.legado.app.lib.prefs.PreferenceCategory>
+
+</androidx.preference.PreferenceScreen>

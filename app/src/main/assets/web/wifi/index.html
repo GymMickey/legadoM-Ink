@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>WiFi 传书</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+    --bg: #ffffff;
+    --text: #1a1a1a;
+    --text-secondary: #666666;
+    --border: #cccccc;
+    --border-hover: #555555;
+    --success: #2d7d2d;
+    --error: #c0392b;
+    --progress: #e8e8e8;
+    --card-bg: #fafafa;
+    --radius: 8px;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 16px;
+    -webkit-text-size-adjust: 100%;
+}
+
+.container {
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+h1 {
+    font-size: 1.4rem;
+    font-weight: 600;
+    text-align: center;
+    margin-bottom: 20px;
+    letter-spacing: 0.02em;
+}
+
+/* Token input */
+.token-bar {
+    display: none;
+    margin-bottom: 16px;
+}
+.token-bar.show { display: flex; }
+.token-bar input {
+    flex: 1;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    font-size: 0.9rem;
+    background: var(--bg);
+    color: var(--text);
+    outline: none;
+}
+.token-bar input:focus { border-color: var(--border-hover); }
+.token-bar button {
+    margin-left: 8px;
+    padding: 10px 16px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--card-bg);
+    color: var(--text);
+    font-size: 0.9rem;
+    cursor: pointer;
+    white-space: nowrap;
+}
+.token-bar button:hover { border-color: var(--border-hover); }
+
+/* Drop zone */
+.drop-zone {
+    border: 2px dashed var(--border);
+    border-radius: var(--radius);
+    padding: 48px 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    margin-bottom: 20px;
+}
+.drop-zone:hover,
+.drop-zone.drag-over {
+    border-color: var(--border-hover);
+    background: var(--card-bg);
+}
+.drop-zone .icon {
+    font-size: 2.4rem;
+    margin-bottom: 12px;
+    line-height: 1;
+}
+.drop-zone .label {
+    font-size: 1rem;
+    color: var(--text);
+    margin-bottom: 4px;
+}
+.drop-zone .hint {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+/* File list */
+.file-list { margin-bottom: 20px; }
+.file-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    margin-bottom: 8px;
+    background: var(--card-bg);
+}
+.file-item .info { flex: 1; min-width: 0; }
+.file-item .name {
+    font-size: 0.9rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.file-item .size {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    margin-top: 2px;
+}
+.file-item .status {
+    font-size: 0.85rem;
+    margin-left: 12px;
+    flex-shrink: 0;
+    min-width: 60px;
+    text-align: right;
+}
+.file-item .remove {
+    margin-left: 8px;
+    font-size: 1.1rem;
+    cursor: pointer;
+    color: var(--text-secondary);
+    background: none;
+    border: none;
+    padding: 0 4px;
+    line-height: 1;
+    flex-shrink: 0;
+}
+.file-item .remove:hover { color: var(--error); }
+
+.status-pending  { color: var(--text-secondary); }
+.status-uploading { color: var(--text); }
+.status-ok        { color: var(--success); }
+.status-fail      { color: var(--error); }
+
+/* Upload button */
+.upload-btn {
+    display: block;
+    width: 100%;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--card-bg);
+    color: var(--text);
+    font-size: 1rem;
+    font-weight: 500;
+    cursor: pointer;
+    margin-bottom: 16px;
+    transition: border-color 0.2s, background 0.2s;
+}
+.upload-btn:hover { border-color: var(--border-hover); background: var(--bg); }
+.upload-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Summary */
+.summary {
+    display: none;
+    text-align: center;
+    font-size: 0.95rem;
+    padding: 14px;
+    border-radius: var(--radius);
+    margin-bottom: 16px;
+}
+.summary.show { display: block; }
+.summary.all-ok {
+    background: #edf7ed;
+    border: 1px solid var(--success);
+    color: var(--success);
+}
+.summary.has-err {
+    background: #fdf2f2;
+    border: 1px solid var(--error);
+    color: var(--error);
+}
+
+/* Help text */
+.help {
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    text-align: center;
+    margin-top: 24px;
+    line-height: 1.6;
+}
+
+/* Hidden file input */
+#fileInput { display: none; }
+
+@media (max-width: 400px) {
+    body { padding: 12px; }
+    h1 { font-size: 1.2rem; }
+    .drop-zone { padding: 36px 16px; }
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+    <h1>WiFi 传书</h1>
+
+    <div class="token-bar" id="tokenBar">
+        <input type="password" id="tokenInput" placeholder="WebService Token" autocomplete="off">
+        <button id="tokenSaveBtn">保存</button>
+    </div>
+
+    <div class="drop-zone" id="dropZone">
+        <div class="icon">&#x1F4E5;</div>
+        <div class="label">拖拽文件到此处，或点击选择</div>
+        <div class="hint">支持 TXT / EPUB / UMD / PDF / MOBI / AZW3 / ZIP / RAR / 7Z</div>
+    </div>
+    <input type="file" id="fileInput" multiple accept=".txt,.epub,.umd,.pdf,.mobi,.azw3,.azw,.zip,.rar,.7z">
+
+    <div class="file-list" id="fileList"></div>
+
+    <button class="upload-btn" id="uploadBtn" disabled>上传</button>
+
+    <div class="summary" id="summary"></div>
+
+    <div class="help">
+        在阅读 App 中开启 Web 服务后，使用手机或电脑浏览器访问此页面传书<br>
+        书籍将自动导入书架
+    </div>
+</div>
+
+<script>
+(function () {
+    const DZ = document.getElementById('dropZone');
+    const FI = document.getElementById('fileInput');
+    const FL = document.getElementById('fileList');
+    const UB = document.getElementById('uploadBtn');
+    const SM = document.getElementById('summary');
+    const TB = document.getElementById('tokenBar');
+    const TI = document.getElementById('tokenInput');
+    const TSB = document.getElementById('tokenSaveBtn');
+
+    const files = [];
+
+    // --- Token management ---
+    const TOKEN_KEY = 'legado_webservice_token';
+    let token = localStorage.getItem(TOKEN_KEY) || '';
+    if (token) TI.value = token;
+
+    function setToken(t) {
+        token = t;
+        if (t) { localStorage.setItem(TOKEN_KEY, t); } else { localStorage.removeItem(TOKEN_KEY); }
+    }
+
+    TSB.onclick = function () {
+        setToken(TI.value.trim());
+        TB.style.display = 'none';
+    };
+
+    function showTokenBar() {
+        TB.classList.add('show');
+    }
+
+    // --- File selection ---
+    DZ.onclick = function () { FI.click(); };
+    FI.onchange = function () { addFiles(FI.files); FI.value = ''; };
+
+    DZ.ondragover = function (e) { e.preventDefault(); DZ.classList.add('drag-over'); };
+    DZ.ondragleave = function () { DZ.classList.remove('drag-over'); };
+    DZ.ondrop = function (e) {
+        e.preventDefault();
+        DZ.classList.remove('drag-over');
+        addFiles(e.dataTransfer.files);
+    };
+
+    function addFiles(list) {
+        for (const f of list) {
+            if (!files.find(x => x.name === f.name && x.size === f.size)) {
+                files.push(f);
+            }
+        }
+        render();
+    }
+
+    function removeFile(idx) {
+        files.splice(idx, 1);
+        render();
+    }
+
+    function fmtSize(bytes) {
+        if (bytes < 1024) return bytes + ' B';
+        if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+        return (bytes / 1048576).toFixed(1) + ' MB';
+    }
+
+    function render() {
+        FL.innerHTML = files.map(function (f, i) {
+            return '<div class="file-item">'
+                + '<div class="info"><div class="name">' + esc(f.name) + '</div>'
+                + '<div class="size">' + fmtSize(f.size) + '</div></div>'
+                + '<div class="status status-pending" id="st_' + i + '">待上传</div>'
+                + '<button class="remove" onclick="removeFile(' + i + ')">&times;</button>'
+                + '</div>';
+        }).join('');
+        UB.disabled = files.length === 0;
+        SM.classList.remove('show');
+    }
+
+    function esc(s) {
+        return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    // --- Upload ---
+    UB.onclick = function () { doUpload(); };
+
+    async function doUpload() {
+        UB.disabled = true;
+        SM.classList.remove('show');
+        var ok = 0, fail = 0;
+
+        for (var i = 0; i < files.length; i++) {
+            var st = document.getElementById('st_' + i);
+            st.textContent = '上传中';
+            st.className = 'status status-uploading';
+
+            try {
+                var fd = new FormData();
+                fd.append('fileName', encodeURIComponent(files[i].name));
+                fd.append('fileData', files[i]);
+
+                var headers = {};
+                if (token) headers['Authorization'] = 'Bearer ' + token;
+
+                var resp = await fetch('/addLocalBook', {
+                    method: 'POST',
+                    body: fd,
+                    headers: headers
+                });
+
+                if (resp.status === 401) {
+                    showTokenBar();
+                    st.textContent = '需Token';
+                    st.className = 'status status-fail';
+                    fail++;
+                    continue;
+                }
+
+                var data = await resp.json();
+                if (data.isSuccess) {
+                    st.textContent = '已完成';
+                    st.className = 'status status-ok';
+                    ok++;
+                } else {
+                    st.textContent = '失败';
+                    st.className = 'status status-fail';
+                    fail++;
+                }
+            } catch (e) {
+                st.textContent = '网络错误';
+                st.className = 'status status-fail';
+                fail++;
+            }
+        }
+
+        // Summary
+        var msg = '成功 ' + ok + ' 本';
+        if (fail > 0) msg += '，失败 ' + fail + ' 本';
+        SM.textContent = msg;
+        SM.className = 'summary show ' + (fail === 0 ? 'all-ok' : 'has-err');
+        UB.disabled = false;
+    }
+
+    // --- Global removeFile for onclick ---
+    window.removeFile = removeFile;
+})();
+</script>
+</body>
+</html>

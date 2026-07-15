@@ -21,7 +21,11 @@ import io.legado.app.R
 import io.legado.app.help.AppWebDav
 import io.legado.app.ui.book.readRecord.ReadRecordActivity
 import io.legado.app.utils.startActivity
+import io.legado.app.help.config.AppConfig
+import io.legado.app.lib.dialogs.alert
+import io.legado.app.service.WebService
 import io.legado.app.ui.rss.read.ReadRssActivity
+import io.legado.app.utils.QRCodeUtils
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
@@ -53,6 +57,17 @@ class HomepageFragment() : Fragment(), MainFragmentInterface {
         savedInstanceState: Bundle?
     ): View {
         val root = inflater.inflate(R.layout.fragment_homepage, container, false)
+        val titleBar = root.findViewById<io.legado.app.ui.widget.TitleBar>(R.id.title_bar)
+        titleBar.toolbar.inflateMenu(R.menu.main_homepage)
+        titleBar.toolbar.setOnMenuItemClickListener { item ->
+            when (item.itemId) {
+                R.id.menu_wifi_transfer -> {
+                    showWifiTransferDialog()
+                    true
+                }
+                else -> false
+            }
+        }
         val backgroundDrawable = loadBackgroundDrawable()
         val composeContainer = root.findViewById<ViewGroup>(R.id.compose_container)
         composeContainer.addView(
@@ -129,6 +144,54 @@ class HomepageFragment() : Fragment(), MainFragmentInterface {
      * 从 ThemeConfig 获取当前主题的背景图片 Drawable，
      * 如果未设置背景图则返回 null，此时使用纯色背景。
      */
+    private fun showWifiTransferDialog() {
+        val ip = getLocalIpAddress()
+        val port = AppConfig.webPort
+        val url = if (ip != null) "http://$ip:$port/wifi/" else null
+
+        if (!WebService.isRun) {
+            WebService.start(requireContext())
+        }
+
+        requireContext().alert(titleResource = R.string.wifi_transfer_title) {
+            if (url != null) {
+                val imageView = android.widget.ImageView(requireContext()).apply {
+                    val size = (resources.displayMetrics.density * 200).toInt()
+                    val bitmap = QRCodeUtils.createQRCode(url, size)
+                    setImageBitmap(bitmap)
+                    val padding = (resources.displayMetrics.density * 16).toInt()
+                    setPadding(padding, padding, padding, 0)
+                    adjustViewBounds = true
+                }
+                val layout = android.widget.LinearLayout(requireContext()).apply {
+                    orientation = android.widget.LinearLayout.VERTICAL
+                    gravity = android.view.Gravity.CENTER_HORIZONTAL
+                    addView(imageView)
+                    val textView = android.widget.TextView(requireContext()).apply {
+                        text = url
+                        textAlignment = android.view.View.TEXT_ALIGNMENT_CENTER
+                        val tp = (resources.displayMetrics.density * 8).toInt()
+                        setPadding(0, tp, 0, 0)
+                    }
+                    addView(textView)
+                }
+                customView { layout }
+            } else {
+                setMessage(getString(R.string.wifi_transfer_msg, "Port: $port (IP unknown)"))
+            }
+            okButton { }
+        }
+    }
+
+    private fun getLocalIpAddress(): String? {
+        return try {
+            java.net.NetworkInterface.getNetworkInterfaces()?.asSequence()
+                ?.flatMap { it.inetAddresses.asSequence() }
+                ?.find { !it.isLoopbackAddress && it is java.net.Inet4Address }
+                ?.hostAddress
+        } catch (_: Exception) { null }
+    }
+
     private fun loadBackgroundDrawable(): Drawable? {
         return try {
             val activity = requireActivity()

@@ -69,6 +69,13 @@
     <string name="view">View</string>
     <string name="book_library">Library</string>
     <string name="book_local">Import books</string>
+    <string name="scan_local">Scan local books</string>
+    <string name="default_book_tree_uri_not_set">Please set default book directory in Settings first</string>
+    <string name="scan_local_no_new_books">No new books found</string>
+    <string name="scan_local_done">Imported %d books</string>
+    <string name="wifi_transfer">WiFi Transfer</string>
+    <string name="wifi_transfer_title">WiFi Transfer</string>
+    <string name="wifi_transfer_msg">Open this URL in a browser on another device:\n\n%1$s\n\nMake sure both devices are on the same WiFi network.</string>
     <string name="book_source">Book sources</string>
     <string name="book_source_manage">Sources management</string>
     <string name="book_source_manage_desc">Create/Import/Edit/Manage Book sources</string>
@@ -1135,6 +1142,10 @@
     <string name="expand_text_menu">Expand text selection menu</string>
     <string name="book_tree_uri_t">Book Save Location</string>
     <string name="book_tree_uri_s">Save location for books opened from other apps</string>
+    <string name="local_book_manage">Local Book Management</string>
+    <string name="local_book_manage_desc">Default book directory, scan import</string>
+    <string name="rule_manage">Rule Management</string>
+    <string name="rule_manage_desc">TXT TOC rules, replace rules, dict rules</string>
     <string name="select_book_folder">Select the folder where the books are saved</string>
     <string name="user_agent">User agent</string>
     <string name="bg_alpha">Background alpha</string>
@@ -2120,4 +2131,20 @@
     <string name="module_type_waterfall">Waterfall</string>
     <string name="module_type_infinite_grid">Infinite Grid</string>
     <string name="module_type_button_group">Button Group</string>
+
+    <!-- Local Book Management -->
+    <string name="local_book_dir_category">Directory</string>
+    <string name="local_book_scan_category">Scan</string>
+    <string name="local_book_stats_category">Statistics</string>
+    <string name="auto_scan_local_title">Auto scan new books</string>
+    <string name="auto_scan_local_summary">Scan default directory on startup</string>
+    <string name="scan_sub_dirs_title">Scan subdirectories</string>
+    <string name="scan_sub_dirs_summary">Recursively scan all subfolders</string>
+    <string name="scan_now">Scan now</string>
+    <string name="last_scan_time">Last scan</string>
+    <string name="never">Never</string>
+    <string name="local_book_count_title">Imported</string>
+    <string name="local_book_count_summary">%d books</string>
+    <string name="start_wifi_transfer">Start WiFi Transfer</string>
+    <string name="start_wifi_transfer_summary">Show QR code for other devices</string>
 </resources>

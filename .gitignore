@@ -7,6 +7,7 @@
 .gradle/
 /local.properties
 /legado.jks
+/gradle.properties
 
 # Kotlin 缓存
 .kotlin/

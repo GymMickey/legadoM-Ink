@@ -6,4 +6,5 @@
 - [Data Source Mapping](data-source-mapping.md) — 仪表盘卡片到数据源映射表
 - [Phase 2 Review Findings](phase2-review-findings.md) — Phase 2 审查 4 项修复（已完成）
 - [Known Bugs](known-bugs.md) — 书架布局闪现(Flyme)等已知问题
+- [Restore Toast Duplicate](restore-toast-duplicate.md) — Restore.restore() 内部已弹 Toast，调用方不应重复
 - [Review Workflow](review-workflow.md) — 双窗口代码+审计工作流说明

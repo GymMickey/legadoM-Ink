@@ -34,7 +34,6 @@ import io.legado.app.model.CheckSource
 import io.legado.app.model.ImageProvider
 import io.legado.app.receiver.SharedReceiverActivity
 import io.legado.app.service.WebService
-import io.legado.app.ui.file.HandleFileContract
 import io.legado.app.ui.upload.DirectLinkUploadActivity
 import io.legado.app.ui.widget.code.addJsonPattern
 import io.legado.app.ui.widget.number.NumberPickerDialog
@@ -66,12 +65,6 @@ class OtherConfigFragment : PreferenceFragment(),
         appCtx,
         SharedReceiverActivity::class.java.name
     )
-    private val localBookTreeSelect = registerForActivityResult(HandleFileContract()) {
-        it.uri?.let { treeUri ->
-            AppConfig.defaultBookTreeUri = treeUri.toString()
-        }
-    }
-
     private var onlyUpdateReadPref: Preference? = null
 
     override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
@@ -84,9 +77,6 @@ class OtherConfigFragment : PreferenceFragment(),
         upPreferenceSummary(PreferKey.threadCount, AppConfig.threadCount.toString())
         upPreferenceSummary(PreferKey.webPort, AppConfig.webPort.toString())
         upWebServiceTokenSummary()
-        AppConfig.defaultBookTreeUri?.let {
-            upPreferenceSummary(PreferKey.defaultBookTreeUri, it)
-        }
         upPreferenceSummary(PreferKey.checkSource, CheckSource.summary)
         upPreferenceSummary(PreferKey.bitmapCacheSize, AppConfig.bitmapCacheSize.toString())
         upPreferenceSummary(PreferKey.imageRetainNum, AppConfig.imageRetainNum.toString())
@@ -113,11 +103,6 @@ class OtherConfigFragment : PreferenceFragment(),
         when (preference.key) {
             PreferKey.userAgent -> showUserAgentDialog()
             PreferKey.customHosts -> showCustomHostsDialog()
-            PreferKey.defaultBookTreeUri -> localBookTreeSelect.launch {
-                title = getString(R.string.select_book_folder)
-                mode = HandleFileContract.DIR_SYS
-            }
-
             PreferKey.preDownloadNum -> NumberPickerDialog(requireContext())
                 .setTitle(getString(R.string.pre_download))
                 .setMaxValue(9999)
@@ -247,10 +232,6 @@ class OtherConfigFragment : PreferenceFragment(),
                     WebService.stop(requireContext())
                     WebService.start(requireContext())
                 }
-            }
-
-            PreferKey.defaultBookTreeUri -> {
-                upPreferenceSummary(key, AppConfig.defaultBookTreeUri)
             }
 
             PreferKey.recordLog -> {

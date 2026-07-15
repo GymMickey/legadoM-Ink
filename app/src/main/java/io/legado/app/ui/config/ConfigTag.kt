@@ -8,5 +8,7 @@ object ConfigTag {
     const val BACKUP_CONFIG = "backupConfig"
     const val COVER_CONFIG = "coverConfig"
     const val WELCOME_CONFIG = "welcomeConfig"
+    const val LOCAL_BOOK_CONFIG = "localBookConfig"
+    const val RULE_MANAGE = "ruleManage"
 
 }

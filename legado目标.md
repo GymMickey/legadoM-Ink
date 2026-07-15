@@ -376,3 +376,71 @@ WebDAV。
 编译。
 
 停止。
+
+---
+
+## 审查结论：Legado Max E-Ink 本地书籍管理开发计划
+
+**审查日期：2026-07-15**
+
+### 总体评价：可行，架构方向正确
+
+计划的核心设计——AutoImportManager → ImportBook 统一入口——**完全正确**。`LocalBook` 已提供所有需要的导入能力，不需要重复实现。
+
+### 已有组件（可直接复用，无需新建）
+
+| 计划组件 | 已有实现 | 位置 |
+|----------|---------|------|
+| ImportBook 导入逻辑 | `LocalBook.importFile(Uri)` `LocalBook.importFiles(List<Uri>)` | LocalBook.kt:241-342 |
+| 递归目录扫描 | `ImportBookViewModel.scanDoc()` — 16 并发递归 | ImportBookViewModel.kt:134-162 |
+| 去重检测 | `LocalBook.isOnBookShelf(fileName)` | LocalBook.kt:469-473 |
+| 默认书籍目录 | `AppConfig.defaultBookTreeUri` | 已在设置中配置 |
+| 文件格式正则 | `bookFileRegex`: txt/epub/umd/pdf/mobi/azw3/azw `archiveFileRegex`: zip/rar/7z | AppPattern.kt:43-45 |
+| HTTP 文件上传 | `BookController.addLocalBook()` — 已有，调 `LocalBook.saveBookFile()` + `importFile()` | BookController.kt:283-302 |
+| 书架自动刷新 | `appDb.bookDao.flowAll()` 是 Room reactive Flow，insert 后自动通知 UI | 首页 ViewModel 已使用 |
+
+### 需要调整的设计决策
+
+#### 1. WiFi HTTP Server：不应新建第二个实例
+
+计划 Phase 6 新建 `WiFiTransfer/HttpServer.kt`，但 HttpServer.kt **已经存在** 且已支持文件上传（`/addLocalBook` 端点）。
+
+**风险：**
+- 两个 NanoHTTPD 实例同时运行 → 端口冲突
+- 两份 HTTP 服务器代码 → 维护负担
+- 前端也分裂为两个（原有 `modules/web/` Vue 3 + 计划中的 `assets/wifi/` 静态 HTML）
+
+**建议修改：**
+- 将 WiFi 传书作为现有 HttpServer.kt 的扩展路由（新增 `/wifi-upload` POST 端点 + 静态资源路径 `wifi/`）
+- 或者将 WiFi 前端页面集成进现有的 `modules/web/` Vue 3 项目
+
+#### 2. cbz 格式：`bookFileRegex` 不支持，`archiveFileRegex` 不支持
+
+`cbz` 本质是 zip 包，但不在任何已有正则中。Phase 2 如需支持 cbz，只需在 `archiveFileRegex` 中添加。
+
+#### 3. PopupWindow vs Compose：建议用 Compose
+
+计划 Phase 4 要求用 `PopupWindow`，但首页已经是全 Compose（HomepageScreen.kt），新增 Compose 入口可使用 `ModalBottomSheet` 或 `DropdownMenu` 保持一致性。
+
+#### 4. 启动扫描需要防抖
+
+Phase 2 在 App 启动时自动扫描，但 `scanDoc()` 对大目录（500+ 文件）耗时较长。建议加时间间隔检查（如上次扫描 5 分钟内不重复扫）。
+
+### 各阶段可行性逐条验证
+
+| Phase | 可行性 | 关键风险点 |
+|-------|--------|-----------|
+| Phase 0 | ✅ 可行 | `LocalBook.importFiles()` 已覆盖所有导入逻辑，Phase 0 分析后应明确不需要新建 ImportBook 调用层 |
+| Phase 1 | ✅ 可行 | PreferenceFragment 模式成熟，`AppConfig.defaultBookTreeUri` 已有设置入口 |
+| Phase 2 | ✅ 可行 | `ImportBookViewModel.scanDoc()` + `LocalBook.importFiles()` 可复用，AutoImportManager 作为薄封装层即可 |
+| Phase 3 | ✅ 可行 | 只有菜单入口 + 调用 `AutoImportManager.scan()`，纯 UI |
+| Phase 4 | ⚠️ 需调整 | PopupWindow → 建议用 Compose popup；WiFi Server 应复用已有 HttpServer.kt |
+| Phase 5 | ⚠️ 需调整 | 静态 HTML/JS 没问题，但应与现有 `modules/web/` 统一或明确分界 |
+| Phase 6 | ⚠️ 需调整 | 不应新建独立 HttpServer。应扩展现有 HttpServer.kt 新增 upload 路由 |
+| Phase 7 | ✅ 可行 | 标准测试流程 |
+
+### 关键意见
+
+整个计划中 **最有价值的部分是 Phase 2 的 AutoImportManager 统一入口**。它解决了以后每加一个导书方式都需要重复写胶水代码的问题。
+
+**唯一需要重新考虑的架构决策是 WiFi 传书的 HTTP 服务器设计**。已有 HttpServer.kt（NanoHTTPD）+ BookController.addLocalBook() 已经实现了"接收上传 → 保存文件 → 导入书架"全流程，新建第二个服务器是重复造轮子。建议 Phase 0 深入分析现有 HttpServer.kt 的路由和生命周期，确认能否复用。

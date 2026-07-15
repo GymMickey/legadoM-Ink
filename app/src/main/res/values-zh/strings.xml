@@ -67,6 +67,13 @@
     <string name="view">视图</string>
     <string name="book_library">书城</string>
     <string name="book_local">添加本地</string>
+    <string name="scan_local">扫描本地</string>
+    <string name="default_book_tree_uri_not_set">请先在设置中配置默认书籍目录</string>
+    <string name="scan_local_no_new_books">未发现新书籍</string>
+    <string name="scan_local_done">已导入 %d 本书</string>
+    <string name="wifi_transfer">WiFi 传书</string>
+    <string name="wifi_transfer_title">WiFi 传书</string>
+    <string name="wifi_transfer_msg">在另一台设备的浏览器中打开以下网址：\n\n%1$s\n\n请确保两台设备在同一 WiFi 网络下。</string>
     <string name="book_source">书源</string>
     <string name="book_source_manage">书源管理</string>
     <string name="book_source_manage_desc">新建、导入、编辑或管理书源</string>
@@ -1130,8 +1137,12 @@
     <string name="open_sys_dir_picker_error">打开系统文件夹选择器出错，将自动打开应用文件夹选择器</string>
     <string name="open_sys_doc_picker_error">打开系统文件选择器出错，将自动打开应用文件选择器</string>
     <string name="expand_text_menu">展开文本选择菜单</string>
-    <string name="book_tree_uri_t">书籍保存位置</string>
+    <string name="book_tree_uri_t">默认书籍目录</string>
     <string name="book_tree_uri_s">从其它应用打开的书籍保存位置</string>
+    <string name="local_book_manage">本地书籍管理</string>
+    <string name="local_book_manage_desc">默认书籍目录、扫描导入</string>
+    <string name="rule_manage">规则管理</string>
+    <string name="rule_manage_desc">TXT目录规则、替换净化、字典规则</string>
     <string name="select_book_folder">选择保存书籍的文件夹</string>
     <string name="user_agent">用户代理</string>
     <string name="bg_alpha">背景透明度</string>
@@ -2102,4 +2113,20 @@
     <string name="homepage_webdav_configure">设置 WebDAV 备份</string>
     <string name="homepage_backup_done">备份完成</string>
     <string name="homepage_backup_failed">备份失败：%1$s</string>
+
+    <!-- 本地书籍管理 -->
+    <string name="local_book_dir_category">目录</string>
+    <string name="local_book_scan_category">扫描</string>
+    <string name="local_book_stats_category">统计</string>
+    <string name="auto_scan_local_title">自动扫描新增书籍</string>
+    <string name="auto_scan_local_summary">启动时自动扫描默认目录</string>
+    <string name="scan_sub_dirs_title">扫描子目录</string>
+    <string name="scan_sub_dirs_summary">递归扫描所有子文件夹</string>
+    <string name="scan_now">立即扫描</string>
+    <string name="last_scan_time">最近扫描</string>
+    <string name="never">从未扫描</string>
+    <string name="local_book_count_title">已导入</string>
+    <string name="local_book_count_summary">%d 本</string>
+    <string name="start_wifi_transfer">启动 WiFi 传书</string>
+    <string name="start_wifi_transfer_summary">生成二维码，其他设备扫码传书</string>
 </resources>

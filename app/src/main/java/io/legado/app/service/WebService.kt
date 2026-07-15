@@ -158,7 +158,7 @@ class WebService : BaseService() {
             httpServer = HttpServer(port)
             webSocketServer = WebSocketServer(port + 1)
             try {
-                httpServer?.start()
+                httpServer?.start(30_000)
                 webSocketServer?.start(1000 * 30) // 通信超时设置
                 notificationList.clear()
                 notificationList.addAll(addressList.map { address ->

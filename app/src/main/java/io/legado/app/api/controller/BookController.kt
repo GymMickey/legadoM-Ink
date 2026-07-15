@@ -285,8 +285,9 @@ object BookController {
         files: Map<String, String>
     ): ReturnData {
         val returnData = ReturnData()
-        val fileName = parameters["fileName"]?.firstOrNull()
+        val fileNameRaw = parameters["fileName"]?.firstOrNull()
             ?: return returnData.setErrorMsg("fileName 不能为空")
+        val fileName = java.net.URLDecoder.decode(fileNameRaw, "UTF-8")
         val fileData = files["fileData"]
             ?: return returnData.setErrorMsg("fileData 不能为空")
         kotlin.runCatching {

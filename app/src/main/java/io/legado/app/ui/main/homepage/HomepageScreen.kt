@@ -78,6 +78,7 @@ import io.legado.app.ui.theme.pageSecondaryTextColor
 fun HomepageScreen(
     viewModel: HomepageViewModel = viewModel(),
     onBookClick: (name: String?, author: String?, bookUrl: String, origin: String?, coverPath: String?) -> Unit,
+    onContinueReadClick: (bookUrl: String) -> Unit = {},
     onWebDavSettingsClick: () -> Unit,
     onReadRecordClick: () -> Unit = {},
     onBookshelfClick: () -> Unit = {},
@@ -156,7 +157,7 @@ fun HomepageScreen(
                     item(key = "last_read") {
                         LastReadCard(
                             book = book,
-                            onClick = { viewModel.onBookClick(book) },
+                            onClick = { onContinueReadClick(book.bookUrl) },
                             elevation = cardElevation,
                             border = cardBorder
                         )

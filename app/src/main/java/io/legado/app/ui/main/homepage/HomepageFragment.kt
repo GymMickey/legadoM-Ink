@@ -124,6 +124,12 @@ class HomepageFragment() : Fragment(), MainFragmentInterface {
                             }
                             startActivity(intent)
                         },
+                        onContinueReadClick = { bookUrl ->
+                            val intent = Intent(context, io.legado.app.ui.book.read.ReadBookActivity::class.java).apply {
+                                putExtra("bookUrl", bookUrl)
+                            }
+                            startActivity(intent)
+                        },
                         onWebDavSettingsClick = {
                             val intent = Intent(context, ConfigActivity::class.java).apply {
                                 putExtra("configTag", ConfigTag.BACKUP_CONFIG)

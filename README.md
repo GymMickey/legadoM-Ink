@@ -12,7 +12,7 @@
 <br>
 <a href="https://loyc.xyz/c/legado.html" target="_blank">软件介绍页</a>
 <br>
-阅读继承自阅读Sigma，在其基础上新增更多实用和强大功能。
+    阅读继承自阅读max，在其基础上新增更多实用和强大功能。
 </div>
 
 
@@ -32,25 +32,23 @@
     - 如您对代码质量有较高要求，或介意上述情况，建议谨慎评估后再决定是否使用。
 
 ## 版本说明
-- 本项目基于 [lyc版](https://gitee.com/lyc486/legado) 持续开发，在此基础上有更多实用和强大功能
-- **appLegacy版**：包名 `io.legado.app`，与原版相同，可覆盖更新
-- **appMax版**：包名 `io.legado.app.yuedu`，共存包名，不会覆盖原版
-- **appS版**：包名 `io.legado.app.yuedu.a`，另一个共存包名
+- 本项目基于阅读max持续开发，在此基础上有更多实用和强大功能
+
 
 # 覆盖安装注意事项 [![](https://img.shields.io/badge/-覆盖安装注意事项-F5F5F5.svg)](#覆盖安装注意事项-)
 
-> ⚠️ **重要提醒**：安装Max版前一定要备份！
+> ⚠️ **重要提醒**：安装前一定要备份！
 
 <details>
 <summary>从其他版本覆盖安装需要注意的事项</summary>
 
 **1. MD3版本书架分组兼容性问题**
 
-从MD3版本备份的书架分组在Max版本中无法正常显示。虽然在"分组管理"界面可以看到这些分组，但在其他界面无法显示。这是因为MD3版本自行修改了分组相关的备份数据格式，导致其他版本的阅读无法正常加载这些分组数据。
+从MD3版本备份的书架分组在M-Ink版本中无法正常显示。虽然在"分组管理"界面可以看到这些分组，但在其他界面无法显示。这是因为MD3版本自行修改了分组相关的备份数据格式，导致其他版本的阅读无法正常加载这些分组数据。
 
 **2. 跨很多的版本升级可能导致数据丢失**
 
-从lyc版本（包括Sigma和Plus版）直接安装最新的Max版可能会出现书架和其他数据全部丢失的情况。这是因为Max版最近更新幅度非常大，跨越了太多版本，数据格式可能存在兼容性问题。
+从lyc版本（包括Sigma和Plus版）直接安装最新的M-Ink版可能会出现书架和其他数据全部丢失的情况。这是因为M-Ink版最近更新幅度非常大，跨越了太多版本，数据格式可能存在兼容性问题。
 
 ⚠️ 此时使用WebDAV恢复和本地恢复都无法正常工作！
 
@@ -66,7 +64,7 @@
 
 [![](https://img.shields.io/badge/-Contents:-696969.svg)](#contents) [![](https://img.shields.io/badge/-Max特色-F5F5F5.svg)](#Max版特色功能-) [![](https://img.shields.io/badge/-Function-F5F5F5.svg)](#Function-主要功能-) [![](https://img.shields.io/badge/-Community-F5F5F5.svg)](#Community-交流社区-) [![](https://img.shields.io/badge/-API-F5F5F5.svg)](#API-) [![](https://img.shields.io/badge/-Other-F5F5F5.svg)](#Other-其他-) [![](https://img.shields.io/badge/-Grateful-F5F5F5.svg)](#Grateful-感谢-) [![](https://img.shields.io/badge/-Interface-F5F5F5.svg)](#Interface-界面-) [![](https://img.shields.io/badge/-覆盖安装注意事项-F5F5F5.svg)](#覆盖安装注意事项-)
 
-# Max版特色功能 [![](https://img.shields.io/badge/-Max特色-F5F5F5.svg)](#Max版特色功能-)
+# M-Ink版特色功能 [![](https://img.shields.io/badge/-Max特色-F5F5F5.svg)](#M-Ink版特色功能-)
 
 阅读Max在继承原版所有功能的基础上，新增以下特色功能：
 

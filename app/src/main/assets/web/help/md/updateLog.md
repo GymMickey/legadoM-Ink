@@ -8,7 +8,7 @@
 
 基于阅读Max精简的E-Ink墨水屏专用版本，保持与原版数据库、备份恢复、书源/RSS/订阅/下载完全兼容。
 
-**2026/07/18**（未发布）
+**2026/07/18**
 - 版本号 beta 计数：build_number.txt 自增 → Git 提交数（`git rev-list HEAD --count`）
 - 修复 Flyme 12.6 书架布局弹窗首次闪现（menu_bookshelf_layout 从溢出菜单改为工具栏按钮，绕过 PopupWindow 焦点冲突）
 - 更新日志重写：删除项目继承历史，改为记录本项目功能变更
@@ -17,7 +17,7 @@
 - 修复书源校验 startForeground 崩溃（通知渠道 channelIdReadAloud → channelIdDownload）
 - 关于页改名：阅读Max → 阅读M-Ink，新增开发者 Mickey、chesm
 
-**2026/07/17**（未发布）
+**2026/07/17**
 - 删除有声书模块（AudioPlay）：Activity + Service + Model + 资源
 - 删除视频播放模块（VideoPlay）：Activity + Service + Model + GSYVideoPlayer
 - TTS 朗读死代码清理：BaseReadAloudService/TTSReadAloudService/HttpReadAloudService 及配套 UI（29文件，616行）

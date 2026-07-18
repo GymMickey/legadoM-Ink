@@ -139,7 +139,7 @@ class ReadStyleDialog : BaseDialogFragment(R.layout.dialog_read_book_style),
             callBack?.upPageAnim()
             ReadBook.loadContent(false)
         }
-        cbShareLayout.onCheckedChangeListener = { _, isChecked ->
+        cbShareLayout.setOnCheckedChangeListener { _, isChecked ->
             ReadBookConfig.shareLayout = isChecked
             upView()
             postEvent(EventBus.UP_CONFIG, arrayListOf(1, 2, 5))

@@ -11,6 +11,7 @@ import android.widget.FrameLayout
 import androidx.core.view.isVisible
 import io.legado.app.R
 import io.legado.app.databinding.ViewSearchMenuBinding
+import io.legado.app.help.config.AppConfig
 import io.legado.app.lib.theme.Selector
 import io.legado.app.lib.theme.bottomBackground
 import io.legado.app.lib.theme.getPrimaryTextColor
@@ -42,6 +43,8 @@ class SearchMenu @JvmOverloads constructor(
             .setPressedColor(ColorUtils.darkenColor(bgColor)).create()
     private var onMenuOutEnd: (() -> Unit)? = null
     private var isMenuOutAnimating = false
+    private var menuInListener: Animation.AnimationListener? = null
+    private var menuOutListener: Animation.AnimationListener? = null
 
     private val searchResultList: MutableList<SearchResult> = mutableListOf()
     private var currentSearchResultIndex: Int = -1
@@ -88,20 +91,30 @@ class SearchMenu @JvmOverloads constructor(
     }
 
 
-    fun runMenuIn() {
+    fun runMenuIn(anim: Boolean = !AppConfig.isEInkMode) {
         this.visible()
         binding.llBottomMenu.visible()
         binding.vwMenuBg.visible()
-        binding.llBottomMenu.startAnimation(menuBottomIn)
+        if (anim) {
+            binding.llBottomMenu.startAnimation(menuBottomIn)
+        } else {
+            menuInListener?.onAnimationStart(menuBottomIn)
+            menuInListener?.onAnimationEnd(menuBottomIn)
+        }
     }
 
-    fun runMenuOut(onMenuOutEnd: (() -> Unit)? = null) {
+    fun runMenuOut(anim: Boolean = !AppConfig.isEInkMode, onMenuOutEnd: (() -> Unit)? = null) {
         if (isMenuOutAnimating) {
             return
         }
         this.onMenuOutEnd = onMenuOutEnd
         if (this.isVisible) {
-            binding.llBottomMenu.startAnimation(menuBottomOut)
+            if (anim) {
+                binding.llBottomMenu.startAnimation(menuBottomOut)
+            } else {
+                menuOutListener?.onAnimationStart(menuBottomOut)
+                menuOutListener?.onAnimationEnd(menuBottomOut)
+            }
         }
     }
 
@@ -181,7 +194,7 @@ class SearchMenu @JvmOverloads constructor(
 
     private fun initAnimation() {
         //显示菜单
-        menuBottomIn.setAnimationListener(object : Animation.AnimationListener {
+        menuInListener = object : Animation.AnimationListener {
             override fun onAnimationStart(animation: Animation) {
                 callBack.upSystemUiVisibility()
                 binding.fabLeft.visible(hasSearchResult)
@@ -195,10 +208,11 @@ class SearchMenu @JvmOverloads constructor(
             }
 
             override fun onAnimationRepeat(animation: Animation) = Unit
-        })
+        }
+        menuBottomIn.setAnimationListener(menuInListener!!)
 
         //隐藏菜单
-        menuBottomOut.setAnimationListener(object : Animation.AnimationListener {
+        menuOutListener = object : Animation.AnimationListener {
             override fun onAnimationStart(animation: Animation) {
                 isMenuOutAnimating = true
                 binding.vwMenuBg.setOnClickListener(null)
@@ -215,7 +229,8 @@ class SearchMenu @JvmOverloads constructor(
             }
 
             override fun onAnimationRepeat(animation: Animation) = Unit
-        })
+        }
+        menuBottomOut.setAnimationListener(menuOutListener!!)
     }
 
     interface CallBack {

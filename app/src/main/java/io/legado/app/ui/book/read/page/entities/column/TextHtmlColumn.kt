@@ -83,7 +83,7 @@ data class TextHtmlColumn(
             return
         }
         textPaint.run {
-            color = if (textLine.isReadAloud || isSearchResult) {
+            color = if (isSearchResult) {
                 ReadBookConfig.textAccentColor
             } else {
                 mTextColor ?: ReadBookConfig.textColor

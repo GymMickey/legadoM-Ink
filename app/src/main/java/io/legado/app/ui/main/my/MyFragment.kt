@@ -19,15 +19,11 @@ import io.legado.app.lib.prefs.fragment.PreferenceFragment
 import io.legado.app.lib.theme.primaryColor
 import io.legado.app.ui.about.AboutActivity
 import io.legado.app.ui.book.readRecord.ReadRecordActivity
-import io.legado.app.ui.book.storage.StorageManageActivity
 import io.legado.app.ui.book.bookmark.AllBookmarkActivity
 import io.legado.app.ui.book.source.manage.BookSourceActivity
 import io.legado.app.ui.config.ConfigActivity
 import io.legado.app.ui.config.ConfigTag
 import io.legado.app.ui.debug.DebugToolsActivity
-import io.legado.app.ui.urlRecord.UrlRecordActivity
-import io.legado.app.ui.file.FileManageActivity
-import io.legado.app.ui.download.DownloadManageActivity
 import io.legado.app.ui.main.MainFragmentInterface
 import io.legado.app.help.config.AppConfig
 import io.legado.app.service.WebService
@@ -162,11 +158,7 @@ class MyFragment() : BaseFragment(R.layout.fragment_my_config), MainFragmentInte
                     putExtra("configTag", ConfigTag.RULE_MANAGE)
                 }
                 "debugTools" -> startActivity<DebugToolsActivity>()
-                "urlRecord" -> startActivity<UrlRecordActivity>()
                 "bookmark" -> startActivity<AllBookmarkActivity>()
-                "preciseManage" -> startActivity<ConfigActivity> {
-                    putExtra("configTag", ConfigTag.PRECISE_MANAGE)
-                }
                 "setting" -> startActivity<ConfigActivity> {
                     putExtra("configTag", ConfigTag.OTHER_CONFIG)
                 }
@@ -180,10 +172,7 @@ class MyFragment() : BaseFragment(R.layout.fragment_my_config), MainFragmentInte
                     putExtra("configTag", ConfigTag.THEME_CONFIG)
                 }
 
-                "fileManage" -> startActivity<FileManageActivity>()
                 "readRecord" -> startActivity<ReadRecordActivity>()
-                "storageManage" -> startActivity<StorageManageActivity>()
-                "downloadManage" -> startActivity<DownloadManageActivity>()
                 "about" -> startActivity<AboutActivity>()
                 "exit" -> activity?.finish()
             }

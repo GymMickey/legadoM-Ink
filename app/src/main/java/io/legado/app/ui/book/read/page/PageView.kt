@@ -485,9 +485,6 @@ class PageView(context: Context) : FrameLayout(context) {
         return binding.contentTextView.getCurVisiblePage()
     }
 
-    fun getReadAloudPos(): Pair<Int, TextLine>? {
-        return binding.contentTextView.getReadAloudPos()
-    }
 
     fun markAsMainView() {
         isMainView = true

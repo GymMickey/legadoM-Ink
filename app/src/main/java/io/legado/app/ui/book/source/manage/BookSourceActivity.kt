@@ -532,7 +532,6 @@ class BookSourceActivity : VMBaseActivity<ActivityBookSourceBinding, BookSourceV
             R.id.menu_enable_explore -> viewModel.enableSelectExplore(adapter.selection)
             R.id.menu_disable_explore -> viewModel.disableSelectExplore(adapter.selection)
             R.id.menu_check_source -> checkSource()
-            R.id.menu_check_source_compose -> checkSourceCompose()
             R.id.menu_top_sel -> viewModel.topSource(*adapter.selection.toTypedArray())
             R.id.menu_bottom_sel -> viewModel.bottomSource(*adapter.selection.toTypedArray())
             R.id.menu_add_group -> selectionAddToGroups()
@@ -599,9 +598,6 @@ class BookSourceActivity : VMBaseActivity<ActivityBookSourceBinding, BookSourceV
         }
     }
 
-    private fun checkSourceCompose() {
-        startActivity<io.legado.app.ui.book.source.check.CheckSourceActivity>()
-    }
 
     private fun resumeCheckSource() {
         if (!Debug.isChecking) {

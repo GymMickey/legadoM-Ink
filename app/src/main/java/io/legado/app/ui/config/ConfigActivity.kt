@@ -17,7 +17,6 @@ class ConfigActivity : VMBaseActivity<ActivityConfigBinding, ConfigViewModel>() 
 
     override fun onActivityCreated(savedInstanceState: Bundle?) {
         when (val configTag = intent.getStringExtra("configTag")) {
-            ConfigTag.PRECISE_MANAGE -> replaceFragment<PreciseManageFragment>(configTag)
             ConfigTag.OTHER_CONFIG -> replaceFragment<OtherConfigFragment>(configTag)
             ConfigTag.THEME_CONFIG -> replaceFragment<ThemeConfigFragment>(configTag)
             ConfigTag.BACKUP_CONFIG -> replaceFragment<BackupConfigFragment>(configTag)

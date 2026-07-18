@@ -713,24 +713,6 @@ class ReadView(context: Context, attrs: AttributeSet) :
     }
 
     /**
-     * 从选择位置开始朗读
-     */
-    suspend fun aloudStartSelect() {
-        val selectStartPos = curPage.selectStartPos
-        var pagePos = selectStartPos.relativePagePos
-        val line = selectStartPos.lineIndex
-        val column = selectStartPos.columnIndex
-        while (pagePos > 0) {
-            if (!ReadBook.moveToNextPage()) {
-                ReadBook.moveToNextChapterAwait(false)
-            }
-            pagePos--
-        }
-        // TTS removed — position calculated but not used
-        val startPos = curPage.textPage.getPosByLineColumn(line, column)
-    }
-
-    /**
      * @return 选择的文本
      */
     fun getSelectText(): String {
@@ -739,10 +721,6 @@ class ReadView(context: Context, attrs: AttributeSet) :
 
     fun getCurVisiblePage(): TextPage {
         return curPage.getCurVisiblePage()
-    }
-
-    fun getReadAloudPos(): Pair<Int, TextLine>? {
-        return curPage.getReadAloudPos()
     }
 
     fun invalidateTextPage() {

@@ -550,30 +550,6 @@ class ContentTextView(context: Context, attrs: AttributeSet?) : View(context, at
         return visiblePage
     }
 
-    fun getReadAloudPos(): Pair<Int, TextLine>? {
-        var relativeOffset: Float
-        for (relativePos in 0..2) {
-            relativeOffset = relativeOffset(relativePos)
-            if (relativePos > 0) {
-                //滚动翻页
-                if (!callBack.isScroll) break
-                if (relativeOffset >= ChapterProvider.visibleHeight) break
-            }
-            val textPage = relativePage(relativePos)
-            val lines = textPage.lines
-            for (i in lines.indices) {
-                val textLine = lines[i]
-                if (textLine.isVisible(relativeOffset)) {
-                    val visibleLine = textLine.copy().apply {
-                        lineTop += relativeOffset
-                        lineBottom += relativeOffset
-                    }
-                    return textPage.chapterIndex to visibleLine
-                }
-            }
-        }
-        return null
-    }
 
     /**
      * 选择开始文字

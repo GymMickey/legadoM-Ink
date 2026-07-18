@@ -138,12 +138,7 @@
     <string name="pt_hide_status_bar">Ẩn thanh trạng thái</string>
     <string name="ps_hide_status_bar">Ẩn thanh điều hướng hệ thống khi đọc</string>
     <string name="read_aloud">Đọc thành tiếng</string>
-    <string name="read_aloud_t">Đang đọc</string>
-    <string name="read_aloud_s">Nhấn để mở trình đọc</string>
-    <string name="audio_play">Phát</string>
-    <string name="audio_play_t">Đang phát</string>
-    <string name="audio_play_s">Nhấn để mở trình phát</string>
-    <string name="audio_pause">Tạm dừng</string>
+<string name="audio_pause">Tạm dừng</string>
     <string name="text_return">Quay lại</string>
     <string name="refresh">Làm mới</string>
     <string name="start">Bắt đầu</string>
@@ -151,8 +146,6 @@
     <string name="pause">Tạm dừng</string>
     <string name="resume">Tiếp tục</string>
     <string name="set_timer">Hẹn giờ</string>
-    <string name="read_aloud_pause">Tạm dừng đọc</string>
-    <string name="read_aloud_timer">Đang đọc (còn %d phút)</string>
     <string name="playing_timer">Đang phát (còn %d phút)</string>
     <string name="ps_hide_navigation_bar">Ẩn các nút ảo khi đọc</string>
     <string name="pt_hide_navigation_bar">Ẩn thanh điều hướng</string>
@@ -321,7 +314,6 @@
     <string name="auto_expand_find">Tự động mở rộng Khám phá</string>
     <string name="default_expand_first">Mặc định mở rộng Khám phá đầu tiên.</string>
     <string name="threads_num">Số luồng hiện tại %s</string>
-    <string name="read_aloud_speed">Tốc độ đọc</string>
     <string name="auto_next_page">Tự động cuộn</string>
     <string name="auto_next_page_stop">Dừng tự động cuộn</string>
     <string name="auto_next_page_speed">Tốc độ tự động cuộn</string>
@@ -335,7 +327,6 @@
     <string name="sys_file_picker">Bộ chọn tệp hệ thống</string>
     <string name="new_version">Phiên bản mới</string>
     <string name="download_update">Tải cập nhật</string>
-    <string name="volume_key_page_on_play">Phím âm lượng lật trang khi đọc</string>
     <string name="tip_margin_change">Điều chỉnh lề</string>
     <string name="allow_update">Kích hoạt cập nhật</string>
     <string name="disable_update">Vô hiệu hóa cập nhật</string>
@@ -501,7 +492,6 @@
     <string name="sure_del_all_book">Bạn có chắc chắn muốn xóa tất cả sách không？</string>
     <string name="sure_del_download_book">Bạn có muốn xóa các chương sách đã tải xuống cùng lúc không?</string>
     <string name="qr_per">Quét mã QR cần quyền truy cập máy ảnh</string>
-    <string name="aloud_can_not_auto_page">Đang đọc, không thể tự động lật trang</string>
     <string name="input_charset">Nhập mã hóa</string>
     <string name="text_chapter_list_rule">Quy tắc chương Txt Regex</string>
     <string name="open_local_book_per">Mở sách cục bộ cần quyền truy cập bộ nhớ</string>
@@ -570,7 +560,6 @@
     <string name="battery_show">%d%%</string>
     <string name="timer_m">%d phút</string>
     <string name="brightness_auto">Độ sáng tự động %s</string>
-    <string name="read_aloud_by_page">Đọc theo trang</string>
     <string name="speak_engine">Công cụ đọc</string>
     <string name="bg_image">Ảnh nền</string>
     <string name="bg_color">Màu nền</string>
@@ -649,7 +638,6 @@
     <string name="log">Nhật ký</string>
     <string name="chinese_converter">Chuyển đổi Giản thể</string>
     <string name="change_icon_error">Biểu tượng là biểu tượng vector, không được hỗ trợ trước Android 8.0</string>
-    <string name="aloud_config">Cài đặt đọc</string>
     <string name="main_activity">Trang bắt đầu</string>
     <string name="selectText">Nhấn giữ để chọn văn bản</string>
     <string name="header">Đầu trang</string>
@@ -689,7 +677,6 @@
     <string name="main_menu">Menu chính</string>
     <string name="request_permission">Chạm để cấp quyền</string>
     <string name="tip_local_perm_request_storage">Legado cần quyền truy cập bộ nhớ, vui lòng chạm vào nút "Cấp quyền" bên dưới, hoặc vào "Cài đặt"-"Quyền ứng dụng"-để mở quyền yêu cầu. Nếu quyền vẫn không hoạt động, vui lòng chạm vào "Chọn thư mục" ở góc trên bên phải để sử dụng bộ chọn thư mục hệ thống.</string>
-    <string name="alouding_disable">Không thể đọc văn bản đã chọn ở chế độ đọc toàn văn</string>
     <string name="read_body_to_lh">Mở rộng đến phần cắt</string>
     <string name="toc_updateing">Đang cập nhật chương</string>
     <string name="media_button_on_exit_title">Nút tai nghe luôn khả dụng</string>
@@ -883,7 +870,6 @@
     <string name="custom_group_summary">Tắt thay thế nhóm / Bật thêm nhóm</string>
     <string name="pref_media_button_per_next">Nút phương tiện • Trước | Sau</string>
     <string name="pref_media_button_per_next_summary">Đoạn trước|Đoạn sau/Chương trước|Chương sau</string>
-    <string name="read_aloud_by_page_summary">Lật trang kịp thời, có tạm dừng khi lật trang</string>
     <string name="check_source_show_debug_message">Kiểm tra nguồn sách hiển thị thông báo gỡ lỗi</string>
     <string name="check_source_show_debug_message_summary">Hiển thị trạng thái mạng và dấu thời gian trong quá trình kiểm tra nguồn</string>
     <string name="need_login">cần đăng nhập</string>
@@ -1065,11 +1051,7 @@
     <string name="webdav_device_name">Tên thiết bị</string>
     <string name="web_service_wake_lock">Khóa đánh thức dịch vụ web</string>
     <string name="web_service_wake_lock_summary">Khóa đánh thức được bật khi dịch vụ web được bật và một số điện thoại sẽ bị tắt khi khóa đánh thức được bật.</string>
-    <string name="read_aloud_wake_lock">Khóa đánh thức dịch vụ đọc thành tiếng</string>
-    <string name="read_aloud_wake_lock_summary">Khóa đánh thức được bật khi đọc thành tiếng được bật và khóa đánh thức trên một số điện thoại di động sẽ bị tắt ở chế độ nền.</string>
-    <string name="audio_play_wake_lock">Khóa đánh thức dịch vụ âm thanh</string>
-    <string name="audio_play_wake_lock_summary">Khóa đánh thức được bật khi phát âm thanh và một số điện thoại sẽ bị tắt khi khóa đánh thức được bật.</string>
-    <string name="change_search_scope">Chuyển đổi phạm vi tìm kiếm</string>
+<string name="change_search_scope">Chuyển đổi phạm vi tìm kiếm</string>
     <string name="copy_rule">Sao chép quy tắc</string>
     <string name="paste_rule">Dán quy tắc</string>
     <string name="groups_or_source">Đa nhóm / nguồn sách</string>
@@ -1106,8 +1088,6 @@
     <string name="privacy_policy">Quyền riêng tư và Thỏa thuận người dùng</string>
     <string name="agree">Đồng ý</string>
     <string name="refuse">Từ chối</string>
-    <string name="file_manage">Quản lý tệp</string>
-    <string name="file_manage_summary">Quản lý các tệp trong thư mục riêng của ứng dụng</string>
     <string name="create_folder">Tạo thư mục</string>
     <string name="allow_drop_down_refresh">Cho phép làm mới bằng cách kéo xuống</string>
     <string name="text_underline">Gạch chân văn bản</string>
@@ -1175,13 +1155,6 @@
     <string name="official_version">Phiên bản chính thức</string>
     <string name="beta_release_version">Phiên bản beta</string>
     <string name="beta_releaseA_version">Phiên bản song song</string>
-    <string name="stream_read_aloud_audio">Phát âm thanh trực tuyến</string>
-    <string name="stream_read_aloud_audio_summary">Tức là vừa tải vừa phát, khi mạng kém thì phát sẽ bị gián đoạn, chỉ có nguồn TTS mới có hiệu lực</string>
-    <string name="pause_read_aloud_while_phone_calls_title">Tạm dừng đọc trong khi gọi điện</string>
-    <string name="pause_read_aloud_while_phone_calls_summary">Tạm dừng đọc trong khi gọi điện, cần quyền đọc trạng thái điện thoại</string>
-    <string name="read_aloud_read_phone_state_permission_rationale">Đọc cần đọc trạng thái điện thoại để thực hiện chức năng tạm dừng đọc trong khi gọi</string>
-    <string name="read_aloud_by_media_button_title">Nút tai nghe bắt đầu đọc</string>
-    <string name="read_aloud_by_media_button_summary">Bắt đầu đọc bằng nút tai nghe</string>
     <string name="group_sources_by_domain">按域名分组显示</string>
     <string name="theme_config">Cấu hình chủ đề</string>
     <string name="show_manga_ui">Duyệt manga</string>

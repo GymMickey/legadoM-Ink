@@ -71,7 +71,9 @@ abstract class PageDelegate(protected val readView: ReadView) {
     }
 
     protected fun startScroll(startX: Int, startY: Int, dx: Int, dy: Int, animationSpeed: Int) {
-        val duration = if (dx != 0) {
+        val duration = if (AppConfig.isEInkMode) {
+            0
+        } else if (dx != 0) {
             (animationSpeed * abs(dx)) / viewWidth
         } else {
             (animationSpeed * abs(dy)) / viewHeight

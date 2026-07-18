@@ -3,7 +3,6 @@ package io.legado.app.help
 import io.legado.app.constant.AppConst
 import io.legado.app.data.appDb
 import io.legado.app.data.entities.DictRule
-import io.legado.app.data.entities.HttpTTS
 import io.legado.app.data.entities.KeyboardAssist
 import io.legado.app.data.entities.RssSource
 import io.legado.app.data.entities.TxtTocRule
@@ -39,17 +38,6 @@ object DefaultData {
             }.onError {
                 it.printOnDebug()
             }
-        }
-    }
-
-    val httpTTS: List<HttpTTS> by lazy {
-        val json =
-            String(
-                appCtx.assets.open("defaultData${File.separator}httpTTS.json")
-                    .readBytes()
-            )
-        HttpTTS.fromJsonArray(json).getOrElse {
-            emptyList()
         }
     }
 

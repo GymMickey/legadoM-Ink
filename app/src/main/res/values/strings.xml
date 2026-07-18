@@ -84,8 +84,6 @@
     <string name="theme_setting_s">Some settings related to interface or color</string>
     <string name="other_setting">Other settings</string>
     <string name="other_setting_s">Some function-related settings</string>
-    <string name="precise_manage">Precise Management</string>
-    <string name="precise_manage_summary">More precise management</string>
     <string name="about">About</string>
     <string name="donate">Donations</string>
     <string name="exit">Exit</string>
@@ -161,12 +159,7 @@
     <string name="pt_hide_status_bar">Hide status bar</string>
     <string name="ps_hide_status_bar">Hide system navigation bar when reading</string>
     <string name="read_aloud">Speech</string>
-    <string name="read_aloud_t">Speaking</string>
-    <string name="read_aloud_s">Click to open the Reading</string>
-    <string name="audio_play">Play</string>
-    <string name="audio_play_t">Playing</string>
-    <string name="audio_play_s">Click to open the Playing</string>
-    <string name="audio_pause">Pause</string>
+<string name="audio_pause">Pause</string>
     <string name="text_return">Back</string>
     <string name="refresh">Refresh</string>
     <string name="start">Start</string>
@@ -176,9 +169,6 @@
     <string name="set_timer">Timer</string>
     <string name="set_timer_by_time">Time Timer</string>
     <string name="set_timer_by_chapter">Chapter Timer</string>
-    <string name="read_aloud_pause">Speak Paused</string>
-    <string name="read_aloud_timer">Speaking(%d min left)</string>
-    <string name="read_aloud_timer_chapter">Speaking(%d chapters left)</string>
     <string name="timer_chapter">%d chapters</string>
     <string name="playing_timer">Playing(%d min left)</string>
     <string name="ps_hide_navigation_bar">Hide virtual buttons when reading</string>
@@ -354,7 +344,6 @@
     <string name="auto_expand_find">Auto expand Discovery</string>
     <string name="default_expand_first">Default expand the first Discovery.</string>
     <string name="threads_num">Current threads %s</string>
-    <string name="read_aloud_speed">Speech rate</string>
     <string name="auto_next_page">Auto scroll</string>
     <string name="auto_next_page_stop">Stop Auto scroll</string>
     <string name="auto_next_page_speed">Auto scroll speed</string>
@@ -372,7 +361,6 @@
     <string name="sys_file_picker">System file picker</string>
     <string name="new_version">New version</string>
     <string name="download_update">Download updates</string>
-    <string name="volume_key_page_on_play">Volume keys to turn page when reading</string>
     <string name="tip_margin_change">Margin adjustment</string>
     <string name="allow_update">Enable update</string>
     <string name="disable_update">Disable update</string>
@@ -547,7 +535,6 @@
     <string name="sure_del_all_book">Are you sure to delete all books？</string>
     <string name="sure_del_download_book">Do you want to delete the downloaded book chapters at the same time?</string>
     <string name="qr_per">Scan QR code requires Camera permissions</string>
-    <string name="aloud_can_not_auto_page">Speech is running, cannot turn pages automatically</string>
     <string name="input_charset">Input encoding</string>
     <string name="text_chapter_list_rule">Txt Chapters Regex</string>
     <string name="open_local_book_per">Open local books requires storage permission</string>
@@ -627,7 +614,6 @@
     <string name="battery_show">%d%%</string>
     <string name="timer_m">%d min</string>
     <string name="brightness_auto">Auto-Brightness %s</string>
-    <string name="read_aloud_by_page">Speak by pages</string>
     <string name="speak_engine">Speak Engine</string>
     <string name="bg_image">Background images</string>
     <string name="bg_color">Background color</string>
@@ -669,30 +655,6 @@
     <string name="search_progress_font_size">Adjust Search Progress Font Size</string>
     <string name="current_value">Current: %dsp</string>
     <string name="reset_default">Reset Default</string>
-    <string name="source_recycle_bin">Rule Recycle Bin</string>
-    <string name="source_recycle_bin_summary">Temporarily stores deleted rules for 7 days</string>
-    <string name="show_source_recycle_bin">Show Rule Recycle Bin</string>
-    <string name="hide_source_recycle_bin">Hide Rule Recycle Bin</string>
-    <string name="enable_source_recycle_bin">Enable Rule Recycle Bin</string>
-    <string name="disable_source_recycle_bin">Disable Rule Recycle Bin</string>
-    <string name="source_recycle_bin_count">%1$s - %2$d items</string>
-    <string name="source_recycle_bin_empty">Recycle bin is empty</string>
-    <string name="source_recycle_bin_enabled">Recycle mode enabled</string>
-    <string name="source_recycle_bin_disabled">Recycle mode disabled</string>
-    <string name="source_recycle_bin_restore_msg">Restore "%1$s"?</string>
-    <string name="source_recycle_bin_conflict_title">Rule already exists</string>
-    <string name="source_recycle_bin_conflict_msg">"%1$s" has the same key as an existing rule. Overwrite it?</string>
-    <string name="source_recycle_bin_delete_msg">Permanently delete "%1$s"? This cannot be undone.</string>
-    <string name="source_recycle_bin_batch_restore_msg">Restore %1$d selected items?</string>
-    <string name="source_recycle_bin_batch_conflict_msg">%1$d selected items include rules that already exist. Overwrite conflicts and restore them?</string>
-    <string name="source_recycle_bin_batch_delete_msg">Permanently delete %1$d selected items? This cannot be undone.</string>
-    <string name="source_recycle_bin_clear_title">Clear recycle bin</string>
-    <string name="source_recycle_bin_clear_msg">Permanently delete all recycled rules? This cannot be undone.</string>
-    <string name="source_recycle_bin_type_group">%1$s - %2$s</string>
-    <string name="source_recycle_bin_time_left">Deleted %1$s - %2$d days left</string>
-    <string name="source_recycle_bin_restored">Restored</string>
-    <string name="source_recycle_bin_deleted">Deleted</string>
-    <string name="source_recycle_bin_cleared">Recycle bin cleared</string>
     <string name="search_engine_rule">Search engine rule</string>
     <string name="filter">Filter</string>
     <string name="overwrite">Overwrite</string>
@@ -750,7 +712,6 @@
     <string name="log">Log</string>
     <string name="chinese_converter">Simplified conversion</string>
     <string name="change_icon_error">The icon is a vector icon, which was not supported before Android 8.0</string>
-    <string name="aloud_config">Speech settings</string>
     <string name="main_activity">Start page</string>
     <string name="enhanced_features">Enhanced Features</string>
     <string name="selectText">Long Tap to select text</string>
@@ -849,7 +810,6 @@
     <string name="main_menu">Main menu</string>
     <string name="request_permission">Tap to grant permission</string>
     <string name="tip_local_perm_request_storage">Legado needs Storage permission, please tap the "Grant Permission" button below, or go to "Settings"-"Application Permissions"-to open the required permission. If the permission is still not work, please tap "Select Folder" in the upper right corner to use the system folder picker.</string>
-    <string name="alouding_disable">The selected text cannot be spoken in full text speech</string>
     <string name="read_body_to_lh">Extend to cutout</string>
     <string name="toc_updateing">Updating Chapters</string>
     <string name="media_button_on_exit_title">Headset buttons are always available</string>
@@ -949,12 +909,6 @@
     <string name="read_record">Read record</string>
     <string name="del_read_record">Delete Read record</string>
     <string name="read_record_summary">Read record summary</string>
-    <string name="storage_manage">Storage Management</string>
-    <string name="storage_manage_summary">Manage app cache and storage</string>
-    <string name="download_manage">Download Management</string>
-    <string name="download_manage_summary">Manage WebView downloaded files</string>
-    <string name="module_status">Module Status</string>
-    <string name="module_status_summary">View app module running status</string>
     <string name="local_tts">Local TTS</string>
     <string name="thread_count">Thread count</string>
     <string name="all_read_time">Total read time</string>
@@ -1076,7 +1030,6 @@
     <string name="custom_group_summary">Turn off Replace Group / Turn on Add Group</string>
     <string name="pref_media_button_per_next">Media Buttons • Previous | Next</string>
     <string name="pref_media_button_per_next_summary">Previous Paragraph|Next Paragraph/Previous Chapter|Next Chapter</string>
-    <string name="read_aloud_by_page_summary">Turning pages in time, with a pause when the page is turned</string>
     <string name="check_source_show_debug_message">Check book source shows debug message</string>
     <string name="check_source_show_debug_message_summary">Show network status and timestamp during source checking</string>
     <string name="need_login">need login</string>
@@ -1265,7 +1218,6 @@
     <string name="touch_page_anim_speed_dialog_title">Touch Page Animation Speed (ms)</string>
     <string name="key_page_anim_speed_dialog_title">Key Page Animation Speed (ms)</string>
     <string name="check_selected_interval">Select zones</string>
-    <string name="check_source_compose">Check source (New UI)</string>
     <string name="show_add_to_shelf_alert_title">Prompt to add to bookshelf when return</string>
     <string name="show_add_to_shelf_alert_summary">Prompt to add to bookshelf when return from reading books that are not on the bookshelf</string>
     <string name="review">Review</string>
@@ -1308,11 +1260,7 @@
     <string name="unsafe_ssl_title">Skip SSL Verification</string>
     <string name="unsafe_ssl_summary">Skip SSL certificate verification for all network requests, may expose to man-in-the-middle attacks. Only enable if a site has certificate issues</string>
     <string name="need_restart_app">This change requires restarting the app to take effect. Restart now?</string>
-    <string name="read_aloud_wake_lock">Read aloud service wake-up lock</string>
-    <string name="read_aloud_wake_lock_summary">The wake-up lock is enabled when reading aloud is enabled, and the wake-up lock on some mobile phones will be killed in the background.</string>
-    <string name="audio_play_wake_lock">Audio service wake-up lock</string>
-    <string name="audio_play_wake_lock_summary">The wake-up lock is enabled when playing audio, and some phones will be killed when the wake-up lock is turned on.</string>
-    <string name="change_search_scope">Toggle search scope</string>
+<string name="change_search_scope">Toggle search scope</string>
     <string name="copy_rule">Copy Rule</string>
     <string name="paste_rule">Paste Rule</string>
     <string name="highlight_rule_help">Highlight Rule Help</string>
@@ -1353,8 +1301,6 @@
     <string name="privacy_policy">User Privacy and Agreement</string>
     <string name="agree">Agree</string>
     <string name="refuse">Refuse</string>
-    <string name="file_manage">File management</string>
-    <string name="file_manage_summary">Managing files in the application\'s private folder</string>
     <string name="create_folder">Create Folder</string>
     <string name="allow_drop_down_refresh">Allow drop-down refresh</string>
     <string name="only_update_read">Only Update Read Books</string>
@@ -1450,15 +1396,6 @@
     <string name="beta_release_version">Beta</string>
     <string name="beta_releaseA_version">Coexist</string>
     <string name="beta_releaseS_version" translatable="false">正式版</string>
-    <string name="stream_read_aloud_audio">Stream Audio Playback</string>
-    <string name="stream_read_aloud_audio_summary">Play while downloading, may stutter on poor network, only for TTS sources</string>
-    <string name="read_aloud_floating_ui">Enable Read Aloud Floating Window</string>
-    <string name="read_aloud_floating_ui_summary">Default off for old mode: can open read aloud page but no floating window; when enabled, shows floating window</string>
-    <string name="pause_read_aloud_while_phone_calls_title">Pause Read Aloud During Calls</string>
-    <string name="pause_read_aloud_while_phone_calls_summary">Pause read aloud during calls, requires phone state permission</string>
-    <string name="read_aloud_read_phone_state_permission_rationale">Legado needs phone state permission to pause read aloud during calls</string>
-    <string name="read_aloud_by_media_button_title">Start Read Aloud via Headset Button</string>
-    <string name="read_aloud_by_media_button_summary">Start read aloud via headset button</string>
     <string name="group_sources_by_domain">Group Sources by Domain</string>
     <string name="theme_config">Theme Config</string>
     <string name="show_manga_ui">Manga View</string>
@@ -1557,8 +1494,7 @@
     <string name="float_permission_rationale">Legado needs overlay permission to show playback window</string>
     <string name="video">Video</string>
     <string name="float_window">Floating Window</string>
-    <string name="video_play" />
-    <string name="overlay">Overlay</string>
+<string name="overlay">Overlay</string>
     <string name="margin">Margin</string>
     <string name="auto_play">Auto Play</string>
     <string name="start_full">Start Fullscreen</string>
@@ -1594,9 +1530,9 @@
     <string name="last_read_s">Last Read %1$s</string>
     <string name="show_read_record_in_book_info">Show Read Record</string>
     <string name="words">Words</string>
-    <string name="app_name_sigma">Legado Max</string>
-    <string name="about_description_sigma">\u3000\u3000Legado Max is inherited from Legado Sigma, aiming to improve and add features on the original version. Welcome to join us.</string>
-    <string name="contributors_summary_sigma">gedoor, Luoyacheng, Horis, Xwite, GEd520, youfengknight, etc. See GitHub for details</string>
+    <string name="app_name_sigma">Legado M-Ink</string>
+    <string name="about_description_sigma">\u3000\u3000Legado M-Ink is inherited from Legado MAX, aiming to improve and add features on the original version. Welcome to join us.</string>
+    <string name="contributors_summary_sigma">Mickey, chesm, gedoor, Luoyacheng, Horis, Xwite, GEd520, youfengknight, etc. See GitHub for details</string>
     <string name="app_share_description_sigma">
         Legado Max Download: \nhttps://github.com/
     </string>
@@ -1614,8 +1550,7 @@
     <string name="mute_play">Mute Play</string>
     <string name="mute_play_enabled">Mute Play Enabled</string>
     <string name="json_format">JSON Format</string>
-    <string name="open_other_video_player" />
-    <string name="show_source_comment">Show Source Comment</string>
+<string name="show_source_comment">Show Source Comment</string>
     <string name="enable_locate">Enable Location</string>
     <string name="adapt_special_style">Adapt Special Style</string>
     <string name="show_line_number">Show %d Lines</string>
@@ -1787,17 +1722,9 @@
     <string name="unknown_type">Unknown type</string>
 
     <!-- URL Record -->
-    <string name="url_record">URL Access Record</string>
-    <string name="record_url_switch">Enable URL Recording</string>
     <string name="record_url_enabled">URL Recording Enabled</string>
     <string name="record_url_disabled">URL Recording Disabled</string>
-    <string name="clear_records">Clear Records</string>
     <string name="clear_old_records">Clear Old Records</string>
-    <string name="clear_old_7_days">Clear records older than 7 days</string>
-    <string name="clear_old_30_days">Clear records older than 30 days</string>
-    <string name="clear_all_records">Clear all records</string>
-    <string name="search_url_record_hint">Search URL/Domain/Source</string>
-    <string name="filter_by_domain">Filter by Domain</string>
     
     <!-- TTS Debug -->
     <string name="play_audio">Play Audio</string>

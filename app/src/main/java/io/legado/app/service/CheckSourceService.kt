@@ -66,7 +66,7 @@ class CheckSourceService : BaseService() {
     private var finishCount = 0
 
     private val notificationBuilder by lazy {
-        NotificationCompat.Builder(this, AppConst.channelIdReadAloud)
+        NotificationCompat.Builder(this, AppConst.channelIdDownload)
             .setSmallIcon(R.drawable.ic_network_check)
             .setOngoing(true)
             .setOnlyAlertOnce(true)

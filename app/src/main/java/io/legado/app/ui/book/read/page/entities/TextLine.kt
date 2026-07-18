@@ -66,16 +66,6 @@ data class TextLine(
     val canvasRecorder = CanvasRecorderFactory.create()
     var searchResultColumnCount = 0
     var hasAnimatedColumn = false
-    var isReadAloud: Boolean = false
-        set(value) {
-            if (field != value) {
-                invalidate()
-            }
-            if (value) {
-                textPage.hasReadAloudSpan = true
-            }
-            field = value
-        }
     var textPage: TextPage = emptyTextPage
     var isLeftLine = true
 
@@ -222,7 +212,7 @@ data class TextLine(
         }
 
         // 墨水屏模式下的朗读和搜索下划线
-        if (AppConfig.isEInkMode && (isReadAloud || searchResultColumnCount > 0)) {
+        if (AppConfig.isEInkMode && searchResultColumnCount > 0) {
             val underlinePaint = PaintPool.obtain()
             underlinePaint.set(ChapterProvider.contentPaint)
             underlinePaint.strokeWidth = einkUnderlineWidth
@@ -250,11 +240,7 @@ data class TextLine(
         } else {
             ChapterProvider.contentPaint
         }
-        val textColor = if (isReadAloud) {
-            ReadBookConfig.textAccentColor
-        } else {
-            ReadBookConfig.textColor
-        }
+        val textColor = ReadBookConfig.textColor
         if (textPaint.color != textColor) {
             textPaint.color = textColor
         }

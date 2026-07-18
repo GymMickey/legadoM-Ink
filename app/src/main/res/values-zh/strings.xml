@@ -82,8 +82,6 @@
     <string name="theme_setting_s">与界面/颜色相关的一些设置</string>
     <string name="other_setting">其它设置</string>
     <string name="other_setting_s">与功能相关的一些设置</string>
-    <string name="precise_manage">精准管理</string>
-    <string name="precise_manage_summary">更精准的管理</string>
     <string name="about">关于</string>
     <string name="donate">捐赠</string>
     <string name="exit">退出</string>
@@ -159,12 +157,7 @@
     <string name="pt_hide_status_bar">隐藏状态栏</string>
     <string name="ps_hide_status_bar">阅读界面隐藏状态栏</string>
     <string name="read_aloud">朗读</string>
-    <string name="read_aloud_t">正在朗读</string>
-    <string name="read_aloud_s">点击打开阅读界面</string>
-    <string name="audio_play">播放</string>
-    <string name="audio_play_t">正在播放</string>
-    <string name="audio_play_s">点击打开播放界面</string>
-    <string name="audio_pause">播放暂停</string>
+<string name="audio_pause">播放暂停</string>
     <string name="text_return">返回</string>
     <string name="refresh">刷新</string>
     <string name="start">开始</string>
@@ -174,9 +167,6 @@
     <string name="set_timer">定时</string>
     <string name="set_timer_by_time">按时间定时</string>
     <string name="set_timer_by_chapter">按章节定时</string>
-    <string name="read_aloud_pause">朗读暂停</string>
-    <string name="read_aloud_timer">正在朗读（还剩 %d 分钟）</string>
-    <string name="read_aloud_timer_chapter">正在朗读（还剩 %d 章）</string>
     <string name="timer_chapter">%d 章</string>
     <string name="playing_timer">正在播放（还剩 %d 分钟）</string>
     <string name="ps_hide_navigation_bar">阅读界面隐藏虚拟按键</string>
@@ -325,7 +315,6 @@
     <string name="padding_right">右边距</string>
     <string name="check_book_source">校验书源</string>
     <string name="check_select_source">校验所选</string>
-    <string name="check_source_compose">校验书源(新界面)</string>
     <string name="progress_show">%1$s      进度 %2$d/%3$d</string>
     <string name="tts_fix">请安装并选择中文 TTS！</string>
     <string name="tts_init_failed">TTS 初始化失败！</string>
@@ -352,7 +341,6 @@
     <string name="auto_expand_find">自动展开发现</string>
     <string name="default_expand_first">默认展开第一组发现</string>
     <string name="threads_num">当前线程数 %s</string>
-    <string name="read_aloud_speed">朗读语速</string>
     <string name="auto_next_page">自动翻页</string>
     <string name="auto_next_page_stop">停止自动翻页</string>
     <string name="auto_next_page_speed">自动翻页间隔</string>
@@ -370,7 +358,6 @@
     <string name="sys_file_picker">系统文件选择器</string>
     <string name="new_version">新版本</string>
     <string name="download_update">下载更新</string>
-    <string name="volume_key_page_on_play">朗读时音量键翻页</string>
     <string name="tip_margin_change">提示边距跟随页边距调整</string>
     <string name="allow_update">允许更新</string>
     <string name="disable_update">禁止更新</string>
@@ -546,7 +533,6 @@
     <string name="sure_del_all_book">是否删除全部书籍？</string>
     <string name="sure_del_download_book">是否同时删除已下载的书籍目录？</string>
     <string name="qr_per">扫描二维码需相机权限</string>
-    <string name="aloud_can_not_auto_page">朗读正在运行，不能自动翻页</string>
     <string name="input_charset">输入编码</string>
     <string name="text_chapter_list_rule">TXT 目录规则</string>
     <string name="open_local_book_per">打开外部书籍需要存储权限</string>
@@ -626,7 +612,6 @@
     <string name="battery_show">%d%%</string>
     <string name="timer_m">%d 分钟</string>
     <string name="brightness_auto">自动亮度 %s</string>
-    <string name="read_aloud_by_page">按页朗读</string>
     <string name="speak_engine">朗读引擎</string>
     <string name="bg_image">背景图片</string>
     <string name="bg_color">背景颜色</string>
@@ -668,30 +653,6 @@
     <string name="search_progress_font_size">调节搜索进度字号</string>
     <string name="current_value">当前：%dsp</string>
     <string name="reset_default">恢复默认</string>
-    <string name="source_recycle_bin">规则回收站</string>
-    <string name="source_recycle_bin_summary">临时存放已删除规则，默认保留 7 天</string>
-    <string name="show_source_recycle_bin">显示规则回收站</string>
-    <string name="hide_source_recycle_bin">隐藏规则回收站</string>
-    <string name="enable_source_recycle_bin">开启规则回收站</string>
-    <string name="disable_source_recycle_bin">关闭规则回收站</string>
-    <string name="source_recycle_bin_count">%1$s - %2$d 项</string>
-    <string name="source_recycle_bin_empty">回收站为空</string>
-    <string name="source_recycle_bin_enabled">回收模式已开启</string>
-    <string name="source_recycle_bin_disabled">回收模式已关闭</string>
-    <string name="source_recycle_bin_restore_msg">恢复“%1$s”？</string>
-    <string name="source_recycle_bin_conflict_title">规则已存在</string>
-    <string name="source_recycle_bin_conflict_msg">“%1$s”与现有规则 key 相同，是否覆盖？</string>
-    <string name="source_recycle_bin_delete_msg">彻底删除“%1$s”？此操作不可恢复。</string>
-    <string name="source_recycle_bin_batch_restore_msg">恢复选中的 %1$d 项？</string>
-    <string name="source_recycle_bin_batch_conflict_msg">选中的 %1$d 项中包含已存在规则，是否覆盖冲突项并恢复？</string>
-    <string name="source_recycle_bin_batch_delete_msg">彻底删除选中的 %1$d 项？此操作不可恢复。</string>
-    <string name="source_recycle_bin_clear_title">清空回收站</string>
-    <string name="source_recycle_bin_clear_msg">彻底删除回收站内全部规则？此操作不可恢复。</string>
-    <string name="source_recycle_bin_type_group">%1$s - %2$s</string>
-    <string name="source_recycle_bin_time_left">删除于 %1$s - 剩余 %2$d 天</string>
-    <string name="source_recycle_bin_restored">已恢复</string>
-    <string name="source_recycle_bin_deleted">已彻底删除</string>
-    <string name="source_recycle_bin_cleared">回收站已清空</string>
     <string name="search_engine_rule">搜索引擎规则</string>
     <string name="filter">筛选</string>
     <string name="overwrite">覆盖</string>
@@ -749,7 +710,6 @@
     <string name="log">日志</string>
     <string name="chinese_converter">中文简繁体转换</string>
     <string name="change_icon_error">图标为矢量图标，Android 8.0 以前不支持</string>
-    <string name="aloud_config">朗读设置</string>
     <string name="main_activity">主界面</string>
     <string name="enhanced_features">增强功能</string>
     <string name="selectText">长按选择文本</string>
@@ -846,7 +806,6 @@
     <string name="main_menu">主菜单</string>
     <string name="request_permission">点击授予权限</string>
     <string name="tip_local_perm_request_storage">阅读需要访问存储卡权限，请点击下方的“授予权限”按钮，或前往“设置”—“应用权限”，打开所需权限。如果授予权限后仍然不正常，请点击右上角的“选择文件夹”，使用系统文件夹选择器。</string>
-    <string name="alouding_disable">全文朗读中不能朗读选中文字</string>
     <string name="read_body_to_lh">扩展到刘海</string>
     <string name="toc_updateing">更新目录中</string>
     <string name="media_button_on_exit_title">全程响应耳机按键</string>
@@ -947,12 +906,6 @@
     <string name="read_record">阅读记录</string>
     <string name="del_read_record">删除阅读记录</string>
     <string name="read_record_summary">阅读时间记录</string>
-    <string name="storage_manage">存储管理</string>
-    <string name="storage_manage_summary">管理应用缓存和存储空间</string>
-    <string name="download_manage">下载管理</string>
-    <string name="download_manage_summary">管理WebView下载的文件</string>
-    <string name="module_status">模块运行状态</string>
-    <string name="module_status_summary">查看 App 各模块是否运行中</string>
     <string name="local_tts">本地 TTS</string>
     <string name="thread_count">线程数</string>
     <string name="all_read_time">总阅读时间</string>
@@ -1073,7 +1026,6 @@
     <string name="custom_group_summary">关闭替换分组/开启添加分组</string>
     <string name="pref_media_button_per_next">媒体按钮•上一首|下一首</string>
     <string name="pref_media_button_per_next_summary">上一段|下一段/上一章|下一章</string>
-    <string name="read_aloud_by_page_summary">及时翻页，翻页时会停顿一下</string>
     <string name="check_source_show_debug_message">校验显示详细信息</string>
     <string name="check_source_show_debug_message_summary">书源校验时显示网络请求步骤和时间</string>
     <string name="need_login">需要登录</string>
@@ -1304,11 +1256,7 @@
     <string name="unsafe_ssl_title">跳过SSL验证</string>
     <string name="unsafe_ssl_summary">跳过所有网络请求的SSL证书验证，可能遭受中间人攻击，仅在网站证书异常时开启</string>
     <string name="need_restart_app">此更改需要重启应用才能生效，是否立即重启？</string>
-    <string name="read_aloud_wake_lock">朗读服务唤醒锁</string>
-    <string name="read_aloud_wake_lock_summary">开启朗读的时候启用唤醒锁,有些手机开启唤醒锁会被杀后台</string>
-    <string name="audio_play_wake_lock">音频服务唤醒锁</string>
-    <string name="audio_play_wake_lock_summary">播放音频的时候启用唤醒锁,有些手机开启唤醒锁会被杀后台</string>
-    <string name="change_search_scope">切换搜索范围</string>
+<string name="change_search_scope">切换搜索范围</string>
     <string name="copy_rule">拷贝规则</string>
     <string name="paste_rule">粘贴规则</string>
     <string name="highlight_rule_help">高亮规则说明</string>
@@ -1366,8 +1314,6 @@
     <string name="privacy_policy">用户隐私与协议</string>
     <string name="agree">同意</string>
     <string name="refuse">拒绝</string>
-    <string name="file_manage">文件管理</string>
-    <string name="file_manage_summary">管理私有文件夹的文件</string>
     <string name="create_folder">创建文件夹</string>
     <string name="allow_drop_down_refresh">允许下拉刷新</string>
     <string name="only_update_read">仅更新已读完</string>
@@ -1468,21 +1414,12 @@
     <string name="last_read_s">最后阅读 %1$s</string>
     <string name="show_read_record_in_book_info">显示阅读记录</string>
     <string name="words">字数</string>
-    <string name="app_name_sigma">阅读Max</string>
-    <string name="about_description_sigma">\u3000\u3000阅读Max继承自阅读Sigma，旨在改进和增加原版功能，欢迎您的加入。</string>
-    <string name="contributors_summary_sigma">gedoor、Luoyacheng、Horis、Xwite、GEd520、youfengknight等，详情请在GitHub中查看</string>
+    <string name="app_name_sigma">阅读M-Ink</string>
+    <string name="about_description_sigma">\u3000\u3000阅读M-Ink继承自阅读MAX，旨在改进和增加原版功能，欢迎您的加入。</string>
+    <string name="contributors_summary_sigma">Mickey、chesm、gedoor、Luoyacheng、Horis、Xwite、GEd520、youfengknight等，详情请在GitHub中查看</string>
     <string name="app_share_description_sigma">
         阅读Max下载地址:\nhttps://github.com/
     </string>
-    <string name="stream_read_aloud_audio">流式播放音频</string>
-    <string name="stream_read_aloud_audio_summary">即边下边播，网络不好时播放会断断续续，仅TTS源有效</string>
-    <string name="read_aloud_floating_ui">启用朗读悬浮窗</string>
-    <string name="read_aloud_floating_ui_summary">默认关闭为旧模式：可打开朗读页，但不显示悬浮窗；开启后显示朗读悬浮窗</string>
-    <string name="pause_read_aloud_while_phone_calls_title">来电期间暂停朗读</string>
-    <string name="pause_read_aloud_while_phone_calls_summary">在通话期间暂停朗读，需要读取手机状态权限</string>
-    <string name="read_aloud_read_phone_state_permission_rationale">阅读需要读取手机状态实现来电期间暂停朗读功能</string>
-    <string name="read_aloud_by_media_button_title">耳机按键启动朗读</string>
-    <string name="read_aloud_by_media_button_summary">通过耳机按键来启动朗读</string>
     <string name="group_sources_by_domain">按域名分组显示</string>
     <string name="theme_config">主题配置</string>
     <string name="show_manga_ui">漫画浏览</string>
@@ -1550,8 +1487,7 @@
     <string name="mute_play">静音播放</string>
     <string name="mute_play_enabled">当前静音播放已启用</string>
     <string name="json_format">JSON格式</string>
-    <string name="open_other_video_player">使用其他播放器打开</string>
-    <string name="show_source_comment">显示源注释</string>
+<string name="show_source_comment">显示源注释</string>
     <string name="enable_locate">启用定位</string>
     <string name="adapt_special_style">适配特殊样式</string>
     <string name="show_line_number">显示 %d 行</string>
@@ -1710,17 +1646,9 @@
     <!-- Smart Import -->
     <string name="smart_import">智能导入</string>
     <!-- URL Record -->
-    <string name="url_record">URL访问记录</string>
-    <string name="record_url_switch">启用URL记录</string>
     <string name="record_url_enabled">URL记录已启用</string>
     <string name="record_url_disabled">URL记录已禁用</string>
-    <string name="clear_records">清除记录</string>
     <string name="clear_old_records">清除旧记录</string>
-    <string name="clear_old_7_days">清除7天前的记录</string>
-    <string name="clear_old_30_days">清除30天前的记录</string>
-    <string name="clear_all_records">清除所有记录</string>
-    <string name="search_url_record_hint">搜索URL/域名/来源</string>
-    <string name="filter_by_domain">按域名筛选</string>
     <string name="history_record">历史记录</string>
     <string name="detected_as">识别为: %1$s (%2$d条)</string>
     <string name="detecting">识别中...</string>
@@ -1926,8 +1854,7 @@
     <string name="float_permission_rationale">阅读需要悬浮窗权限来显示播放窗口</string>
     <string name="video">视频</string>
     <string name="float_window">悬浮窗</string>
-    <string name="video_play">视频播放</string>
-    <string name="overlay">叠加</string>
+<string name="overlay">叠加</string>
     <string name="margin">间距</string>
 
     <!-- Reading & Source Settings -->

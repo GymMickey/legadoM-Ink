@@ -25,19 +25,17 @@ static def releaseCode() {
     return new Date().format("yyDDDHHmm", TimeZone.getTimeZone("GMT+8")).toInteger()
 }
 
-def buildNumberFile = rootProject.file("build_number.txt")
-def buildNumber = 1
-if (buildNumberFile.exists()) {
-    def content = buildNumberFile.text.trim()
-    if (content.isInteger()) {
-        buildNumber = Integer.parseInt(content) + 1
+def gitCommits = 0
+try {
+    def result = 'git rev-list HEAD --count'.execute().text.trim()
+    if (result && result.isNumber()) {
+        gitCommits = Integer.parseInt(result)
     }
+} catch (Exception ignored) {
 }
-buildNumberFile.text = buildNumber.toString()
 
 def name = "阅读"
-def version = "3.26-beta " + buildNumber
-def gitCommits = 0
+def version = "3.26-beta " + gitCommits
 def bundledReleaseStoreFile = rootProject.file(".github/workflows/legado.jks")
 def resolvedReleaseStoreFile = project.findProperty("RELEASE_STORE_FILE") ? file(project.property("RELEASE_STORE_FILE")) : (bundledReleaseStoreFile.exists() ? bundledReleaseStoreFile : null)
 def resolvedReleaseKeyAlias = project.findProperty("RELEASE_KEY_ALIAS") ?: "legado"

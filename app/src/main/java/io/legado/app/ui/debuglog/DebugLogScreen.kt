@@ -250,20 +250,6 @@ fun DebugLogScreen(
                                 )
 
                                 DropdownMenuItem(
-                                    text = { Text("精准管理") },
-                                    onClick = {
-                                        showOverflowMenu = false
-                                        val intent = Intent(context, ConfigActivity::class.java)
-                                        intent.putExtra("configTag", ConfigTag.PRECISE_MANAGE)
-                                        context.startActivity(intent)
-                                    },
-                                    leadingIcon = {
-                                        Icon(Icons.Default.Settings, contentDescription = null)
-                                    },
-                                    colors = menuItemColors
-                                )
-
-                                DropdownMenuItem(
                                     text = { Text("其他设置") },
                                     onClick = {
                                         showOverflowMenu = false

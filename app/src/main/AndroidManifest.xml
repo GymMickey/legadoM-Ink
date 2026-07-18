@@ -181,7 +181,6 @@
         <activity
             android:name=".ui.book.info.edit.BookInfoEditActivity"
             android:launchMode="singleTask" />
-        <!-- 视频播放器界面 -->
         <!-- 授权界面 -->
         <activity
             android:name="io.legado.app.lib.permission.PermissionActivity"
@@ -331,23 +330,9 @@
             android:configChanges="orientation|screenSize"
             android:hardwareAccelerated="true"
             android:exported="false" />
-        <!-- 存储管理 -->
-        <activity
-            android:name=".ui.book.storage.StorageManageActivity"
-            android:configChanges="orientation|screenSize"
-            android:hardwareAccelerated="true" />
         <!-- 书籍缓存选择 -->
         <activity
             android:name=".ui.book.cacheSelector.BookCacheSelectorActivity"
-            android:configChanges="orientation|screenSize"
-            android:hardwareAccelerated="true" />
-        <!-- 下载管理 -->
-        <activity
-            android:name=".ui.download.DownloadManageActivity"
-            android:configChanges="orientation|screenSize"
-            android:hardwareAccelerated="true" />
-        <activity
-            android:name=".ui.module.ModuleStatusActivity"
             android:configChanges="orientation|screenSize"
             android:hardwareAccelerated="true" />
         <!-- 字典管理 -->
@@ -358,20 +343,6 @@
         <!-- 调试工具 -->
         <activity
             android:name=".ui.debug.DebugToolsActivity"
-            android:configChanges="orientation|screenSize"
-            android:hardwareAccelerated="true" />
-        <!-- URL访问记录 -->
-        <activity
-            android:name=".ui.urlRecord.UrlRecordActivity"
-            android:configChanges="orientation|screenSize"
-            android:hardwareAccelerated="true" />
-        <activity
-            android:name=".ui.source.recycle.SourceRecycleBinActivity"
-            android:configChanges="orientation|screenSize"
-            android:hardwareAccelerated="true" />
-        <!-- 书源检测 -->
-        <activity
-            android:name=".ui.book.source.check.CheckSourceActivity"
             android:configChanges="orientation|screenSize"
             android:hardwareAccelerated="true" />
         <!-- HTML封面模板配置 -->
@@ -414,11 +385,6 @@
             android:hardwareAccelerated="true" />
         <activity
             android:name=".ui.debug.TimestampConvertActivity"
-            android:configChanges="orientation|screenSize"
-            android:hardwareAccelerated="true" />
-        <!-- 文件管理 -->
-        <activity
-            android:name=".ui.file.FileManageActivity"
             android:configChanges="orientation|screenSize"
             android:hardwareAccelerated="true" />
         <!-- 选择文件 -->
@@ -620,6 +586,9 @@
         <meta-data
             android:name="channel"
             android:value="${APP_CHANNEL_VALUE}" />
+        <activity
+            android:name=".ui.main.bookshelf.BookshelfConfigActivity"
+            android:exported="false" />
     </application>
 
     <queries>

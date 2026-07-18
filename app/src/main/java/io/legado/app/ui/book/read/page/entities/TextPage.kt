@@ -57,7 +57,6 @@ data class TextPage(
     var doublePage = false
     var paddingTop = ChapterProvider.paddingTop
     var isCompleted = false
-    var hasReadAloudSpan = false
     var hasAnimatedContent = false
     var isResumed = false
 
@@ -193,50 +192,8 @@ data class TextPage(
         return this
     }
 
-    /**
-     * 移除朗读标志
-     */
     fun removePageAloudSpan(): TextPage {
-        if (!hasReadAloudSpan) {
-            return this
-        }
-        hasReadAloudSpan = false
-        for (i in textLines.indices) {
-            textLines[i].isReadAloud = false
-        }
         return this
-    }
-
-    /**
-     * 更新朗读标志
-     * @param aloudSpanStart 朗读文字开始位置
-     */
-    fun upPageAloudSpan(aloudSpanStart: Int) {
-        removePageAloudSpan()
-        var lineStart = 0
-        for (index in textLines.indices) {
-            val textLine = textLines[index]
-            val lineLength = textLine.text.length + if (textLine.isParagraphEnd) 1 else 0
-            if (aloudSpanStart >= lineStart && aloudSpanStart < lineStart + lineLength) {
-                for (i in index - 1 downTo 0) {
-                    if (textLines[i].isParagraphEnd) {
-                        break
-                    } else {
-                        textLines[i].isReadAloud = true
-                    }
-                }
-                for (i in index until textLines.size) {
-                    if (textLines[i].isParagraphEnd) {
-                        textLines[i].isReadAloud = true
-                        break
-                    } else {
-                        textLines[i].isReadAloud = true
-                    }
-                }
-                break
-            }
-            lineStart += lineLength
-        }
     }
 
     /**

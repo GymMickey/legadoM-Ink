@@ -10,6 +10,7 @@ import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import androidx.viewbinding.ViewBinding
 import io.legado.app.help.coroutine.Coroutine
+import io.legado.app.help.config.AppConfig
 import io.legado.app.utils.buildMainHandler
 import io.legado.app.utils.withTimeoutOrNullAsync
 import kotlinx.coroutines.ensureActive
@@ -468,6 +469,7 @@ abstract class RecyclerAdapter<ITEM, VB : ViewBinding>(protected val context: Co
     private fun getActualPosition(position: Int) = position - getHeaderCount()
 
     private fun addAnimation(holder: ItemViewHolder) {
+        if (AppConfig.isEInkMode) return
         itemAnimation?.let {
             if (it.itemAnimEnabled) {
                 if (!it.itemAnimFirstOnly || holder.layoutPosition > it.itemAnimStartPosition) {

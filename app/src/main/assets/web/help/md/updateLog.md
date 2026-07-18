@@ -4,20 +4,41 @@
 ### cronet版本: 128.0.6613.40
 ### Kotlin版本: 2.3.10 | Rhino版本: 1.8.1 | Compose版本: 2025.04.01 | Compose UI 版本:  1.7.x | Material3 版本: 1.3.x | okhttp版本: 5.3.2
 
-### 项目继承历史
-##### 原版
-* [Github](https://github.com/gedoor/legado)
-##### Sigma版
-* [Github](https://github.com/Luoyacheng/legado)
-* [Gitee](https://gitee.com/lyc486/legado/releases)
-* [详细日志](https://gitee.com/lyc486/legado/commits/main)
-##### Max版
-* [Github主干youfengknight](https://github.com/youfengknight/Legado_Max)
-* [Github分支GEd520](https://github.com/GEd520/legados)
-* [Github分支Suml-1](https://github.com/Suml-1/Legado_Max)
-##### 阅读多版本下载链接(如果网站所有者认为该网站不适合在此处显示，可以通过GitHub联系我进行删除。)
-- [链接1](https://legado.gyks.cf/)
-- [链接2](https://legado.ccccocccc.cc/index.php?i=2)
+### 阅读M-Ink
+
+基于阅读Max精简的E-Ink墨水屏专用版本，保持与原版数据库、备份恢复、书源/RSS/订阅/下载完全兼容。
+
+**2026/07/18**（未发布）
+- 版本号 beta 计数：build_number.txt 自增 → Git 提交数（`git rev-list HEAD --count`）
+- 修复 Flyme 12.6 书架布局弹窗首次闪现（menu_bookshelf_layout 从溢出菜单改为工具栏按钮，绕过 PopupWindow 焦点冲突）
+- 更新日志重写：删除项目继承历史，改为记录本项目功能变更
+- 删除精准管理模块：PreciseManageFragment + 6个子模块UI（URL记录/存储管理/下载管理/模块状态/书源回收站/文件管理），~25文件
+- 删除书源校验新界面（Compose CheckSourceActivity），保留旧路径「校验所选」
+- 修复书源校验 startForeground 崩溃（通知渠道 channelIdReadAloud → channelIdDownload）
+- 关于页改名：阅读Max → 阅读M-Ink，新增开发者 Mickey、chesm
+
+**2026/07/17**（未发布）
+- 删除有声书模块（AudioPlay）：Activity + Service + Model + 资源
+- 删除视频播放模块（VideoPlay）：Activity + Service + Model + GSYVideoPlayer
+- TTS 朗读死代码清理：BaseReadAloudService/TTSReadAloudService/HttpReadAloudService 及配套 UI（29文件，616行）
+- 清理朗读高亮 span 死代码：TextLine.isReadAloud、TextPage.hasReadAloudSpan
+- 清理 AudioPlay/VideoPlay/TTS 孤儿资源（8语言 strings.xml，~30键）
+- E-Ink 动画优化：PageDelegate 翻页动画跳过、FastScroller 滚动条动画跳过（4处）、RecyclerAdapter 列表入场动画跳过
+
+#### v3.26-beta.66（2026/07/16）
+- 首页继续阅读卡片点击直接进入阅读界面
+- WiFi传书完善、本地书籍管理扩充
+- 签名配置：密码移至用户级 GRADLE_USER_HOME/gradle.properties
+
+#### v3.26-beta51（2026/07/05）
+- 修复首页累计阅读数目与设置阅读记录不一致
+- 首页与阅读记录页累计阅读时长统一为 repository 算法
+- 修复自动更新调用坏接口 + beta版本比较逻辑
+- 首页统计实时刷新
+- 修复检查更新URL + 首页书籍去重 + 备份按钮文案
+- 首页恢复功能改用 GlobalScope 避免 RECREATE 时协程取消误报失败
+- 修复首页恢复功能闪退 + 恢复时取最新备份
+- 去掉签名密码硬编码默认值，未配置时直接报错
 
 **2026/07/02**
 - 发现界面新增“显示分类Tab”功能

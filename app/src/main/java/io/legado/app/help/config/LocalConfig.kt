@@ -105,12 +105,6 @@ by appCtx.getSharedPreferences("local_plus", Context.MODE_PRIVATE) {
     val ruleHelpVersionIsLast: Boolean
         get() = isLastVersion(1, "ruleHelpVersion")
 
-    /**
-     * 是否需要更新 HTTP TTS 默认配置
-     * version=6, 版本号低于此值时会导入新的 HTTP TTS 配置
-     */
-    val needUpHttpTTS: Boolean
-        get() = !isLastVersion(6, "httpTtsVersion")
 
     /**
      * 是否需要更新 TXT 目录规则默认配置

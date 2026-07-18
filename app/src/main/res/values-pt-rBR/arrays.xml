@@ -73,10 +73,6 @@
 		<item>铆cone6</item>
         <item>铆cone7</item>
 		<item>铆cone8</item>
-	</string-array>
-
-	<string-array name="chinese_mode">
-		<item>Desativado</item>
 		<item>Tradicional a Simplificado</item>
 		<item>Simplificado a Tradicional</item>
 	</string-array>

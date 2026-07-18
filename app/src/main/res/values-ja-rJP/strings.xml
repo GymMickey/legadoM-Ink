@@ -143,12 +143,7 @@
     <string name="pt_hide_status_bar">Hide status bar</string>
     <string name="ps_hide_status_bar">Hide system navigation bar when reading</string>
     <string name="read_aloud">Speech</string>
-    <string name="read_aloud_t">Speaking</string>
-    <string name="read_aloud_s">Click to open the Reading</string>
-    <string name="audio_play">Play</string>
-    <string name="audio_play_t">Playing</string>
-    <string name="audio_play_s">Click to open the Playing</string>
-    <string name="audio_pause">Pause</string>
+<string name="audio_pause">Pause</string>
     <string name="text_return">Back</string>
     <string name="refresh">Refresh</string>
     <string name="start">Start</string>
@@ -156,8 +151,6 @@
     <string name="pause">Pause</string>
     <string name="resume">Resume</string>
     <string name="set_timer">Timer</string>
-    <string name="read_aloud_pause">Speak Paused</string>
-    <string name="read_aloud_timer">Speaking(%d min left)</string>
     <string name="playing_timer">Playing(%d min left)</string>
     <string name="ps_hide_navigation_bar">Hide virtual buttons when reading</string>
     <string name="pt_hide_navigation_bar">Hide navigation bar</string>
@@ -327,7 +320,6 @@
     <string name="auto_expand_find">Auto expand Discovery</string>
     <string name="default_expand_first">Default expand the first Discovery.</string>
     <string name="threads_num">Current threads %s</string>
-    <string name="read_aloud_speed">Speech rate</string>
     <string name="auto_next_page">Auto scroll</string>
     <string name="auto_next_page_stop">Stop Auto scroll</string>
     <string name="auto_next_page_speed">Auto scroll speed</string>
@@ -341,7 +333,6 @@
     <string name="sys_file_picker">System file picker</string>
     <string name="new_version">New version</string>
     <string name="download_update">Download updates</string>
-    <string name="volume_key_page_on_play">Volume keys to turn page when reading</string>
     <string name="tip_margin_change">Margin adjustment</string>
     <string name="allow_update">Enable update</string>
     <string name="disable_update">Disable update</string>
@@ -507,7 +498,6 @@
     <string name="sure_del_all_book">Are you sure to delete all books？</string>
     <string name="sure_del_download_book">Do you want to delete the downloaded book chapters at the same time?</string>
     <string name="qr_per">Scan QR code requires Camera permissions</string>
-    <string name="aloud_can_not_auto_page">Speech is running, cannot turn pages automatically</string>
     <string name="input_charset">Input encoding</string>
     <string name="text_chapter_list_rule">Txt Chapters Regex</string>
     <string name="open_local_book_per">Open local books requires storage permission</string>
@@ -576,7 +566,6 @@
     <string name="battery_show">%d%%</string>
     <string name="timer_m">%d min</string>
     <string name="brightness_auto">Auto-Brightness %s</string>
-    <string name="read_aloud_by_page">Speak by pages</string>
     <string name="speak_engine">Speak Engine</string>
     <string name="bg_image">Background images</string>
     <string name="bg_color">Background color</string>
@@ -655,7 +644,6 @@
     <string name="log">Log</string>
     <string name="chinese_converter">Simplified conversion</string>
     <string name="change_icon_error">The icon is a vector icon, which was not supported before Android 8.0</string>
-    <string name="aloud_config">Speech settings</string>
     <string name="main_activity">Start page</string>
     <string name="selectText">Long Tap to select text</string>
     <string name="header">Header</string>
@@ -694,7 +682,6 @@
     <string name="main_menu">Main menu</string>
     <string name="request_permission">Tap to grant permission</string>
     <string name="tip_local_perm_request_storage">Legado needs Storage permission, please tap the "Grant Permission" button below, or go to "Settings"-"Application Permissions"-to open the required permission. If the permission is still not work, please tap "Select Folder" in the upper right corner to use the system folder picker.</string>
-    <string name="alouding_disable">The selected text cannot be spoken in full text speech</string>
     <string name="read_body_to_lh">Extend to cutout</string>
     <string name="toc_updateing">Updating Chapters</string>
     <string name="media_button_on_exit_title">Headset buttons are always available</string>
@@ -881,7 +868,6 @@
     <string name="custom_group_summary">关闭替换分组/开启添加分组</string>
     <string name="pref_media_button_per_next">媒体按钮•上一首|下一首</string>
     <string name="pref_media_button_per_next_summary">上一段|下一段/上一章|下一章</string>
-    <string name="read_aloud_by_page_summary">及时翻页,翻页时会停顿一下</string>
     <string name="check_source_show_debug_message">Check book source shows debug message</string>
     <string name="check_source_show_debug_message_summary">Show network status and timestamp during source checking</string>
     <string name="autobackup_fail">Autobackup failed\n%s</string>
@@ -1072,11 +1058,7 @@
     <string name="webdav_device_name">设备名称</string>
     <string name="web_service_wake_lock">WebService唤醒锁</string>
     <string name="web_service_wake_lock_summary">开启web服务的时候启用唤醒锁,有些手机开启唤醒锁会被杀后台</string>
-    <string name="read_aloud_wake_lock">朗读服务唤醒锁</string>
-    <string name="read_aloud_wake_lock_summary">开启朗读的时候启用唤醒锁,有些手机开启唤醒锁会被杀后台</string>
-    <string name="audio_play_wake_lock">音频服务唤醒锁</string>
-    <string name="audio_play_wake_lock_summary">播放音频的时候启用唤醒锁,有些手机开启唤醒锁会被杀后台</string>
-    <string name="change_search_scope">切换搜索范围</string>
+<string name="change_search_scope">切换搜索范围</string>
     <string name="copy_rule">拷贝规则</string>
     <string name="paste_rule">粘贴规则</string>
     <string name="groups_or_source">多分组/书源</string>
@@ -1113,8 +1095,6 @@
     <string name="privacy_policy">用户隐私与协议</string>
     <string name="agree">同意</string>
     <string name="refuse">拒绝</string>
-    <string name="file_manage">文件管理</string>
-    <string name="file_manage_summary">管理私有文件夹的文件</string>
     <string name="create_folder">创建文件夹</string>
     <string name="allow_drop_down_refresh">允许下拉刷新</string>
     <string name="text_underline">文字下划线</string>
@@ -1185,13 +1165,6 @@
     <string name="official_version">正式版</string>
     <string name="beta_release_version">测试版</string>
     <string name="beta_releaseA_version">共存版</string>
-    <string name="stream_read_aloud_audio">流式播放音频</string>
-    <string name="stream_read_aloud_audio_summary">即边下边播，网络不好时播放会断断续续，仅TTS源有效</string>
-    <string name="pause_read_aloud_while_phone_calls_title">来电期间暂停朗读</string>
-    <string name="pause_read_aloud_while_phone_calls_summary">在通话期间暂停朗读，需要读取手机状态权限</string>
-    <string name="read_aloud_read_phone_state_permission_rationale">阅读需要读取手机状态实现来电期间暂停朗读功能</string>
-    <string name="read_aloud_by_media_button_title">耳机按键启动朗读</string>
-    <string name="read_aloud_by_media_button_summary">通过耳机按键来启动朗读</string>
     <string name="group_sources_by_domain">按域名分组显示</string>
     <string name="theme_config">主题配置</string>
     <string name="show_manga_ui">漫画浏览</string>

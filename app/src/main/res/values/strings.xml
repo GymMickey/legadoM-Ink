@@ -1530,8 +1530,8 @@
     <string name="last_read_s">Last Read %1$s</string>
     <string name="show_read_record_in_book_info">Show Read Record</string>
     <string name="words">Words</string>
-    <string name="app_name_sigma">legadoM-Ink</string>
-    <string name="about_description_sigma">\u3000\u3000Legado M-Ink is inherited from Legado MAX, aiming to improve and add features on the original version. Welcome to join us.</string>
+    <string name="app_name_sigma">阅读M-Ink</string>
+    <string name="about_description_sigma">\u3000\u3000\u9605\u8bfbM-Ink is inherited from Legado MAX, aiming to improve and add features on the original version. Welcome to join us.</string>
     <string name="contributors_summary_sigma">Mickey, chesm, gedoor, Luoyacheng, Horis, Xwite, GEd520, youfengknight, etc. See GitHub for details</string>
     <string name="app_share_description_sigma">
         Legado Max Download: \nhttps://github.com/

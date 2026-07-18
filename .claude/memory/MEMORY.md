@@ -1,0 +1,4 @@
+- [Gradle 属性优先级陷阱](.claude/memory/gradle-property-precedence.md) — GRADLE_USER_HOME 属性覆盖项目级配置，曾导致签名密码错误
+- [Gradle 缓存跨盘符 KSP 异常](.claude/memory/gradle-cross-drive-ksp-fix.md) — 缓存 C vs F 盘导致 Glide KSP 报错，修复方案与注意事项
+- [GitHub Release 发布流程](.claude/memory/github-release-workflow.md) — Token 认证、编译 APK、创建 Release 完整步骤
+- [Git Push 工作流](.claude/memory/git-push-workflow.md) — Push 前必须先更新 updateLog.md

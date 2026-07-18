@@ -45,13 +45,14 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/iv_cover_grid">
 
-        <io.legado.app.ui.widget.image.CircleImageView
+        <com.google.android.material.imageview.ShapeableImageView
             android:id="@+id/iv_in_bookshelf_dot_grid"
             android:layout_width="6dp"
             android:layout_height="6dp"
             android:layout_marginEnd="3dp"
             android:scaleType="centerCrop"
             android:src="@color/md_green_600"
+            app:shapeAppearanceOverlay="@style/ShapeAppearance.Circle"
             android:visibility="gone" />
 
         <TextView

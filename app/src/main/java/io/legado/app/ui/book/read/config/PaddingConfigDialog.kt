@@ -10,6 +10,9 @@ import io.legado.app.base.BaseDialogFragment
 import io.legado.app.constant.EventBus
 import io.legado.app.databinding.DialogReadPaddingBinding
 import io.legado.app.help.config.ReadBookConfig
+import io.legado.app.lib.theme.bottomBackground
+import io.legado.app.lib.theme.getPrimaryTextColor
+import io.legado.app.utils.ColorUtils
 import io.legado.app.utils.postEvent
 import io.legado.app.utils.setLayout
 import io.legado.app.utils.viewbindingdelegate.viewBinding
@@ -30,8 +33,21 @@ class PaddingConfigDialog : BaseDialogFragment(R.layout.dialog_read_padding) {
     }
 
     override fun onFragmentCreated(view: View, savedInstanceState: Bundle?) {
+        initTheme()
         initData()
         initView()
+    }
+
+    private fun initTheme() = binding.run {
+        val bg = requireContext().bottomBackground
+        val isLight = ColorUtils.isColorLight(bg)
+        val textColor = requireContext().getPrimaryTextColor(isLight)
+        root.setBackgroundColor(bg)
+        tvHeaderPadding.setTextColor(textColor)
+        tvBodyPadding.setTextColor(textColor)
+        tvFooterPadding.setTextColor(textColor)
+        tvShowTopLineLabel.setTextColor(textColor)
+        tvShowBottomLineLabel.setTextColor(textColor)
     }
 
     override fun onDismiss(dialog: DialogInterface) {
@@ -111,11 +127,11 @@ class PaddingConfigDialog : BaseDialogFragment(R.layout.dialog_read_padding) {
             ReadBookConfig.footerPaddingRight = it
             postEvent(EventBus.UP_CONFIG, arrayListOf(2))
         }
-        cbShowTopLine.onCheckedChangeListener = { _, isChecked ->
+        cbShowTopLine.setOnCheckedChangeListener { _, isChecked ->
             ReadBookConfig.showHeaderLine = isChecked
             postEvent(EventBus.UP_CONFIG, arrayListOf(2))
         }
-        cbShowBottomLine.onCheckedChangeListener = { _, isChecked ->
+        cbShowBottomLine.setOnCheckedChangeListener { _, isChecked ->
             ReadBookConfig.showFooterLine = isChecked
             postEvent(EventBus.UP_CONFIG, arrayListOf(2))
         }

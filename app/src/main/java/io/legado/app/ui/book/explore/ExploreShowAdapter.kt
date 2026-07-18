@@ -15,7 +15,7 @@ import io.legado.app.databinding.ItemSearchBinding
 import io.legado.app.domain.model.BookShelfState
 import io.legado.app.help.config.AppConfig
 import io.legado.app.help.glide.CoverLoader
-import io.legado.app.ui.widget.image.CircleImageView
+import com.google.android.material.imageview.ShapeableImageView
 import io.legado.app.utils.gone
 import io.legado.app.utils.visible
 
@@ -327,7 +327,7 @@ internal fun ImageView.setShelfState(state: BookShelfState) {
  * - NOT_IN_SHELF: 隐藏
  * 根据配置决定是否显示
  */
-internal fun CircleImageView.setShelfStateDot(state: BookShelfState) {
+internal fun ShapeableImageView.setShelfStateDot(state: BookShelfState) {
     // 经典样式（小绿点）仅在配置为1时显示
     if (AppConfig.bookshelfIconStyle == 1) {
         when (state) {

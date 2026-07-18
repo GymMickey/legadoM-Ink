@@ -237,6 +237,45 @@ Phase 2 在 App 启动时自动扫描，但 `scanDoc()` 对大目录（500+ 文�
 | 2026-07-18 | 关于页改名：阅读Max → 阅读M-Ink，新增 Mickey/chesm 开发者 |
 | 2026-07-18 | 修复书源校验 startForeground 崩溃（channelIdReadAloud → channelIdDownload） |
 
+### Widget 替换（W1/W2/W3，2026-07-19）
+
+| 任务 | 内容 | 结果 |
+|------|------|------|
+| W1 | CircleImageView → ShapeableImageView，5 处 XML + attrs.xml 清理，删除 CircleImageView.kt | 编译通过。副作用：`ReadStyleDialog` 样式选择器丢失圆形点击范围判断（isInView 未迁移），影响极小，已确认忽略 |
+| W2 | SmoothCheckBox → MaterialCheckBox，仅设置页面（dialog_read_book_style.xml、dialog_read_padding.xml） | 编译通过。dialog_select_section_export.xml 的非设置页用法按计划跳过 |
+| W3 | RotateLoading E-Ink/普通双分支（onDraw/startAnimator/stopAnimator 三处判断 AppConfig.isEInkMode） | 编译通过。E-Ink 静态文字提示，普通模式保留原动画，零 XML/调用方改动 |
+
+### ThemeStore 死代码清理（2026-07-19）
+
+前置于 Phase 3B（E-Ink 颜色适配），基于全项目引用检索确认删除：
+
+| 文件 | 删除内容 |
+|------|----------|
+| `ThemeStoreInterface.kt` | 整个文件（仅被 ThemeStore 自身 implements，零外部调用） |
+| `ThemeStore.kt` | `markChanged()`、`isConfigured(context)`、`isConfigured(context, version)`，及 `: ThemeStoreInterface` 实现 |
+| `ThemeStorePrefKeys.kt` | `IS_CONFIGURED_VERSION_KEY` 常量 |
+| `ViewUtils.kt` | `removeOnGlobalLayoutListener()`、`setBackgroundTransition()`、`setBackgroundColorTransition()`（保留 `setBackgroundCompat()`，被 TintHelper.kt 使用） |
+| `Selector.kt` | `DrawableSelector` 内部类 + `drawableBuild()` 工厂方法（保留 ShapeSelector/ColorSelector） |
+| `MaterialValueHelper.kt` | `Context.primaryColorDark` 扩展属性 |
+
+**排查后确认保留**：`MaterialValueHelper.kt` 中 10 个 `Fragment.*` 扩展属性（primaryColor/accentColor/backgroundColor/... /isDarkTheme）——grep 未命中因 Kotlin 扩展属性同名重载无法字面匹配，删除后编译报错，已全部恢复，实际有 80+ 处调用。编译通过。
+
+### Phase 7 最终验证（2026-07-19）
+
+全部通过，无阻塞问题：
+
+| 检查项 | 结果 | 备注 |
+|--------|------|------|
+| 编译 | ✅ | BUILD SUCCESSFUL，无新增 warning |
+| 已删类/方法残留引用 | ✅ | 仅 updateLog.md/README.md 文档提及已删功能名（历史记录，保留） |
+| AndroidManifest.xml | ✅ | 无已删 Activity/Service 声明残留 |
+| 数据库兼容性 | ✅ | Room schema v100 不变，HttpTTS entity 仍在，Book.ttsEngine 未删除 |
+| 关键文件引用 | ✅ | ReadBook/MainActivity/BaseActivity 均已解耦，MediaHelp 已删除无残留 |
+| 功能入口完整性 | ✅ | 5 个底部 tab 全部存在，阅读/书架/书源/设置/RSS 入口正常 |
+| 资源完整性 | ✅ | 仅清理 1 个孤儿布局 `activity_tts_debug.xml`（已删 TtsDebugActivity 残留） |
+
+保留的已知非阻塞项：`updateLog.md` 中提及已删功能名（历史发布记录）、`PreferKey.videoSetting` 死常量、配置文件中 TTS 相关死字符串——均不阻塞编译和运行。
+
 ---
 
 ## 支持格式（确定保留）
@@ -249,7 +288,7 @@ Phase 2 在 App 启动时自动扫描，但 `scanDoc()` 对大目录（500+ 文�
 | MOBI | 电子书 | E-Ink 用户与 Kindle 生态高度重叠 |
 | AZW | 电子书 | Kindle 格式 |
 | AZW3 | 电子书 | Kindle KF8 格式 |
-| CBZ/CBR | 漫画 | 漫画压缩包格式 |
+| UMD | 电子书 | 国内手机电子书格式 |
 
 **决策依据：** E-Ink 阅读器用户群和 Kindle 用户高度重叠，MOBI/AZW/AZW3 对目标用户不算小众。删格式支持 = 破坏兼容（用户书架里已有的书无法打开）。漫画 CBZ/CBR 保留以支持 E-Ink 漫画阅读场景。
 
@@ -266,15 +305,17 @@ Phase 2 在 App 启动时自动扫描，但 `scanDoc()` 对大目录（500+ 文�
 - 新增 HomeTab/HomeSection 发现功能（与精简方向相反）
 - 保留了 Audio/Video/TTS
 
+**核心使用原则：借鉴实现方式，不复制架构。** 他们的最大价值是提供现代 Android UI 替换案例、组件精简案例、布局性能优化案例——不能直接合并。
+
 ### 可借鉴项（按优先级排序）
 
 | 优先级 | 借鉴项 | 原因 | 注意事项 |
 |--------|--------|------|----------|
-| P0 | Widget 替换：RotateLoading→CircularProgressIndicator、SmoothCheckBox→MaterialCheckBox、CircleImageView→ShapeableImageView | 减代码量 + E-Ink 适配直接受益，他们已验证可行 | E-Ink 下 CircularProgressIndicator 必须替换为静态文字提示（不能只做组件换组件） |
-| P1 | ThemeStore 死代码清理 | Phase 3B 前置工作，"先清死代码再改功能"是正确工程顺序 | — |
-| P1 | ConstraintLayout 替换嵌套 LinearLayout（书架布局） | 减少 layout pass = 减少 E-Ink 刷新闪烁 | — |
-| P2 | lib/prefs bug 修复（EditTextPreference isBottomBackground 未传递、IconListPreference 点击监听覆盖） | 有实际 bug，值得搬 | — |
-| P3 | 属性委托简化 AppConfig | 好模式但纯代码现代化，超出精简版范围 | 放 Phase 7 之后的"锦上添花"列表 |
+| P0 | Widget 替换：RotateLoading→双分支、SmoothCheckBox→MaterialCheckBox、CircleImageView→ShapeableImageView | 减代码量 + E-Ink 适配直接受益，他们已验证可行 | RotateLoading 不能只换组件：E-Ink 分支必须用静态文字，LCD 分支用 CircularProgressIndicator |
+| P1 | ThemeStore 死代码清理 | 应提前至 Phase 0.5：后续大量删功能/合并设置/调主题，ThemeStore 中的废弃代码会干扰 AI | 只删无引用资源和死代码，不改行为 |
+| P2 | ConstraintLayout 替换嵌套 LinearLayout（书架布局） | 减少 layout pass，但 E-Ink 残影主要来自动画，布局优化收益有限，降级为 P2 | — |
+| P2 | lib/prefs bug 修复（EditTextPreference isBottomBackground 未传递、IconListPreference 点击监听覆盖） | 有实际 bug，小改动高收益 | 需单独 commit，不要混入 UI 精简 |
+| P3 | 属性委托简化 AppConfig | 好模式但纯代码现代化，不提升 E-Ink 体验 | Phase 7+ |
 
 ### 不适用项
 
@@ -286,6 +327,3 @@ Phase 2 在 App 启动时自动扫描，但 `scanDoc()` 对大目录（500+ 文�
 | Rhino 改 Maven 官方版本 | 我们的 modules/rhino 是定制 fork，有针对书源规则引擎的 patch |
 | TouchImageView 替换 PhotoView | 新增第三方依赖只是转移维护成本；PhotoView 能用且没 bug 就不换 |
 
----
-
-## 待执行

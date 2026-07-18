@@ -285,10 +285,12 @@
             android:layout_height="wrap_content"
             android:text="@string/share_layout" />
 
-        <io.legado.app.ui.widget.checkbox.SmoothCheckBox
+        <androidx.appcompat.widget.AppCompatCheckBox
             android:id="@+id/cb_share_layout"
-            android:layout_width="20dp"
-            android:layout_height="20dp"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:minWidth="0dp"
+            android:minHeight="0dp"
             android:layout_marginStart="6dp"
             android:layout_marginEnd="16dp" />
 
@@ -302,7 +304,8 @@
         android:layout_marginBottom="16dp"
         android:clipToPadding="false"
         android:orientation="horizontal"
-        android:paddingHorizontal="12dp"
+        android:paddingStart="12dp"
+        android:paddingEnd="5dp"
         app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
         tool:listitem="@layout/item_read_style" />
 

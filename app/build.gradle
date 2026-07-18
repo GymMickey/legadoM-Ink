@@ -34,7 +34,7 @@ try {
 } catch (Exception ignored) {
 }
 
-def name = "阅读"
+def name = "M-Ink"
 def version = "3.26-beta " + gitCommits
 def bundledReleaseStoreFile = rootProject.file(".github/workflows/legado.jks")
 def resolvedReleaseStoreFile = project.findProperty("RELEASE_STORE_FILE") ? file(project.property("RELEASE_STORE_FILE")) : (bundledReleaseStoreFile.exists() ? bundledReleaseStoreFile : null)
@@ -127,7 +127,7 @@ android {
         appMax {
             dimension "app"
             applicationId "io.legado.app.yuedu"
-            manifestPlaceholders = [app_name: "@string/app_name"]
+            manifestPlaceholders = [app_name: "@string/app_name_sigma"]
         }
     }
     buildTypes {
@@ -157,7 +157,7 @@ android {
             def flavorName = variant.flavorName
             def flavorLabel = [
                     appS     : "正式版",
-                    appMax   : "测试版",
+                    appMax   : "正式版",
                     appLegacy: "兼容版"
             ][flavorName] ?: flavorName
             def flavorSuffix = [

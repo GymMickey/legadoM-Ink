@@ -61,9 +61,6 @@ fun Context.getSecondaryDisabledTextColor(dark: Boolean): Int {
 val Context.primaryColor: Int
     get() = ThemeStore.primaryColor(this)
 
-val Context.primaryColorDark: Int
-    get() = ThemeStore.primaryColorDark(this)
-
 val Context.accentColor: Int
     get() = ThemeStore.accentColor(this)
 

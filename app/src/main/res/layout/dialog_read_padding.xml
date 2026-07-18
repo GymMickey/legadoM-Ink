@@ -32,14 +32,17 @@
                     android:textSize="18sp" />
 
                 <TextView
+                    android:id="@+id/tv_show_top_line_label"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="@string/showLine" />
 
-                <io.legado.app.ui.widget.checkbox.SmoothCheckBox
+                <androidx.appcompat.widget.AppCompatCheckBox
                     android:id="@+id/cb_show_top_line"
-                    android:layout_width="20dp"
-                    android:layout_height="20dp"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:minWidth="0dp"
+                    android:minHeight="0dp"
                     android:layout_margin="6dp" />
 
             </LinearLayout>
@@ -118,6 +121,7 @@
             android:orientation="horizontal">
 
             <io.legado.app.ui.widget.text.AccentTextView
+                android:id="@+id/tv_footer_padding"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
@@ -127,14 +131,17 @@
                 android:textSize="18sp" />
 
             <TextView
+                android:id="@+id/tv_show_bottom_line_label"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/showLine" />
 
-            <io.legado.app.ui.widget.checkbox.SmoothCheckBox
+            <androidx.appcompat.widget.AppCompatCheckBox
                 android:id="@+id/cb_show_bottom_line"
-                android:layout_width="20dp"
-                android:layout_height="20dp"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:minWidth="0dp"
+                android:minHeight="0dp"
                 android:layout_margin="6dp" />
 
         </LinearLayout>

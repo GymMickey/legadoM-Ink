@@ -2,6 +2,7 @@ package io.legado.app.ui.book.read.config
 
 import android.view.MotionEvent
 import android.view.View
+import io.legado.app.help.config.AppConfig
 import io.legado.app.utils.dpToPx
 
 internal fun attachBottomSheetDismiss(
@@ -25,16 +26,25 @@ internal fun attachBottomSheetDismiss(
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                 val offset = (event.rawY - downRawY).coerceAtLeast(0f)
                 if (offset >= dismissThreshold) {
-                    sheetContainer.animate()
-                        .translationY(sheetContainer.height.toFloat())
-                        .setDuration(180)
-                        .withEndAction(onDismiss)
-                        .start()
+                    if (AppConfig.isEInkMode) {
+                        sheetContainer.translationY = sheetContainer.height.toFloat()
+                        onDismiss()
+                    } else {
+                        sheetContainer.animate()
+                            .translationY(sheetContainer.height.toFloat())
+                            .setDuration(180)
+                            .withEndAction(onDismiss)
+                            .start()
+                    }
                 } else {
-                    sheetContainer.animate()
-                        .translationY(0f)
-                        .setDuration(180)
-                        .start()
+                    if (AppConfig.isEInkMode) {
+                        sheetContainer.translationY = 0f
+                    } else {
+                        sheetContainer.animate()
+                            .translationY(0f)
+                            .setDuration(180)
+                            .start()
+                    }
                 }
                 true
             }

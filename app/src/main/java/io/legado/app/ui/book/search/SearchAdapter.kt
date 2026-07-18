@@ -14,7 +14,7 @@ import io.legado.app.domain.model.BookShelfState
 import io.legado.app.help.config.AppConfig
 import io.legado.app.ui.book.explore.setShelfState
 import io.legado.app.ui.book.explore.setShelfStateDot
-import io.legado.app.ui.widget.image.CircleImageView
+import com.google.android.material.imageview.ShapeableImageView
 import io.legado.app.utils.gone
 import io.legado.app.utils.visible
 

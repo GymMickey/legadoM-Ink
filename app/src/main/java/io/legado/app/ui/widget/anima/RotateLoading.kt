@@ -7,11 +7,14 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.RectF
+import android.text.TextPaint
 import android.util.AttributeSet
 import android.view.View
 import io.legado.app.R
+import io.legado.app.help.config.AppConfig
 import io.legado.app.lib.theme.accentColor
 import io.legado.app.utils.dpToPx
+import io.legado.app.utils.spToPx
 
 /**
  * RotateLoading
@@ -43,6 +46,15 @@ class RotateLoading @JvmOverloads constructor(
 
     var isStarted = false
         private set
+
+    /** E-Ink 模式下的静态文字画笔 */
+    private val eInkTextPaint by lazy {
+        TextPaint().apply {
+            isAntiAlias = true
+            textAlign = Paint.Align.CENTER
+            textSize = 16f.spToPx()
+        }
+    }
 
     var loadingColor: Int = 0
         set(value) {
@@ -114,6 +126,19 @@ class RotateLoading @JvmOverloads constructor(
         super.onDraw(canvas)
 
         if (!isStarted) {
+            return
+        }
+
+        // E-Ink 模式：静态文字提示，不绘制旋转动画
+        if (AppConfig.isEInkMode) {
+            eInkTextPaint.color = loadingColor
+            val fm = eInkTextPaint.fontMetrics
+            canvas.drawText(
+                "…",
+                width / 2f,
+                height / 2f - (fm.ascent + fm.descent) / 2f,
+                eInkTextPaint
+            )
             return
         }
 
@@ -202,6 +227,13 @@ class RotateLoading @JvmOverloads constructor(
     }
 
     private fun startAnimator() {
+        // E-Ink 模式：跳过动画，直接显示
+        if (AppConfig.isEInkMode) {
+            visibility = VISIBLE
+            isStarted = true
+            invalidate()
+            return
+        }
         animate().cancel()
         animate().scaleX(1.0f)
             .scaleY(1.0f)
@@ -214,6 +246,13 @@ class RotateLoading @JvmOverloads constructor(
     }
 
     private fun stopAnimator() {
+        // E-Ink 模式：跳过动画，直接隐藏
+        if (AppConfig.isEInkMode) {
+            isStarted = false
+            this.visibility = hideMode
+            invalidate()
+            return
+        }
         animate().cancel()
         isStarted = false
         this.visibility = hideMode

@@ -6,6 +6,8 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
@@ -439,8 +441,8 @@ private fun DaySection(
 
         AnimatedVisibility(
             visible = expanded,
-            enter = expandVertically(),
-            exit = shrinkVertically()
+            enter = if (AppConfig.isEInkMode) EnterTransition.None else expandVertically(),
+            exit = if (AppConfig.isEInkMode) ExitTransition.None else shrinkVertically()
         ) {
             Column(
                 modifier = Modifier.padding(top = 8.dp),

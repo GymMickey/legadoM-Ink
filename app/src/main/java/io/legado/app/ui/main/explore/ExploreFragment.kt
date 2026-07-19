@@ -136,7 +136,11 @@ class ExploreFragment() : VMBaseFragment<ExploreViewModel>(R.layout.fragment_exp
         binding.rvFind.setEdgeEffectColor(primaryColor)
         binding.rvFind.layoutManager = linearLayoutManager
         binding.rvFind.adapter = adapter
-        (binding.rvFind.itemAnimator as? SimpleItemAnimator)?.supportsChangeAnimations = false
+        if (AppConfig.isEInkMode) {
+            binding.rvFind.itemAnimator = null
+        } else {
+            (binding.rvFind.itemAnimator as? SimpleItemAnimator)?.supportsChangeAnimations = false
+        }
         binding.rvFind.setItemViewCacheSize(8)
         adapter.registerAdapterDataObserver(object : RecyclerView.AdapterDataObserver() {
 

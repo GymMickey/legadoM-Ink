@@ -35,6 +35,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import io.legado.app.R
+import io.legado.app.help.config.AppConfig
 import io.legado.app.help.webView.PooledWebView
 import io.legado.app.help.webView.WebViewPool
 import io.legado.app.lib.theme.accentColor
@@ -493,6 +494,15 @@ class ReadWebSearchPanel @JvmOverloads constructor(
             }
             bottomSheet?.let { sheetView ->
                 BottomSheetBehavior.from(sheetView).state = BottomSheetBehavior.STATE_EXPANDED
+            }
+        }
+        if (AppConfig.isEInkMode) {
+            dialog.window?.let {
+                it.clearFlags(android.view.WindowManager.LayoutParams.FLAG_DIM_BEHIND)
+                val attr = it.attributes
+                attr.dimAmount = 0.0f
+                attr.windowAnimations = 0
+                it.attributes = attr
             }
         }
         dialog.show()

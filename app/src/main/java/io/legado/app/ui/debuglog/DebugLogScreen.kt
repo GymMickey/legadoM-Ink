@@ -2,6 +2,8 @@ package io.legado.app.ui.debuglog
 
 import android.content.Intent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Box
@@ -28,7 +30,6 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -56,6 +57,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import io.legado.app.constant.PreferKey
 import io.legado.app.help.config.AppConfig
+import io.legado.app.ui.widget.components.AppDropdownMenu
 import io.legado.app.model.debug.DebugCategory
 import io.legado.app.model.debug.DebugEvent
 import io.legado.app.model.debug.FlowStage
@@ -217,7 +219,7 @@ fun DebugLogScreen(
                                     contentDescription = "更多"
                                 )
                             }
-                            DropdownMenu(
+                            AppDropdownMenu(
                                 expanded = showOverflowMenu,
                                 onDismissRequest = { showOverflowMenu = false },
                                 containerColor = cardColor
@@ -298,8 +300,8 @@ fun DebugLogScreen(
                 // 搜索框（可展开/收起）
                 AnimatedVisibility(
                     visible = showSearch,
-                    enter = fadeIn(),
-                    exit = fadeOut()
+                    enter = if (AppConfig.isEInkMode) EnterTransition.None else fadeIn(),
+                    exit = if (AppConfig.isEInkMode) ExitTransition.None else fadeOut()
                 ) {
                     OutlinedTextField(
                         value = searchQuery ?: "",

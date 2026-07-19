@@ -3,6 +3,10 @@ package io.legado.app.ui.config.covergallery
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -38,7 +42,6 @@ import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
@@ -76,6 +79,8 @@ import com.bumptech.glide.integration.compose.ExperimentalGlideComposeApi
 import com.bumptech.glide.integration.compose.GlideImage
 import io.legado.app.R
 import io.legado.app.data.entities.CoverGalleryGroup
+import io.legado.app.help.config.AppConfig
+import io.legado.app.ui.widget.components.AppDropdownMenu
 import io.legado.app.data.entities.CoverGalleryGroupWithImages
 import io.legado.app.data.entities.CoverGalleryImage
 import io.legado.app.lib.dialogs.SelectItem
@@ -276,7 +281,11 @@ fun CoverGalleryScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            AnimatedVisibility(visible = showSearch) {
+            AnimatedVisibility(
+                visible = showSearch,
+                enter = if (AppConfig.isEInkMode) EnterTransition.None else fadeIn(),
+                exit = if (AppConfig.isEInkMode) ExitTransition.None else fadeOut()
+            ) {
                 OutlinedTextField(
                     value = searchQuery,
                     onValueChange = {
@@ -488,7 +497,7 @@ private fun CoverGalleryGroupCard(
                             tint = pageMutedIconTint()
                         )
                     }
-                    DropdownMenu(
+                    AppDropdownMenu(
                         expanded = showMenu,
                         onDismissRequest = { showMenu = false },
                         containerColor = pageCardElevatedContainerColor()

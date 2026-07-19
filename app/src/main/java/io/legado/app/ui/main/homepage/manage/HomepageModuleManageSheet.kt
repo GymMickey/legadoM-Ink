@@ -2,6 +2,9 @@ package io.legado.app.ui.main.homepage.manage
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.ContentTransform
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
@@ -27,6 +30,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import io.legado.app.R
 import io.legado.app.domain.model.ModuleDef
+import io.legado.app.help.config.AppConfig
 import io.legado.app.ui.main.homepage.HomepageManageActions
 import io.legado.app.ui.main.homepage.HomepageManageUiState
 import io.legado.app.ui.main.homepage.HomepageModuleManageUi
@@ -197,10 +201,14 @@ fun HomepageModuleManageSheet(
         AnimatedContent(
             targetState = currentPage,
             transitionSpec = {
-                // 根据页面深度确定滑动方向：进入时向左滑入，返回时向右滑入
-                val direction = if (targetState.depth > initialState.depth) 1 else -1
-                slideInHorizontally { fullWidth -> fullWidth * direction } togetherWith
-                        slideOutHorizontally { fullWidth -> -fullWidth * direction }
+                if (AppConfig.isEInkMode) {
+                    ContentTransform(EnterTransition.None, ExitTransition.None)
+                } else {
+                    // 根据页面深度确定滑动方向：进入时向左滑入，返回时向右滑入
+                    val direction = if (targetState.depth > initialState.depth) 1 else -1
+                    slideInHorizontally { fullWidth -> fullWidth * direction } togetherWith
+                            slideOutHorizontally { fullWidth -> -fullWidth * direction }
+                }
             },
             modifier = Modifier.fillMaxWidth().height(contentHeight)
         ) { page ->

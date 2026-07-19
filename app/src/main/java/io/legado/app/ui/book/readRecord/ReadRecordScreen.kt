@@ -2,6 +2,10 @@ package io.legado.app.ui.book.readRecord
 
 import android.graphics.Bitmap
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -33,6 +37,8 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import io.legado.app.R
 import io.legado.app.data.entities.readRecord.ReadRecord
+import io.legado.app.help.config.AppConfig
+import io.legado.app.ui.widget.components.AppDropdownMenu
 import io.legado.app.data.entities.readRecord.ReadRecordDetail
 import io.legado.app.data.entities.readRecord.ReadRecordSession
 import io.legado.app.help.glide.ImageLoader
@@ -258,7 +264,7 @@ fun ReadRecordScreen(
                             IconButton(onClick = { showOverflowMenu = true }) {
                                 Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.more_menu))
                             }
-                            DropdownMenu(
+                            AppDropdownMenu(
                                 expanded = showOverflowMenu,
                                 onDismissRequest = { showOverflowMenu = false }
                             ) {
@@ -295,7 +301,11 @@ fun ReadRecordScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            AnimatedVisibility(visible = showSearch) {
+            AnimatedVisibility(
+                visible = showSearch,
+                enter = if (AppConfig.isEInkMode) EnterTransition.None else fadeIn(),
+                exit = if (AppConfig.isEInkMode) ExitTransition.None else fadeOut()
+            ) {
                 OutlinedTextField(
                     value = state.searchKey ?: "",
                     onValueChange = { viewModel.setSearchKey(it) },
@@ -1144,7 +1154,7 @@ private fun LatestRecordItem(
                     IconButton(onClick = { showMenu = true }) {
                         Icon(Icons.Default.MoreVert, contentDescription = "更多", tint = readRecordMutedIconTint())
                     }
-                    DropdownMenu(
+                    AppDropdownMenu(
                         expanded = showMenu,
                         onDismissRequest = { showMenu = false },
                         containerColor = MaterialTheme.colorScheme.surface

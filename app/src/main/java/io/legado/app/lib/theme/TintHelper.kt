@@ -27,6 +27,7 @@ import androidx.core.graphics.drawable.DrawableCompat
 import androidx.core.widget.TextViewCompat
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import io.legado.app.R
+import io.legado.app.help.config.AppConfig
 import io.legado.app.utils.ColorUtils
 
 /**
@@ -77,7 +78,7 @@ object TintHelper {
         when (view) {
             is Button -> {
                 sl = getDisabledColorStateList(color, disabled)
-                if (view.getBackground() is RippleDrawable) {
+                if (!AppConfig.isEInkMode && view.getBackground() is RippleDrawable) {
                     val rd = view.getBackground() as RippleDrawable
                     rd.setColor(ColorStateList.valueOf(rippleColor))
                 }
@@ -101,7 +102,9 @@ object TintHelper {
                     ), intArrayOf(color, pressed)
                 )
 
-                view.rippleColor = rippleColor
+                if (!AppConfig.isEInkMode) {
+                    view.rippleColor = rippleColor
+                }
                 view.backgroundTintList = sl
                 if (view.drawable != null)
                     view.setImageDrawable(createTintedDrawable(view.drawable, textColor))
@@ -176,7 +179,7 @@ object TintHelper {
                 }
                 else -> isBg = true
             }
-            if (!isBg && view.background is RippleDrawable) {
+            if (!isBg && !AppConfig.isEInkMode && view.background is RippleDrawable) {
                 // Ripples for the above views (e.g. when you tap and hold a switch or checkbox)
                 val rd = view.background as RippleDrawable
                 @SuppressLint("PrivateResource") val unchecked = ContextCompat.getColor(

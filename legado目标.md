@@ -276,6 +276,49 @@ Phase 2 在 App 启动时自动扫描，但 `scanDoc()` 对大目录（500+ 文�
 
 保留的已知非阻塞项：`updateLog.md` 中提及已删功能名（历史发布记录）、`PreferKey.videoSetting` 死常量、配置文件中 TTS 相关死字符串——均不阻塞编译和运行。
 
+### 首页卡片加载性能优化（2026-07-19）
+
+**Commit**: `68f8474` + `2b8fea8`
+
+| 优化 | 文件 | 改动 |
+|------|------|------|
+| P0 SQL 聚合 | `ReadRecordRepository.kt` | `getTotalReadTime()` 从全表内存聚合改为 `SELECT SUM(readTime)` SQL |
+| P1 Room Flow | `ReadRecordDao.kt` | 新增 `observeCount()` Flow 方法，替代同步 `count` 属性 |
+| P2 轻量查询 | `BookDao.kt` | 新增 `flowHomepageBooks()` — 11 列子集查询 + SQL 层 `isNotShelf` 过滤，替代 `flowAll()` SELECT * |
+| P2 ViewModel | `HomepageViewModel.kt` | `dashboardState` 合并 5 条 Flow 流，`WhileSubscribed(5000)` 生命周期感知 |
+| P2 数据类 | `HomepageContract.kt` | 新增 `HomepageBookSummary` 数据类 + `toBook()` 映射方法 |
+
+**Bug 修复**（`2b8fea8`）：
+- **问题**：首次使用需阅读 ~1 分钟首页才出现卡片。根因 `durChapterIndex > 0` 过滤（chapter 0 = 第一章被误杀）
+- **修复**：移除 `durChapterIndex` 过滤，改用 `ReadRecord` 表交叉引用 `observeAllReadBookKeys()` 判断"已读"
+- **匹配方式**：`name + author` 联合匹配（`ReadRecord` 表无 `bookUrl` 字段的已知限制，已文档化）
+
+### E-Ink 动画全局优化 · 第一轮（2026-07-19）
+
+**原则**：只改 `if (AppConfig.isEInkMode)` 分支，LCD/暗色模式行为不变。不动刷新接口、E-Ink HAL、阅读核心、数据库、翻页逻辑。
+
+**已有保护（之前完成）**：PageDelegate 翻页 · FastScroller 滚动条 · RecyclerAdapter 列表入场 · BaseDialogFragment 对话框 · ReadMenu/MangaMenu/SearchMenu 菜单 · RotateLoading 加载指示器 · AutoPager 自动翻页 · ThemeBottomNavigationView 底部导航
+
+| 优先级 | 项目 | 文件 | 改动 |
+|--------|------|------|------|
+| 🔴 H9 | RippleDrawable 触摸波纹 | `TintHelper.kt` | Button/FAB/Switch 3 处 `!AppConfig.isEInkMode &&` 跳过 RippleDrawable 着色 |
+| 🔴 H8 | RecyclerView ItemAnimator | `ExploreShowFragment.kt` · `ExploreFragment.kt` | List/Grid 模式 E-Ink 下 `itemAnimator = null` |
+| 🟡 H6 | BottomSheetDialogFragment 动画 | `BottomWebViewDialog.kt` · `SearchSourceStatusDialog.kt` · `ReadWebSearchPanel.kt` | `onStart()` 中 `windowAnimations = 0` + dim 清除 |
+
+### E-Ink 动画全局优化 · 第二轮（2026-07-19）
+
+| 优先级 | 项目 | 文件数 | 改动 |
+|--------|------|--------|------|
+| 🟡 M4 | AnimatedContent 页面切换 | `HomepageModuleManageSheet.kt` | E-Ink 下 `EnterTransition.None / ExitTransition.None` 替代 slideInHorizontally/slideOutHorizontally |
+| 🟡 M1 | AnimatedVisibility 展开/折叠 | 8 文件 12 处 | enter/exit 全部替换为 `EnterTransition.None / ExitTransition.None`（原动画：fadeIn/fadeOut、expandVertically/shrinkVertically、默认 fade） |
+| 🟡 M2 | DropdownMenu 下拉菜单 | `AppDropdownMenu.kt`（新）+ 5 文件 7 处 | E-Ink 模式用 Popup + Surface 静态显示（shadowElevation=0），LCD 模式代理到 Material3 DropdownMenu |
+
+**M1 涉及文件**：`BlockRuleConfigDialog.kt`(4) · `DebugLogScreen.kt`(1) · `RssExecutionStatus.kt`(2) · `EntityDisplay.kt`(1) · `CoverGalleryScreen.kt`(1) · `TopFloatingStickyItem.kt`(1) · `ReadRecordScreen.kt`(1) · `BookReadRecordActivity.kt`(1)
+
+**M2 涉及文件**：`BlockRuleConfigDialog.kt` · `ReadRecordScreen.kt` · `DebugLogScreen.kt` · `CoverGalleryScreen.kt` · `DirectLinkUploadScreen.kt`
+
+**已评估并跳过**：Compose ModalBottomSheet × 5（`animationSpec` API internal，E-Ink Spring 动画影响极小）· SmoothCheckBox（仅 1 个对话框使用）· WebtoonRecyclerView（漫画非核心路径）· ExplosionView（娱乐效果）· Skeleton shimmer（加载态）· PopupMenu（25+ 处无统一入口，收益/工作量比低）· ScrollTextView/PhotoView（非核心阅读流程）
+
 ---
 
 ## 支持格式（确定保留）

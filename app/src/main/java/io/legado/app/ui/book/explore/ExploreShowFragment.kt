@@ -23,6 +23,7 @@ import io.legado.app.databinding.FragmentExploreShowBinding
 import io.legado.app.databinding.ViewLoadMoreBinding
 import io.legado.app.domain.model.BookShelfState
 import io.legado.app.lib.theme.accentColor
+import io.legado.app.help.config.AppConfig
 import io.legado.app.lib.theme.primaryColor
 import io.legado.app.ui.book.info.BookInfoActivity
 import io.legado.app.ui.widget.number.NumberPickerDialog
@@ -535,7 +536,8 @@ class ExploreShowFragment() : VMBaseFragment<ExploreShowFragmentViewModel>(R.lay
         
         binding.recyclerView.layoutManager = when {
             activityViewModel.layoutMode == ExploreShowActivity.LAYOUT_LIST || count <= 1 -> {
-                binding.recyclerView.itemAnimator = androidx.recyclerview.widget.DefaultItemAnimator()
+                binding.recyclerView.itemAnimator = if (AppConfig.isEInkMode) null
+                    else androidx.recyclerview.widget.DefaultItemAnimator()
                 binding.recyclerView.addItemDecoration(VerticalDivider(requireContext()))
                 LinearLayoutManager(requireContext())
             }
@@ -562,7 +564,8 @@ class ExploreShowFragment() : VMBaseFragment<ExploreShowFragmentViewModel>(R.lay
                 StaggeredGridLayoutManager(waterfallCount, StaggeredGridLayoutManager.VERTICAL)
             }
             else -> {
-                binding.recyclerView.itemAnimator = androidx.recyclerview.widget.DefaultItemAnimator()
+                binding.recyclerView.itemAnimator = if (AppConfig.isEInkMode) null
+                    else androidx.recyclerview.widget.DefaultItemAnimator()
                 binding.recyclerView.setPadding(8.dpToPx(), 0, 8.dpToPx(), 0)
                 // 确保 adapter.columnCount 与 GridLayoutManager spanCount 同步
                 // 否则 getSpanSize() 中 header/footer 占用的列数可能小于实际列数

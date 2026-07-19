@@ -24,6 +24,10 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Box
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -37,7 +41,6 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -72,6 +75,8 @@ import androidx.compose.ui.unit.dp
 import androidx.fragment.app.DialogFragment
 import io.legado.app.R
 import io.legado.app.constant.PreferKey
+import io.legado.app.help.config.AppConfig
+import io.legado.app.ui.widget.components.AppDropdownMenu
 import io.legado.app.data.appDb
 import io.legado.app.data.entities.BookSourcePart
 import io.legado.app.data.entities.RssSourceLite
@@ -299,7 +304,7 @@ private fun BlockRuleConfigContent(
                     IconButton(onClick = { showMoreMenu = true }) {
                         Icon(Icons.Filled.MoreVert, contentDescription = "更多")
                     }
-                    DropdownMenu(
+                    AppDropdownMenu(
                         expanded = showMoreMenu,
                         onDismissRequest = { showMoreMenu = false }
                     ) {
@@ -546,7 +551,11 @@ private fun ActiveRuleItem(
         }
 
         // 展开后显示匹配的书籍列表
-        AnimatedVisibility(visible = expanded) {
+        AnimatedVisibility(
+            visible = expanded,
+            enter = if (AppConfig.isEInkMode) EnterTransition.None else fadeIn(),
+            exit = if (AppConfig.isEInkMode) ExitTransition.None else fadeOut()
+        ) {
             Column(modifier = Modifier.padding(start = 8.dp, bottom = 4.dp)) {
                 matchedBooks.forEach { book ->
                     Row(
@@ -617,7 +626,11 @@ private fun ActiveRssRuleItem(
         }
 
         // 展开后显示匹配的文章列表
-        AnimatedVisibility(visible = expanded) {
+        AnimatedVisibility(
+            visible = expanded,
+            enter = if (AppConfig.isEInkMode) EnterTransition.None else fadeIn(),
+            exit = if (AppConfig.isEInkMode) ExitTransition.None else fadeOut()
+        ) {
             Column(modifier = Modifier.padding(start = 8.dp, bottom = 4.dp)) {
                 matchedArticles.forEach { article ->
                     Row(
@@ -908,7 +921,11 @@ private fun BlockRuleEditContent(
                 HorizontalDivider()
 
                 // ===== 书源作用范围子区域 =====
-                AnimatedVisibility(visible = showBookScope) {
+                AnimatedVisibility(
+                    visible = showBookScope,
+                    enter = if (AppConfig.isEInkMode) EnterTransition.None else fadeIn(),
+                    exit = if (AppConfig.isEInkMode) ExitTransition.None else fadeOut()
+                ) {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(
                             text = stringResource(R.string.explore_block_rule_book_target_scope),
@@ -964,7 +981,11 @@ private fun BlockRuleEditContent(
                 }
 
                 // ===== 订阅源作用范围子区域 =====
-                AnimatedVisibility(visible = showRssScope) {
+                AnimatedVisibility(
+                    visible = showRssScope,
+                    enter = if (AppConfig.isEInkMode) EnterTransition.None else fadeIn(),
+                    exit = if (AppConfig.isEInkMode) ExitTransition.None else fadeOut()
+                ) {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         HorizontalDivider(modifier = Modifier.padding(top = 4.dp))
 

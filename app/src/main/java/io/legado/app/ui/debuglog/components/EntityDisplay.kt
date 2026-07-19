@@ -1,6 +1,8 @@
 package io.legado.app.ui.debuglog.components
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.clickable
@@ -41,6 +43,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.legado.app.data.entities.BookSource
 import io.legado.app.data.entities.RssSource
+import io.legado.app.help.config.AppConfig
 import io.legado.app.data.entities.rule.BookInfoRule
 import io.legado.app.data.entities.rule.ContentRule
 import io.legado.app.data.entities.rule.ExploreRule
@@ -374,8 +377,8 @@ private fun EntityCard(
             // 内容区
             AnimatedVisibility(
                 visible = expanded,
-                enter = expandVertically(),
-                exit = shrinkVertically()
+                enter = if (AppConfig.isEInkMode) EnterTransition.None else expandVertically(),
+                exit = if (AppConfig.isEInkMode) ExitTransition.None else shrinkVertically()
             ) {
                 Column(
                     modifier = Modifier

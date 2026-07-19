@@ -158,6 +158,15 @@ class BottomWebViewDialog() : BottomSheetDialogFragment(R.layout.dialog_web_view
     override fun onStart() {
         super.onStart()
         setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
+        if (AppConfig.isEInkMode) {
+            dialog?.window?.let {
+                it.clearFlags(android.view.WindowManager.LayoutParams.FLAG_DIM_BEHIND)
+                val attr = it.attributes
+                attr.dimAmount = 0.0f
+                attr.windowAnimations = 0
+                it.attributes = attr
+            }
+        }
     }
 
     override fun show(manager: FragmentManager, tag: String?) {

@@ -1,6 +1,8 @@
 package io.legado.app.ui.widget.components.list
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Box
@@ -8,6 +10,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Dp
+import io.legado.app.help.config.AppConfig
 
 @Composable
 fun <T : Any> TopFloatingStickyItem(
@@ -17,8 +20,8 @@ fun <T : Any> TopFloatingStickyItem(
 ) {
     AnimatedVisibility(
         visible = item != null,
-        enter = fadeIn(),
-        exit = fadeOut()
+        enter = if (AppConfig.isEInkMode) EnterTransition.None else fadeIn(),
+        exit = if (AppConfig.isEInkMode) ExitTransition.None else fadeOut()
     ) {
         item?.let {
             Box(modifier = modifier) {

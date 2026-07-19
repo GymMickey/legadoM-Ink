@@ -53,6 +53,7 @@ APK 路径格式：`app/build/outputs/apk/appMax/release/阅读_测试版_3.26-b
 
 | 版本 | 日期 | 主要内容 |
 |------|------|---------|
+| [v3.26-beta.20](https://github.com/GymMickey/legadoM-Ink/releases/tag/v3.26-beta.20) | 2026-07-19 | 首页 SQL 聚合优化、轻量投影、响应式 Flow 查询、未读过滤修复 |
 | [v3.26-beta.66](https://github.com/GymMickey/legado/releases/tag/v3.26-beta.66) | 2026-07-16 | 首页直达阅读、WiFi传书完善、本地书籍管理、自动扫描 |
 | v3.26-beta51 | - | 之前的发布 |
 

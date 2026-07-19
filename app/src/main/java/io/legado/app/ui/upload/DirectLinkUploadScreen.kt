@@ -49,6 +49,7 @@ import io.legado.app.data.entities.DirectLinkUploadRule
 import io.legado.app.data.entities.UploadHistory
 import io.legado.app.data.entities.UploadHistoryWithRule
 import io.legado.app.ui.upload.DirectLinkUploadViewModel.*
+import io.legado.app.ui.widget.components.AppDropdownMenu
 import io.legado.app.ui.widget.components.dialog.AppConfirmDialog
 import java.text.SimpleDateFormat
 import java.util.*
@@ -132,7 +133,7 @@ fun DirectLinkUploadScreen(
                         Icon(Icons.Default.MoreVert, "更多")
                     }
                     // 下拉菜单
-                    DropdownMenu(
+                    AppDropdownMenu(
                         expanded = showMenu,
                         onDismissRequest = { showMenu = false },
                         containerColor = MaterialTheme.colorScheme.surface
@@ -524,7 +525,7 @@ fun RuleCard(
                     }
                     
                     // 操作下拉菜单
-                    DropdownMenu(
+                    AppDropdownMenu(
                         expanded = showMenu,
                         onDismissRequest = { showMenu = false },
                         containerColor = MaterialTheme.colorScheme.surface

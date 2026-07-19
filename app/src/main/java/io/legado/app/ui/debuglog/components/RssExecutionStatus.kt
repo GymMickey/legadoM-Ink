@@ -1,6 +1,8 @@
 package io.legado.app.ui.debuglog.components
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.clickable
@@ -40,6 +42,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import io.legado.app.help.config.AppConfig
 import io.legado.app.model.debug.RssExecutionRecord
 import io.legado.app.model.debug.RssExecutionStatus
 import io.legado.app.model.debug.RssExecutionStep
@@ -361,8 +364,8 @@ private fun ExecutionStepRow(record: RssExecutionRecord) {
 
             AnimatedVisibility(
                 visible = expanded && hasDetail,
-                enter = expandVertically(),
-                exit = shrinkVertically()
+                enter = if (AppConfig.isEInkMode) EnterTransition.None else expandVertically(),
+                exit = if (AppConfig.isEInkMode) ExitTransition.None else shrinkVertically()
             ) {
                 Column(modifier = Modifier.padding(start = 24.dp, top = 4.dp)) {
                     record.detail?.let { detail ->
@@ -473,8 +476,8 @@ private fun RuleExecutionRow(record: RssRuleExecutionRecord) {
             
             AnimatedVisibility(
                 visible = expanded && hasTree,
-                enter = expandVertically(),
-                exit = shrinkVertically()
+                enter = if (AppConfig.isEInkMode) EnterTransition.None else expandVertically(),
+                exit = if (AppConfig.isEInkMode) ExitTransition.None else shrinkVertically()
             ) {
                 record.executionTree?.let { tree ->
                     Column(modifier = Modifier.padding(start = 24.dp, top = 8.dp)) {

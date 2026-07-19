@@ -12,6 +12,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import io.legado.app.R
 import io.legado.app.data.appDb
+import io.legado.app.help.config.AppConfig
 import io.legado.app.lib.theme.backgroundColor
 import io.legado.app.model.webBook.SourceSearchRecord
 import io.legado.app.ui.book.source.edit.BookSourceEditActivity
@@ -24,6 +25,19 @@ import kotlinx.coroutines.withContext
 class SearchSourceStatusDialog : BottomSheetDialogFragment() {
 
     private val viewModel: SearchViewModel by activityViewModels()
+
+    override fun onStart() {
+        super.onStart()
+        if (AppConfig.isEInkMode) {
+            dialog?.window?.let {
+                it.clearFlags(android.view.WindowManager.LayoutParams.FLAG_DIM_BEHIND)
+                val attr = it.attributes
+                attr.dimAmount = 0.0f
+                attr.windowAnimations = 0
+                it.attributes = attr
+            }
+        }
+    }
 
     override fun onCreateView(
         inflater: LayoutInflater,

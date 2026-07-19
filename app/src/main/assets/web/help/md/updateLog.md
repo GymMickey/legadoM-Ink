@@ -9,10 +9,21 @@
 基于阅读Max精简的E-Ink墨水屏专用版本，保持与原版数据库、备份恢复、书源/RSS/订阅/下载完全兼容。
 
 **2026/07/19**
+- 首页性能优化：阅读总时长改为 SQL 聚合（`SUM(readTime)`），阅读书籍数改为 Room 响应式 Flow
+- 首页书架查询精简：新增 `HomepageBookSummary` 轻量投影（11 字段），`SELECT *` → 只查 11 列 + SQL 过滤未上架
+- 修复：新用户首次阅读后首页卡片不显示（`durChapterIndex > 0` 过滤把第 0 章书籍排除）
+- 修复：首页卡片显示未读书籍（通过 `ReadRecord` 表跨表关联 `name+author` 过滤）
+- E-Ink 模式动画禁用（共 20+ 文件优化）：
+  - RippleDrawable 触摸波纹（Button/FAB/Switch）
+  - RecyclerView `DefaultItemAnimator` 入场动画
+  - AnimatedVisibility 展开/收起过渡 → `EnterTransition.None`
+  - AnimatedContent 页面左右滑入 → `EnterTransition.None`
+  - BottomSheetDialogFragment 展开/收起动画（`windowAnimations = 0`）
+  - DropdownMenu fade+scale 动画 → `Popup` + `Surface` 静态显示
 - 正式更名为 阅读M-Ink：Launcher 名称统一为「阅读M-Ink」
 - APK 文件名前缀统一为 LegadoM-Ink
 - 项目根名称更新为 LegadoM-Ink
-- 取消 beta.17 发布，重新发布改名后正式版
+
 
 **2026/07/18**
 - 版本号 beta 计数：build_number.txt 自增 → Git 提交数（`git rev-list HEAD --count`）

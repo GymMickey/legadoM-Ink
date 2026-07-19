@@ -9,6 +9,25 @@
 基于阅读Max精简的E-Ink墨水屏专用版本，保持与原版数据库、备份恢复、书源/RSS/订阅/下载完全兼容。
 
 **2026/07/19**
+
+**WiFi 传书全面升级：**
+- WiFi 传书弹窗重构：WifiTransferDialogFragment 替换两处重复 AlertDialog，自包含剪贴板历史 + 上传历史预览（各 5 条）
+- 新增 WifiClipboard Room 数据层（Entity + DAO）+ 自动迁移 v100→101→102
+- 新增 HTTP 接口 POST /clipboard，网页端可发送文本至手机剪贴板
+- 上传历史追踪：WifiUploadRecord Entity + DAO + BookController 集成（保留 6 条）
+- 发送端去重：服务端 `isOnBookShelf` 检测重复书籍，网页端过滤同名同大小文件
+- 网页发送端重构：files 数组改为对象 `{file, statusClass, statusText}`，删除文件后保留上传状态
+- 服务端重复书籍拦截：LocalBook.isOnBookShelf 检测，避免覆盖书架已有书籍
+- 接收端两列布局（GridLayoutManager 2 列）+ 间距优化（item_clipboard padding 16→8dp）
+- 发送端去除压缩包支持（移除 ZIP/RAR/7Z 格式和 accept 属性）
+- 上传历史新增"清空"按钮（tv_clear_uploads + deleteAll 逻辑）
+- 目录未设置拦截：长 Toast + dismiss 弹窗，引导设置默认书籍目录
+- 已上传文件跳过：逐文件状态跟踪，RecyclerView 更新不重置状态
+- 错误信息回显：网页端显示 data.errorMsg 代替笼统"失败"
+- 设置清理：移除本地书籍管理 WiFi 传书入口，autoScanLocalBooks/scanSubDirs 默认关闭
+- 书架残影清理：`cleanMissingBooks()` 在 AutoImportManager 扫描前自动移除文件已不存在的书架记录
+
+**2026/07/19**
 - 首页性能优化：阅读总时长改为 SQL 聚合（`SUM(readTime)`），阅读书籍数改为 Room 响应式 Flow
 - 首页书架查询精简：新增 `HomepageBookSummary` 轻量投影（11 字段），`SELECT *` → 只查 11 列 + SQL 过滤未上架
 - 修复：新用户首次阅读后首页卡片不显示（`durChapterIndex > 0` 过滤把第 0 章书籍排除）

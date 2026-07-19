@@ -131,7 +131,7 @@ class App : Application() {
             //自动扫描默认书籍目录导入新书（5 分钟防抖）
             if (AppConfig.defaultBookTreeUri != null) {
                 val scanPrefs = defaultSharedPreferences
-                if (scanPrefs.getBoolean("autoScanLocalBooks", true)) {
+                if (scanPrefs.getBoolean("autoScanLocalBooks", false)) {
                     val lastScan = getSharedPreferences("auto_scan", 0).getLong("last_auto_scan_time", 0L)
                     if (System.currentTimeMillis() - lastScan > 5 * 60 * 1000) {
                         AutoImportManager.scanAndImport(this@App)

@@ -50,6 +50,7 @@ import io.legado.app.utils.isContentScheme
 import io.legado.app.utils.isDataUrl
 import io.legado.app.utils.printOnDebug
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.flow.first
 import org.apache.commons.text.StringEscapeUtils
 import splitties.init.appCtx
 import java.io.ByteArrayInputStream
@@ -470,6 +471,30 @@ object LocalBook {
         fileName: String
     ): Boolean {
         return appDb.bookDao.hasFile(fileName)
+    }
+
+    /**
+     * 清理文件已被删除的本地书籍书架记录
+     * 遍历所有 type & local > 0 的 Book，检查 bookUrl 对应文件是否存在
+     * 文件不存在 → book.delete() 移除书架
+     * @return 清理数量
+     */
+    suspend fun cleanMissingBooks(): Int {
+        val localBooks = appDb.bookDao.flowLocal().first()
+        var count = 0
+        for (book in localBooks) {
+            kotlin.runCatching {
+                val uri = Uri.parse(book.bookUrl)
+                val exists = DocumentFile.fromSingleUri(appCtx, uri)?.exists()
+                    ?: File(uri.path!!).exists()
+                if (!exists) {
+                    book.delete()
+                    count++
+                    AppLog.put("cleanMissingBooks: " + book.name + " (" + book.originName + ") — 文件不存在，已从书架移除")
+                }
+            }
+        }
+        return count
     }
 
     //文件类书源 合并在线书籍信息 在线 > 本地

@@ -21,6 +21,9 @@ object AutoImportManager {
      * @return 导入成功数量，-1 表示目录未配置，0 表示无新书
      */
     suspend fun scanAndImport(context: Context): Int = withContext(Dispatchers.IO) {
+        // 先清理文件已被删除的残影书架记录
+        val cleaned = LocalBook.cleanMissingBooks()
+
         val treeUriStr = AppConfig.defaultBookTreeUri ?: return@withContext -1
         val rootDoc = FileDoc.fromUri(Uri.parse(treeUriStr), isDir = true)
 
@@ -34,7 +37,7 @@ object AutoImportManager {
             for (child in dir.list() ?: continue) {
                 when {
                     child.isDir -> {
-                        if (appCtx.getSharedPreferences("auto_scan", 0).getBoolean("scanSubDirs", true)) {
+                        if (appCtx.getSharedPreferences("auto_scan", 0).getBoolean("scanSubDirs", false)) {
                             queue.add(child)
                         }
                     }

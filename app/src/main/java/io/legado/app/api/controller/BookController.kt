@@ -290,9 +290,22 @@ object BookController {
         val fileName = java.net.URLDecoder.decode(fileNameRaw, "UTF-8")
         val fileData = files["fileData"]
             ?: return returnData.setErrorMsg("fileData 不能为空")
+        // 检测重复：书籍已在书架则跳过，避免覆盖用户数据
+        if (LocalBook.isOnBookShelf(fileName)) {
+            return returnData.setErrorMsg("书籍已存在")
+        }
         kotlin.runCatching {
             val uri = LocalBook.saveBookFile(File(fileData).inputStream(), fileName)
             LocalBook.importFile(uri)
+            // 上传成功后记录历史
+            kotlin.runCatching {
+                runBlocking {
+                    appDb.wifiUploadRecordDao.insert(
+                        io.legado.app.data.entities.WifiUploadRecord(fileName = fileName)
+                    )
+                    appDb.wifiUploadRecordDao.trimToMax(6)
+                }
+            }
         }.onFailure {
             return when (it) {
                 is SecurityException -> returnData.setErrorMsg("需重新设置书籍保存位置!")

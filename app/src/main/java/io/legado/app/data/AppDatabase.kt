@@ -36,6 +36,8 @@ import io.legado.app.data.dao.TxtTocRuleDao
 import io.legado.app.data.dao.UrlRecordDao
 import io.legado.app.data.dao.DirectLinkUploadRuleDao
 import io.legado.app.data.dao.UploadHistoryDao
+import io.legado.app.data.dao.WifiClipboardDao
+import io.legado.app.data.dao.WifiUploadRecordDao
 import io.legado.app.data.entities.Book
 import io.legado.app.data.entities.BookChapter
 import io.legado.app.data.entities.BookGroup
@@ -68,6 +70,8 @@ import io.legado.app.data.entities.SourceRecycleBin
 import io.legado.app.data.entities.TxtTocRule
 import io.legado.app.data.entities.UploadHistory
 import io.legado.app.data.entities.UrlRecord
+import io.legado.app.data.entities.WifiClipboard
+import io.legado.app.data.entities.WifiUploadRecord
 import io.legado.app.help.DefaultData
 import org.intellij.lang.annotations.Language
 import splitties.init.appCtx
@@ -83,7 +87,7 @@ val appDb by lazy {
 }
 
 @Database(
-    version = 100,
+    version = 102,
     exportSchema = true,
     entities = [Book::class, BookGroup::class, BookSource::class, BookChapter::class,
         ReplaceRule::class, SearchBook::class, SearchKeyword::class, Cookie::class,
@@ -93,7 +97,7 @@ val appDb by lazy {
         RuleSub::class, DictRule::class, KeyboardAssist::class, Server::class,
         UrlRecord::class, DirectLinkUploadRule::class, UploadHistory::class,
         CoverGalleryGroup::class, CoverGalleryImage::class, SourceRecycleBin::class,
-        HomepageModule::class, HomepageCustomSet::class],
+        HomepageModule::class, HomepageCustomSet::class, WifiClipboard::class, WifiUploadRecord::class],
     views = [BookSourcePart::class],
     autoMigrations = [
         AutoMigration(from = 43, to = 44),
@@ -147,7 +151,9 @@ val appDb by lazy {
         AutoMigration(from = 91, to = 92),
         AutoMigration(from = 92, to = 93),
         AutoMigration(from = 93, to = 94),
-        AutoMigration(from = 94, to = 95)
+        AutoMigration(from = 94, to = 95),
+        AutoMigration(from = 100, to = 101),
+        AutoMigration(from = 101, to = 102)
     ]
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -179,6 +185,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract val coverGalleryDao: CoverGalleryDao
     abstract val homepageModuleDao: HomepageModuleDao
     abstract val homepageCustomSetDao: HomepageCustomSetDao
+    abstract val wifiClipboardDao: WifiClipboardDao
+    abstract val wifiUploadRecordDao: WifiUploadRecordDao
 
     companion object {
 

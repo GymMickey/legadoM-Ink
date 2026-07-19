@@ -205,6 +205,59 @@ h1 {
 /* Hidden file input */
 #fileInput { display: none; }
 
+/* Clipboard send area */
+.clipboard-section {
+    margin-bottom: 20px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+}
+.clipboard-section .section-title {
+    font-size: 0.95rem;
+    color: var(--text);
+    margin-bottom: 10px;
+    font-weight: 500;
+}
+.clipboard-section textarea {
+    width: 100%;
+    height: 120px;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    font-size: 0.9rem;
+    font-family: inherit;
+    background: var(--bg);
+    color: var(--text);
+    resize: vertical;
+    outline: none;
+    box-sizing: border-box;
+}
+.clipboard-section textarea:focus {
+    border-color: var(--border-hover);
+}
+.clipboard-send-btn {
+    display: block;
+    width: 100%;
+    margin-top: 8px;
+    padding: 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--card-bg);
+    color: var(--text);
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: border-color 0.2s;
+}
+.clipboard-send-btn:hover { border-color: var(--border-hover); }
+.clipboard-send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.clipboard-status {
+    margin-top: 8px;
+    font-size: 0.85rem;
+    text-align: center;
+    min-height: 1.2em;
+}
+.clipboard-status.ok  { color: var(--success); }
+.clipboard-status.err { color: var(--error); }
+
 @media (max-width: 400px) {
     body { padding: 12px; }
     h1 { font-size: 1.2rem; }
@@ -225,15 +278,22 @@ h1 {
     <div class="drop-zone" id="dropZone">
         <div class="icon">&#x1F4E5;</div>
         <div class="label">拖拽文件到此处，或点击选择</div>
-        <div class="hint">支持 TXT / EPUB / UMD / PDF / MOBI / AZW3 / ZIP / RAR / 7Z</div>
+        <div class="hint">支持 TXT / EPUB / PDF / MOBI / AZW / AZW3 / UMD</div>
     </div>
-    <input type="file" id="fileInput" multiple accept=".txt,.epub,.umd,.pdf,.mobi,.azw3,.azw,.zip,.rar,.7z">
+    <input type="file" id="fileInput" multiple accept=".txt,.epub,.pdf,.mobi,.azw,.azw3,.umd">
 
     <div class="file-list" id="fileList"></div>
 
     <button class="upload-btn" id="uploadBtn" disabled>上传</button>
 
     <div class="summary" id="summary"></div>
+
+    <div class="clipboard-section">
+        <div class="section-title">📋 发送文本</div>
+        <textarea id="clipTextarea" placeholder="粘贴文本，空行分隔为多条记录"></textarea>
+        <button class="clipboard-send-btn" id="clipSendBtn">发送</button>
+        <div class="clipboard-status" id="clipStatus"></div>
+    </div>
 
     <div class="help">
         在阅读 App 中开启 Web 服务后，使用手机或电脑浏览器访问此页面传书<br>
@@ -286,12 +346,20 @@ h1 {
     };
 
     function addFiles(list) {
+        var dup = 0;
         for (const f of list) {
-            if (!files.find(x => x.name === f.name && x.size === f.size)) {
-                files.push(f);
+            if (!files.find(x => x.file.name === f.name && x.file.size === f.size)) {
+                files.push({file: f, statusClass: 'status-pending', statusText: '待上传'});
+            } else {
+                dup++;
             }
         }
         render();
+        if (dup > 0) {
+            SM.textContent = '已过滤 ' + dup + ' 个重复文件';
+            SM.className = 'summary show has-err';
+            setTimeout(function () { SM.classList.remove('show'); }, 2500);
+        }
     }
 
     function removeFile(idx) {
@@ -306,15 +374,17 @@ h1 {
     }
 
     function render() {
-        FL.innerHTML = files.map(function (f, i) {
+        FL.innerHTML = files.map(function (item, i) {
             return '<div class="file-item">'
-                + '<div class="info"><div class="name">' + esc(f.name) + '</div>'
-                + '<div class="size">' + fmtSize(f.size) + '</div></div>'
-                + '<div class="status status-pending" id="st_' + i + '">待上传</div>'
+                + '<div class="info"><div class="name">' + esc(item.file.name) + '</div>'
+                + '<div class="size">' + fmtSize(item.file.size) + '</div></div>'
+                + '<div class="status ' + item.statusClass + '" id="st_' + i + '">' + item.statusText + '</div>'
                 + '<button class="remove" onclick="removeFile(' + i + ')">&times;</button>'
                 + '</div>';
         }).join('');
-        UB.disabled = files.length === 0;
+        UB.disabled = files.length === 0 || files.every(function(item) {
+            return item.statusClass === 'status-ok';
+        });
         SM.classList.remove('show');
     }
 
@@ -331,14 +401,19 @@ h1 {
         var ok = 0, fail = 0;
 
         for (var i = 0; i < files.length; i++) {
+            var item = files[i];
+            // 跳过已完成的项目
+            if (item.statusClass === 'status-ok') continue;
+            item.statusClass = 'status-uploading';
+            item.statusText = '上传中';
             var st = document.getElementById('st_' + i);
             st.textContent = '上传中';
             st.className = 'status status-uploading';
 
             try {
                 var fd = new FormData();
-                fd.append('fileName', encodeURIComponent(files[i].name));
-                fd.append('fileData', files[i]);
+                fd.append('fileName', encodeURIComponent(item.file.name));
+                fd.append('fileData', item.file);
 
                 var headers = {};
                 if (token) headers['Authorization'] = 'Bearer ' + token;
@@ -351,6 +426,8 @@ h1 {
 
                 if (resp.status === 401) {
                     showTokenBar();
+                    item.statusClass = 'status-fail';
+                    item.statusText = '需Token';
                     st.textContent = '需Token';
                     st.className = 'status status-fail';
                     fail++;
@@ -359,15 +436,21 @@ h1 {
 
                 var data = await resp.json();
                 if (data.isSuccess) {
+                    item.statusClass = 'status-ok';
+                    item.statusText = '已完成';
                     st.textContent = '已完成';
                     st.className = 'status status-ok';
                     ok++;
                 } else {
-                    st.textContent = '失败';
+                    item.statusClass = 'status-fail';
+                    item.statusText = data.errorMsg || '失败';
+                    st.textContent = data.errorMsg || '失败';
                     st.className = 'status status-fail';
                     fail++;
                 }
             } catch (e) {
+                item.statusClass = 'status-fail';
+                item.statusText = '网络错误';
                 st.textContent = '网络错误';
                 st.className = 'status status-fail';
                 fail++;
@@ -381,6 +464,60 @@ h1 {
         SM.className = 'summary show ' + (fail === 0 ? 'all-ok' : 'has-err');
         UB.disabled = false;
     }
+
+    // --- Clipboard send ---
+    var CT = document.getElementById('clipTextarea');
+    var CSB = document.getElementById('clipSendBtn');
+    var CST = document.getElementById('clipStatus');
+
+    function splitByEmptyLines(text) {
+        return text.split(/\n\s*\n/).map(function(s) { return s.trim(); }).filter(function(s) { return s.length > 0; });
+    }
+
+    CSB.onclick = function () {
+        var raw = CT.value;
+        if (!raw.trim()) return;
+        var items = splitByEmptyLines(raw);
+        if (!items.length) return;
+
+        CSB.disabled = true;
+        CST.textContent = '发送中...';
+        CST.className = 'clipboard-status';
+
+        var headers = { 'Content-Type': 'application/json' };
+        if (token) headers['Authorization'] = 'Bearer ' + token;
+
+        fetch('/clipboard', {
+            method: 'POST',
+            headers: headers,
+            body: JSON.stringify({ items: items })
+        })
+        .then(function (resp) {
+            if (resp.status === 401) {
+                showTokenBar();
+                CST.textContent = '需 Token';
+                CST.className = 'clipboard-status err';
+                return;
+            }
+            return resp.json().then(function (data) {
+                if (data.isSuccess) {
+                    CT.value = '';
+                    CST.textContent = '发送成功 — ' + data.data.count + ' 条';
+                    CST.className = 'clipboard-status ok';
+                } else {
+                    CST.textContent = '发送失败: ' + (data.errorMsg || '未知错误');
+                    CST.className = 'clipboard-status err';
+                }
+            });
+        })
+        .catch(function () {
+            CST.textContent = '网络错误';
+            CST.className = 'clipboard-status err';
+        })
+        .finally(function () {
+            CSB.disabled = false;
+        });
+    };
 
     // --- Global removeFile for onclick ---
     window.removeFile = removeFile;

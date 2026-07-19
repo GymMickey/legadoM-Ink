@@ -6,6 +6,7 @@ import io.legado.app.api.ReturnData
 import io.legado.app.api.controller.BackupController
 import io.legado.app.api.controller.BookController
 import io.legado.app.api.controller.BookSourceController
+import io.legado.app.api.controller.ClipboardController
 import io.legado.app.api.controller.ReplaceRuleController
 import io.legado.app.api.controller.RssSourceController
 import io.legado.app.constant.ReadConstants
@@ -34,7 +35,8 @@ class HttpServer(port: Int) : NanoHTTPD(port) {
         "/saveBookSource", "/saveBookSources", "/deleteBookSources",
         "/saveBook", "/deleteBook", "/saveBookProgress", "/addLocalBook", "/saveReadConfig",
         "/saveRssSource", "/saveRssSources", "/deleteRssSources",
-        "/saveReplaceRule", "/deleteReplaceRule", "/testReplaceRule"
+        "/saveReplaceRule", "/deleteReplaceRule", "/testReplaceRule",
+        "/clipboard"
     )
 
     private fun isApiRequest(uri: String): Boolean = uri in apiPaths
@@ -123,6 +125,7 @@ class HttpServer(port: Int) : NanoHTTPD(port) {
                             "/saveReplaceRule" -> ReplaceRuleController.saveRule(postData)
                             "/deleteReplaceRule" -> ReplaceRuleController.delete(postData)
                             "/testReplaceRule" -> ReplaceRuleController.testRule(postData)
+                            "/clipboard" -> ClipboardController.receiveClipboard(postData)
                             else -> null
                         }
                     }

@@ -21,14 +21,14 @@
         app:iconSpaceReserved="false">
 
         <io.legado.app.lib.prefs.SwitchPreference
-            android:defaultValue="true"
+            android:defaultValue="false"
             android:key="autoScanLocalBooks"
             android:summary="@string/auto_scan_local_summary"
             android:title="@string/auto_scan_local_title"
             app:iconSpaceReserved="false" />
 
         <io.legado.app.lib.prefs.SwitchPreference
-            android:defaultValue="true"
+            android:defaultValue="false"
             android:key="scanSubDirs"
             android:summary="@string/scan_sub_dirs_summary"
             android:title="@string/scan_sub_dirs_title"
@@ -56,19 +56,6 @@
             android:key="localBookCount"
             android:title="@string/local_book_count_title"
             android:selectable="false"
-            app:iconSpaceReserved="false" />
-
-    </io.legado.app.lib.prefs.PreferenceCategory>
-
-    <io.legado.app.lib.prefs.PreferenceCategory
-        android:title="@string/wifi_transfer"
-        app:allowDividerAbove="false"
-        app:iconSpaceReserved="false">
-
-        <io.legado.app.lib.prefs.Preference
-            android:key="startWifiTransfer"
-            android:title="@string/start_wifi_transfer"
-            android:summary="@string/start_wifi_transfer_summary"
             app:iconSpaceReserved="false" />
 
     </io.legado.app.lib.prefs.PreferenceCategory>

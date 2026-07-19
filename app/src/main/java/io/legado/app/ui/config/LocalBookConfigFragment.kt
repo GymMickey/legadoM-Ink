@@ -10,12 +10,9 @@ import io.legado.app.constant.PreferKey
 import io.legado.app.data.appDb
 import io.legado.app.help.config.AppConfig
 import io.legado.app.help.coroutine.Coroutine
-import io.legado.app.lib.dialogs.alert
 import io.legado.app.lib.prefs.fragment.PreferenceFragment
 import io.legado.app.model.localBook.AutoImportManager
-import io.legado.app.service.WebService
 import io.legado.app.ui.file.HandleFileContract
-import io.legado.app.utils.QRCodeUtils
 import io.legado.app.utils.toastOnUi
 import kotlinx.coroutines.flow.first
 import splitties.init.appCtx
@@ -60,7 +57,6 @@ class LocalBookConfigFragment : PreferenceFragment(),
                 mode = HandleFileContract.DIR_SYS
             }
             "scanNow" -> doScanNow()
-            "startWifiTransfer" -> showWifiTransferDialog()
         }
         return super.onPreferenceTreeClick(preference)
     }
@@ -108,54 +104,6 @@ class LocalBookConfigFragment : PreferenceFragment(),
         }.onSuccess { count ->
             pref.summary = getString(R.string.local_book_count_summary, count)
         }
-    }
-
-    private fun showWifiTransferDialog() {
-        if (!WebService.isRun) {
-            WebService.start(requireContext())
-        }
-        val ip = getLocalIpAddress()
-        val port = AppConfig.webPort
-        val url = if (ip != null) "http://$ip:$port/wifi/" else null
-
-        requireContext().alert(titleResource = R.string.wifi_transfer_title) {
-            if (url != null) {
-                val ctx = requireContext()
-                val imageView = android.widget.ImageView(ctx).apply {
-                    val size = (resources.displayMetrics.density * 200).toInt()
-                    val bitmap = QRCodeUtils.createQRCode(url, size)
-                    setImageBitmap(bitmap)
-                    val padding = (resources.displayMetrics.density * 16).toInt()
-                    setPadding(padding, padding, padding, 0)
-                    adjustViewBounds = true
-                }
-                val layout = android.widget.LinearLayout(ctx).apply {
-                    orientation = android.widget.LinearLayout.VERTICAL
-                    gravity = android.view.Gravity.CENTER_HORIZONTAL
-                    addView(imageView)
-                    val textView = android.widget.TextView(ctx).apply {
-                        text = url
-                        textAlignment = View.TEXT_ALIGNMENT_CENTER
-                        val tp = (resources.displayMetrics.density * 8).toInt()
-                        setPadding(0, tp, 0, 0)
-                    }
-                    addView(textView)
-                }
-                customView { layout }
-            } else {
-                setMessage("Port: $port (IP unknown)")
-            }
-            okButton { }
-        }
-    }
-
-    private fun getLocalIpAddress(): String? {
-        return try {
-            java.net.NetworkInterface.getNetworkInterfaces()?.asSequence()
-                ?.flatMap { it.inetAddresses.asSequence() }
-                ?.find { !it.isLoopbackAddress && it is java.net.Inet4Address }
-                ?.hostAddress
-        } catch (_: Exception) { null }
     }
 
     private fun upPreferenceSummary(preferenceKey: String, value: String?) {

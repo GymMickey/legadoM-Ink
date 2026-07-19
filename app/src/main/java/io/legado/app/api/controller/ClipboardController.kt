@@ -2,6 +2,7 @@ package io.legado.app.api.controller
 
 import io.legado.app.api.ReturnData
 import io.legado.app.data.appDb
+import com.google.gson.annotations.SerializedName
 import io.legado.app.utils.GSON
 import io.legado.app.utils.fromJsonObject
 
@@ -51,6 +52,6 @@ object ClipboardController {
 
     // 请求体结构（内联 data class，不新建文件）
     private data class ClipboardRequest(
-        val items: List<String>? = null
+        @SerializedName("items") val items: List<String>? = null
     )
 }

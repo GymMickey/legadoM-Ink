@@ -160,6 +160,14 @@ interface ReadRecordDao {
 
     @Delete
     suspend fun deleteReadRecord(record: ReadRecord)
+
+    @Query("SELECT DISTINCT bookName, bookAuthor FROM readRecord")
+    fun observeAllReadBookKeys(): Flow<List<ReadBookKey>>
+
+    data class ReadBookKey(
+        val bookName: String,
+        val bookAuthor: String,
+    )
 }
 
 data class BookReadTime(

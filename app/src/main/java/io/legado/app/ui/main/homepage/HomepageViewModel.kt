@@ -25,7 +25,6 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -62,24 +61,20 @@ class HomepageViewModel(application: Application) : BaseViewModel(application) {
      */
     @OptIn(ExperimentalCoroutinesApi::class)
     val dashboardState: StateFlow<HomepageDashboardState> = combine(
-        appDb.bookDao.flowHomepageBooks().mapLatest { summaries ->
-            // SQL 已过滤 isNotShelf，不再需要 filterNot
-            val readSummaries = summaries
-            val lastReadSummary = readSummaries.maxByOrNull { it.durChapterTime }
-            val recentSummaries = readSummaries
-                .sortedByDescending { it.durChapterTime }
-                .filter { it.bookUrl != lastReadSummary?.bookUrl }
-                .take(10)
-            Triple(
-                lastReadSummary?.toBook(),
-                recentSummaries.map { it.toBook() },
-                summaries.map { it.toBook() },
-            )
-        },
+        appDb.bookDao.flowHomepageBooks(),
+        appDb.readRecordDao.observeAllReadBookKeys(),
         readRecordRepository.getTotalReadTime(),
         appDb.readRecordDao.observeCount(),
         _isBackingUp
-    ) { (lastRead, recent, _), totalTime, readBooksCount, backingUp ->
+    ) { summaries, readBookKeys, totalTime, readBooksCount, backingUp ->
+        val readKeySet = readBookKeys.map { "${it.bookName}|${it.bookAuthor}" }.toSet()
+        val readSummaries = summaries.filter { "${it.name}|${it.author}" in readKeySet }
+        val lastRead = readSummaries.maxByOrNull { it.durChapterTime }?.toBook()
+        val recent = readSummaries
+            .sortedByDescending { it.durChapterTime }
+            .filter { it.bookUrl != lastRead?.bookUrl }
+            .take(10)
+            .map { it.toBook() }
         HomepageDashboardState(
             lastReadBook = lastRead,
             totalBooksRead = readBooksCount,

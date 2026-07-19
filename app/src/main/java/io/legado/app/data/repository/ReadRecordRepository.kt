@@ -80,12 +80,7 @@ class ReadRecordRepository(
     }
 
     fun getTotalReadTime(): Flow<Long> {
-        return combine(
-            dao.getAllReadRecordsSortedByLastRead(),
-            dao.getAllDetails()
-        ) { records, details ->
-            applyDetailReadTimes(records, details).sumOf { it.readTime }
-        }
+        return dao.getTotalReadTime().map { it ?: 0L }
     }
 
     fun getLatestReadRecords(query: String = ""): Flow<List<ReadRecord>> {

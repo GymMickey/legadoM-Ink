@@ -10,6 +10,7 @@ import androidx.room.Update
 import io.legado.app.constant.BookType
 import io.legado.app.data.entities.Book
 import io.legado.app.data.entities.BookGroup
+import io.legado.app.ui.main.homepage.HomepageBookSummary
 import io.legado.app.data.entities.BookSource
 import io.legado.app.help.book.isNotShelf
 import kotlinx.coroutines.flow.Flow
@@ -48,6 +49,16 @@ interface BookDao {
 
     @Query("SELECT * FROM books order by durChapterTime desc")
     fun flowAll(): Flow<List<Book>>
+
+    @Query("""
+        SELECT bookUrl, name, author, coverUrl, customCoverUrl,
+               durChapterTitle, durChapterIndex, totalChapterNum,
+               durChapterTime, origin, type
+        FROM books
+        WHERE (type & 512) = 0
+        ORDER BY durChapterTime DESC
+    """)
+    fun flowHomepageBooks(): Flow<List<HomepageBookSummary>>
 
     @Query("SELECT * FROM books WHERE type & ${BookType.audio} > 0")
     fun flowAudio(): Flow<List<Book>>

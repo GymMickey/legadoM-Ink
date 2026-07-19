@@ -16,6 +16,40 @@ import io.legado.app.domain.model.ModuleDef
 // ==================== E-Ink 精简版仪表盘状态 ====================
 
 /**
+ * 首页书架轻量投影——只包含卡片渲染需要的 11 个字段。
+ * 配合 [BookDao.flowHomepageBooks] 使用，避免 SELECT * 全量加载。
+ */
+@Stable
+data class HomepageBookSummary(
+    val bookUrl: String = "",
+    val name: String = "",
+    val author: String = "",
+    val coverUrl: String? = null,
+    val customCoverUrl: String? = null,
+    val durChapterTitle: String? = null,
+    val durChapterIndex: Int = 0,
+    val totalChapterNum: Int = 0,
+    val durChapterTime: Long = 0L,
+    val origin: String = "",
+    val type: Int = 0,
+) {
+    /** 转为完整的 Book 对象，未查询的字段使用默认值 */
+    fun toBook() = Book(
+        bookUrl = bookUrl,
+        name = name,
+        author = author,
+        coverUrl = coverUrl,
+        customCoverUrl = customCoverUrl,
+        durChapterTitle = durChapterTitle,
+        durChapterIndex = durChapterIndex,
+        totalChapterNum = totalChapterNum,
+        durChapterTime = durChapterTime,
+        origin = origin,
+        type = type,
+    )
+}
+
+/**
  * 阅读仪表盘 UI 状态
  */
 @Stable

@@ -75,6 +75,9 @@ interface ReadRecordDao {
     @get:Query("SELECT COUNT(*) FROM readRecord")
     val count: Int
 
+    @Query("SELECT COUNT(*) FROM readRecord")
+    fun observeCount(): Flow<Int>
+
     @Query("SELECT * FROM readRecord WHERE bookName LIKE '%' || :query || '%' OR bookAuthor LIKE '%' || :query || '%' ORDER BY lastRead DESC")
     fun searchReadRecordsByLastRead(query: String): Flow<List<ReadRecord>>
 

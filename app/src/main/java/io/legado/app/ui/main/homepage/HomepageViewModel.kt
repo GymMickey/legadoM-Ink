@@ -15,7 +15,6 @@ import io.legado.app.data.entities.Book
 import io.legado.app.data.repository.ReadRecordRepository
 import io.legado.app.domain.model.HomepageModuleType
 import io.legado.app.help.AppWebDav
-import io.legado.app.help.book.isNotShelf
 import io.legado.app.help.config.LocalConfig
 import io.legado.app.help.storage.Backup
 import kotlinx.coroutines.Dispatchers
@@ -26,7 +25,6 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -64,22 +62,22 @@ class HomepageViewModel(application: Application) : BaseViewModel(application) {
      */
     @OptIn(ExperimentalCoroutinesApi::class)
     val dashboardState: StateFlow<HomepageDashboardState> = combine(
-        appDb.bookDao.flowAll().mapLatest { books ->
-            val shelfBooks = books.filterNot { it.isNotShelf }
-            // 过滤已实际阅读的书籍（durChapterIndex > 0 表示至少翻过一页）
-            val readBooks = shelfBooks.filter { it.durChapterIndex > 0 }
-            val lastRead = readBooks.maxByOrNull { it.durChapterTime }
-            val recent = readBooks
+        appDb.bookDao.flowHomepageBooks().mapLatest { summaries ->
+            // SQL 已过滤 isNotShelf，不再需要 filterNot
+            val readSummaries = summaries
+            val lastReadSummary = readSummaries.maxByOrNull { it.durChapterTime }
+            val recentSummaries = readSummaries
                 .sortedByDescending { it.durChapterTime }
-                .filter { it.bookUrl != lastRead?.bookUrl }
+                .filter { it.bookUrl != lastReadSummary?.bookUrl }
                 .take(10)
-            Triple(lastRead, recent, shelfBooks)
+            Triple(
+                lastReadSummary?.toBook(),
+                recentSummaries.map { it.toBook() },
+                summaries.map { it.toBook() },
+            )
         },
         readRecordRepository.getTotalReadTime(),
-        // 获取累计阅读的书籍数（从 ReadRecord 表中统计）
-        flow {
-            emit(appDb.readRecordDao.count)
-        },
+        appDb.readRecordDao.observeCount(),
         _isBackingUp
     ) { (lastRead, recent, _), totalTime, readBooksCount, backingUp ->
         HomepageDashboardState(

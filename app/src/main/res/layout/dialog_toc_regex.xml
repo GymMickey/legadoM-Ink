@@ -6,13 +6,13 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-    <androidx.appcompat.widget.Toolbar
-        android:id="@+id/tool_bar"
+    <io.legado.app.ui.widget.TitleBar
+        android:id="@+id/title_bar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:theme="?attr/actionBarStyle"
-        app:titleTextAppearance="@style/ToolbarTitle"
-        app:popupTheme="@style/AppTheme.PopupOverlay" />
+        app:title="@string/txt_toc_rule"
+        app:fitStatusBar="true"
+        app:attachToActivity="true" />
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recycler_view"

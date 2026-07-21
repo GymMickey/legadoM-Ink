@@ -10,13 +10,11 @@ import androidx.fragment.app.viewModels
 import androidx.lifecycle.LiveData
 import io.legado.app.R
 import io.legado.app.base.VMBaseFragment
-import io.legado.app.constant.EventBus
 import io.legado.app.data.appDb
 import io.legado.app.data.entities.Book
 import io.legado.app.data.entities.BookGroup
 import io.legado.app.databinding.DialogEditTextBinding
 import io.legado.app.help.DirectLinkUpload
-import io.legado.app.help.config.AppConfig
 import io.legado.app.lib.dialogs.alert
 import io.legado.app.ui.about.AppLogDialog
 import io.legado.app.ui.book.cache.CacheActivity
@@ -29,11 +27,6 @@ import io.legado.app.ui.file.HandleFileContract
 import io.legado.app.ui.main.MainFragmentInterface
 import io.legado.app.ui.main.MainViewModel
 import io.legado.app.ui.widget.dialog.WaitDialog
-import io.legado.app.ui.widget.number.NumberPickerDialog
-import io.legado.app.utils.checkByIndex
-import io.legado.app.utils.getCheckedIndex
-import io.legado.app.utils.isAbsUrl
-import io.legado.app.utils.postEvent
 import io.legado.app.utils.readText
 import io.legado.app.help.ExportResultHandler
 import io.legado.app.utils.sendToClip
@@ -170,8 +163,6 @@ abstract class BaseBookshelfFragment(layoutId: Int) : VMBaseFragment<BookshelfVi
         }
     }
 
-    /** 显示书架布局配置对话框 */
-    @SuppressLint("InflateParams")
     /** 显示导入书单对话框，支持输入URL或选择本地文件 */
     private fun importBookshelfAlert(groupId: Long) {
         alert(titleResource = R.string.import_bookshelf) {

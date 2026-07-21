@@ -56,12 +56,31 @@
         app:layout_constraintTop_toTopOf="parent"
         tools:ignore="UnusedAttribute" />
 
+    <!-- 改动：width match_parent → 0dp，加 End_toStartOf 约束 -->
     <TextView
         android:id="@+id/title_example"
-        android:layout_width="match_parent"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:textSize="12sp"
         app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintLeft_toLeftOf="parent" />
+        app:layout_constraintEnd_toStartOf="@id/tv_chapter_count"
+        app:layout_constraintStart_toStartOf="parent" />
+
+    <!-- 新增：章节数徽章 -->
+    <TextView
+        android:id="@+id/tv_chapter_count"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:paddingStart="6dp"
+        android:paddingEnd="6dp"
+        android:textSize="11sp"
+        android:textColor="@color/accent"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="@id/title_example"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="@id/title_example"
+        tools:text="123章"
+        tools:visibility="visible" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

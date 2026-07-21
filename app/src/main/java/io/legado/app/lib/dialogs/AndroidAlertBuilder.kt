@@ -156,7 +156,8 @@ internal class AndroidAlertBuilder(override val ctx: Context) : AlertBuilder<Ale
     }
 
     override fun show(): AlertDialog {
-        val dialog = builder.show().applyTint()
+        val dialog = builder.create()       // 只创建，不显示
+        dialog.applyTint()                  // 先设好背景
         if (AppConfig.isEInkMode) {
             dialog.window?.run {
                 val attr = attributes
@@ -166,6 +167,7 @@ internal class AndroidAlertBuilder(override val ctx: Context) : AlertBuilder<Ale
                 setBackgroundDrawableResource(R.drawable.bg_eink_border_dialog)
             }
         }
+        dialog.show()                       // 一切就绪后再显示
         return dialog
     }
 }

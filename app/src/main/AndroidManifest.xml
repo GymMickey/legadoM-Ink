@@ -245,9 +245,19 @@
             android:name=".ui.book.toc.rule.TxtTocRuleActivity"
             android:launchMode="singleTop"
             android:screenOrientation="behind" />
+        <!-- txt目录规则选择 -->
+        <activity
+            android:name=".ui.book.toc.rule.TxtTocRuleSelectActivity"
+            android:launchMode="singleTop"
+            android:screenOrientation="behind" />
         <!-- 替换规则界面 -->
         <activity
             android:name=".ui.replace.ReplaceRuleActivity"
+            android:launchMode="singleTop"
+            android:screenOrientation="behind" />
+        <!-- 书架布局配置 -->
+        <activity
+            android:name=".ui.main.bookshelf.BookshelfConfigActivity"
             android:launchMode="singleTop"
             android:screenOrientation="behind" />
         <!-- 书籍管理 -->
@@ -586,9 +596,6 @@
         <meta-data
             android:name="channel"
             android:value="${APP_CHANNEL_VALUE}" />
-        <activity
-            android:name=".ui.main.bookshelf.BookshelfConfigActivity"
-            android:exported="false" />
     </application>
 
     <queries>

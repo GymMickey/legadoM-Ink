@@ -6,6 +6,7 @@ import android.content.Intent
 import android.os.Bundle
 import android.view.Menu
 import android.view.MenuItem
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.appcompat.widget.SearchView
 import androidx.fragment.app.Fragment
@@ -21,7 +22,7 @@ import io.legado.app.lib.theme.accentColor
 import io.legado.app.lib.theme.primaryTextColor
 import io.legado.app.model.ReadBook
 import io.legado.app.ui.about.AppLogDialog
-import io.legado.app.ui.book.toc.rule.TxtTocRuleDialog
+import io.legado.app.ui.book.toc.rule.TxtTocRuleSelectActivity
 import io.legado.app.ui.file.HandleFileContract
 import io.legado.app.ui.widget.dialog.WaitDialog
 import io.legado.app.utils.applyTint
@@ -33,9 +34,7 @@ import io.legado.app.utils.visible
 /**
  * 目录
  */
-class TocActivity : VMBaseActivity<ActivityChapterListBinding, TocViewModel>(),
-    TxtTocRuleDialog.CallBack {
-
+class TocActivity : VMBaseActivity<ActivityChapterListBinding, TocViewModel>() {
     override val binding by viewBinding(ActivityChapterListBinding::inflate)
     override val viewModel by viewModels<TocViewModel>()
 
@@ -51,6 +50,18 @@ class TocActivity : VMBaseActivity<ActivityChapterListBinding, TocViewModel>(),
             }
         }
     }
+    private val tocRuleSelectActivity =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            if (result.resultCode == RESULT_OK) {
+                TxtTocRuleSelectActivity.parseResult(result.data)?.let { tocRegex ->
+                    viewModel.bookData.value?.let { book ->
+                        book.tocUrl = tocRegex
+                        upBookAndToc(book)
+                    }
+                }
+            }
+        }
+
 
     override fun onActivityCreated(savedInstanceState: Bundle?) {
         tabLayout = binding.titleBar.findViewById(R.id.tab_layout)
@@ -136,8 +147,10 @@ class TocActivity : VMBaseActivity<ActivityChapterListBinding, TocViewModel>(),
 
     override fun onCompatOptionsItemSelected(item: MenuItem): Boolean {
         when (item.itemId) {
-            R.id.menu_toc_regex -> showDialogFragment(
-                TxtTocRuleDialog(viewModel.bookData.value?.tocUrl)
+            R.id.menu_toc_regex -> tocRuleSelectActivity.launch(
+                Intent(this, TxtTocRuleSelectActivity::class.java)
+                    .putExtra("tocRegex", viewModel.bookData.value?.tocUrl)
+                    .putExtra("bookUrl", viewModel.bookData.value?.bookUrl)
             )
 
             R.id.menu_split_long_chapter -> {
@@ -208,12 +221,6 @@ class TocActivity : VMBaseActivity<ActivityChapterListBinding, TocViewModel>(),
         return super.onCompatOptionsItemSelected(item)
     }
 
-    override fun onTocRegexDialogResult(tocRegex: String) {
-        viewModel.bookData.value?.let { book ->
-            book.tocUrl = tocRegex
-            upBookAndToc(book)
-        }
-    }
 
     private fun upBookAndToc(book: Book) {
         waitDialog.show()

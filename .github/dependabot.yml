@@ -1,0 +1,51 @@
+version: 2
+
+updates:
+  # Gradle 依赖更新（Android 项目）
+  - package-ecosystem: "gradle"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+
+    # 每次最多创建 3 个更新 PR
+    open-pull-requests-limit: 3
+
+    # PR 标签
+    labels:
+      - "dependencies"
+
+    # PR 标题前缀
+    commit-message:
+      prefix: "deps"
+
+    # 忽略大版本自动升级，避免破坏 Android 构建
+    ignore:
+      - dependency-name: "com.android.tools.build:gradle"
+        update-types:
+          - "version-update:semver-major"
+
+      - dependency-name: "org.jetbrains.kotlin.android"
+        update-types:
+          - "version-update:semver-major"
+
+      - dependency-name: "androidx.compose*"
+        update-types:
+          - "version-update:semver-major"
+
+      - dependency-name: "androidx.room*"
+        update-types:
+          - "version-update:semver-major"
+
+  # GitHub Actions 更新
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+
+    open-pull-requests-limit: 2
+
+    labels:
+      - "dependencies"
+
+    commit-message:
+      prefix: "ci"

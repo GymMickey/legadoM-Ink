@@ -27,3 +27,10 @@
 
 # 日志
 *.log
+
+# 内部开发文件
+CLAUDE.md
+legado目标.md
+迁移指南.md
+memory/
+.claude/

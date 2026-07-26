@@ -27,10 +27,13 @@ static def releaseCode() {
 
 def gitCommits = 0
 try {
-    // 按发布 tag 计数，不再跟随每个 commit 跳动
+    // 按发布 tag 最大编号 +1，不再跟随每个 commit 跳动
     def tags = 'git tag -l "v3.26-beta.*"'.execute().text.trim()
     if (tags) {
-        gitCommits = tags.split("\n").size() + 1
+        def maxBeta = tags.split("\n").collect {
+            it.replace("v3.26-beta.", "").toInteger()
+        }.max()
+        gitCommits = maxBeta + 1
     }
 } catch (Exception ignored) {
 }
@@ -45,7 +48,10 @@ def resolvedReleaseKeyPassword = project.findProperty("RELEASE_KEY_PASSWORD") ?:
 try {
     def tags = 'git tag -l "v3.26-beta.*"'.execute().text.trim()
     if (tags) {
-        gitCommits = tags.split("\n").size() + 1
+        def maxBeta = tags.split("\n").collect {
+            it.replace("v3.26-beta.", "").toInteger()
+        }.max()
+        gitCommits = maxBeta + 1
     }
 } catch (Exception ignored) {
 }

@@ -2074,4 +2074,13 @@
     <string name="local_book_count_summary">%d books</string>
     <string name="start_wifi_transfer">Start WiFi Transfer</string>
     <string name="start_wifi_transfer_summary">Show QR code for other devices</string>
+
+    <!-- 书评 -->
+    <string name="book_review">书评</string>
+    <string name="my_book_review">我的书评</string>
+    <string name="my_book_review_desc">记录阅读后的评分和感想</string>
+    <string name="write_review">写书评</string>
+    <string name="write_first_review">写下我的评价</string>
+    <string name="view_edit">查看/编辑</string>
+    <string name="search_book_review_hint">搜索书名、作者、正文</string>
 </resources>

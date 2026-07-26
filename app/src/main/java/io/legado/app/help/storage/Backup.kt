@@ -577,6 +577,26 @@ object Backup {
             }
         }
 
+        // 导出书评数据
+        if (selectedFiles.contains("bookReview.json")) {
+            onProgress?.invoke(BackupInfoHelper.getDisplayName("bookReview.json"))
+            val sourcePath = io.legado.app.utils.FileUtils.getPath(
+                splitties.init.appCtx.filesDir, "bookReview.json"
+            )
+            val sourceFile = java.io.File(sourcePath)
+            if (sourceFile.exists()) {
+                sourceFile.copyTo(
+                    java.io.File(backupPath + java.io.File.separator + "bookReview.json"),
+                    overwrite = true
+                )
+            } else {
+                // 用户从未写过书评 → 生成空数据加入 ZIP，恢复端不需要特殊判断
+                io.legado.app.utils.FileUtils.createFileIfNotExist(
+                    backupPath + java.io.File.separator + "bookReview.json"
+                ).writeText("""{"version":1,"reviews":[]}""")
+            }
+        }
+
         currentCoroutineContext().ensureActive()
 
         // 导出SharedPreferences配置（应用主配置）

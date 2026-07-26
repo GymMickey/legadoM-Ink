@@ -90,6 +90,7 @@ object BackupInfoHelper {
         "readRecord.json" to "阅读记录",
         "readRecordDetail.json" to "阅读详情",
         "readRecordSession.json" to "阅读时段",
+        "bookReview.json" to "书评",
         "searchHistory.json" to "搜索历史",
         "txtTocRule.json" to "TXT 目录规则",
         "httpTTS.json" to "TTS 配置",

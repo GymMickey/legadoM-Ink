@@ -444,6 +444,18 @@ object Restore {
             }?.onFailure { AppLog.put("恢复直链上传出错\n${it.localizedMessage}", it) }
         }
 
+        // 恢复书评数据
+        if ("bookReview.json" in selectedSet) {
+            progress("bookReview.json")
+            val srcFile = java.io.File(path, "bookReview.json")
+            if (srcFile.exists()) {
+                val destPath = io.legado.app.utils.FileUtils.getPath(
+                    splitties.init.appCtx.filesDir, "bookReview.json"
+                )
+                srcFile.copyTo(java.io.File(destPath), overwrite = true)
+            }
+        }
+
         // 恢复主题配置
         if (ThemeConfig.configFileName in selectedSet) {
             progress(ThemeConfig.configFileName)
@@ -798,6 +810,16 @@ object Restore {
             ACache.get(cacheDir = false).put(DirectLinkUpload.ruleFileName, json)
         }?.onFailure {
             AppLog.put("恢复直链上传出错\n${it.localizedMessage}", it)
+        }
+
+        // 恢复书评数据
+        progress("bookReview.json")
+        val bookReviewFile = java.io.File(path, "bookReview.json")
+        if (bookReviewFile.exists()) {
+            val destPath = io.legado.app.utils.FileUtils.getPath(
+                splitties.init.appCtx.filesDir, "bookReview.json"
+            )
+            bookReviewFile.copyTo(java.io.File(destPath), overwrite = true)
         }
 
         // 恢复主题配置

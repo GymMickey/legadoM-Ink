@@ -20,6 +20,7 @@ import io.legado.app.lib.theme.primaryColor
 import io.legado.app.ui.about.AboutActivity
 import io.legado.app.ui.book.readRecord.ReadRecordActivity
 import io.legado.app.ui.book.bookmark.AllBookmarkActivity
+import io.legado.app.ui.book.review.BookReviewListActivity
 import io.legado.app.ui.book.source.manage.BookSourceActivity
 import io.legado.app.ui.config.ConfigActivity
 import io.legado.app.ui.config.ConfigTag
@@ -159,6 +160,7 @@ class MyFragment() : BaseFragment(R.layout.fragment_my_config), MainFragmentInte
                 }
                 "debugTools" -> startActivity<DebugToolsActivity>()
                 "bookmark" -> startActivity<AllBookmarkActivity>()
+                "myBookReview" -> startActivity<BookReviewListActivity>()
                 "setting" -> startActivity<ConfigActivity> {
                     putExtra("configTag", ConfigTag.OTHER_CONFIG)
                 }

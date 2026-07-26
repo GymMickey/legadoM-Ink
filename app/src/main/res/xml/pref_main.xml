@@ -99,6 +99,13 @@
             app:iconSpaceReserved="false" />
 
         <io.legado.app.lib.prefs.Preference
+            android:icon="@drawable/ic_star_border"
+            android:key="myBookReview"
+            android:summary="@string/my_book_review_desc"
+            android:title="@string/my_book_review"
+            app:iconSpaceReserved="false" />
+
+        <io.legado.app.lib.prefs.Preference
             android:icon="@drawable/ic_history"
             android:key="readRecord"
             android:summary="@string/read_record_summary"

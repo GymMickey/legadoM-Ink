@@ -181,6 +181,12 @@
         <activity
             android:name=".ui.book.info.edit.BookInfoEditActivity"
             android:launchMode="singleTask" />
+        <!-- 书评列表页 -->
+        <activity
+            android:name=".ui.book.review.BookReviewListActivity" />
+        <!-- 书评编辑页 -->
+        <activity
+            android:name=".ui.book.review.BookReviewEditActivity" />
         <!-- 授权界面 -->
         <activity
             android:name="io.legado.app.lib.permission.PermissionActivity"

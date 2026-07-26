@@ -83,6 +83,9 @@ import io.legado.app.ui.book.search.SearchActivity
 import io.legado.app.model.SourceCallBack
 import io.legado.app.ui.association.OnLineImportActivity
 import io.legado.app.ui.book.source.edit.BookSourceEditActivity
+import io.legado.app.data.repository.BookReviewRepository
+import io.legado.app.model.BookReview
+import io.legado.app.ui.book.review.BookReviewEditActivity
 import io.legado.app.ui.book.readRecord.BookReadRecordActivity
 import io.legado.app.ui.book.toc.TocActivityResult
 import io.legado.app.ui.file.HandleFileContract
@@ -117,6 +120,7 @@ import io.noties.markwon.MarkwonConfiguration
 import io.noties.markwon.ext.tables.TablePlugin
 import io.noties.markwon.html.HtmlPlugin
 import io.noties.markwon.image.glide.GlideImagesPlugin
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Dispatchers.IO
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -193,6 +197,13 @@ class BookInfoActivity :
                 viewModel.hasCustomBtn = source.customButton
             }
             viewModel.refreshBook(book)
+        }
+    }
+    private val bookReviewResult = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) {
+        if (it.resultCode == RESULT_OK) {
+            book?.let { upBookReview(it) }
         }
     }
     private var chapterChanged = false
@@ -516,8 +527,52 @@ class BookInfoActivity :
         upTvBookshelf()
         upKinds(book)
         upGroup(book.group)
+        upBookReview(book)
     }
 
+    private fun launchBookReviewEdit(
+        bookUrl: String, bookName: String, bookAuthor: String, reviewId: String? = null
+    ) {
+        val intent = Intent(this, BookReviewEditActivity::class.java).apply {
+            putExtra(BookReviewEditActivity.EXTRA_BOOK_URL, bookUrl)
+            putExtra(BookReviewEditActivity.EXTRA_BOOK_NAME, bookName)
+            putExtra(BookReviewEditActivity.EXTRA_BOOK_AUTHOR, bookAuthor)
+            if (reviewId != null) putExtra(BookReviewEditActivity.EXTRA_REVIEW_ID, reviewId)
+        }
+        bookReviewResult.launch(intent)
+    }
+
+    private fun upBookReview(book: Book) = binding.run {
+        llBookReview?.visible()
+        tvBookReviewAction?.setOnClickListener {
+            launchBookReviewEdit(book.bookUrl, book.name, book.author)
+        }
+        lifecycleScope.launch {
+            val review = withContext(Dispatchers.IO) {
+                BookReviewRepository.getByBook(book)
+            }
+            if (review != null) {
+                tvBookReview?.text = buildString {
+                    append("书评：")
+                    append("★".repeat(review.rating))
+                    if (review.rating < 5) append("☆".repeat(5 - review.rating))
+                }
+                tvBookReviewAction?.text = "查看/编辑"
+                tvBookReviewAction?.setOnClickListener {
+                    launchBookReviewEdit(book.bookUrl, book.name, book.author, review.id)
+                }
+            } else {
+                tvBookReview?.text = "书评：写下我的评价"
+                tvBookReviewAction?.text = "写书评"
+            }
+        }
+    }
+
+    /**
+     * 显示阅读完成提示——页面内 Snackbar，不是 Dialog。
+     * 点"写书评"→ 进入编辑页，点"以后再说"→ 关闭。
+     * Snackbar 不持久化，跨越 95% 只触发一次。
+     */
     inner class CustomWebViewClient(
         private val source: BaseSource?
     ) : WebViewClient() {

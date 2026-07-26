@@ -8,6 +8,29 @@
 
 基于阅读Max精简的E-Ink墨水屏专用版本，保持与原版数据库、备份恢复、书源/RSS/订阅/下载完全兼容。
 
+**2026/07/27**
+
+**书评系统 — UI 打磨：**
+- 列表页排序改为图标按钮（Sort 图标），搜索框常驻展开不再需要额外点击
+- 排序下拉菜单改用 DropdownMenu 直接锚定按钮，E-Ink 下不再飘到左上角
+- 卡片样式统一：边框、圆角、背景色与搜索框一致（双模式 1dp outline + extraSmall 圆角）
+- 多选模式：长按进入多选 → 选中卡片 2dp 强调边框 + 背景微染 → 批量删除
+- 多选 Toolbar 实时显示已选数量，右上角删除按钮
+- E-Ink 卡片间距调整（12dp verticalArrangement）
+- 编辑页书名卡片视觉统一：透明背景 + 1dp outline 边框，圆角与感想输入框一致
+- "记录过 N 本书"独立一行，不与搜索/排序控件同行
+
+**移除阅读完成提示：**
+- 删掉 ReadBookActivity 进度 95% 阈值判断逻辑
+- 删掉 BookInfoActivity Snackbar 提示及 RESULT_FINISHED 结果码
+
+**分组管理：**
+- 书籍分组管理对话框隐藏有声书（IdAudio）和视频（IdVideo）两个系统分组
+
+**备份验证修复：**
+- BackupFileValidator 新增 bookReview.json / homepage.json / coverRule.json 等对象格式文件校验
+- 修复非 JSON 数组文件误报"JSON 格式错误"的问题
+
 **2026/07/19**
 
 **WiFi 传书全面升级：**

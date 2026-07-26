@@ -16,6 +16,8 @@ import io.legado.app.data.entities.Server
 import io.legado.app.data.entities.TxtTocRule
 import io.legado.app.data.entities.readRecord.ReadRecord
 import io.legado.app.data.entities.readRecord.ReadRecordDetail
+import io.legado.app.help.DirectLinkUpload
+import io.legado.app.model.BookCover
 import io.legado.app.ui.book.read.config.HighlightRuleStore
 import io.legado.app.utils.GSON
 import io.legado.app.utils.isJsonArray
@@ -156,8 +158,14 @@ object BackupFileValidator {
         return try {
             val jsonText = file.readText()
 
-            if (fileName == HighlightRuleStore.backupFileName) {
-                return validateJsonObjectFile(fileName, jsonText)
+            // 以下文件使用 JSON 对象格式，而非数组
+            if (fileName == HighlightRuleStore.backupFileName
+                || fileName == "homepage.json"
+                || fileName == "bookReview.json"
+                || fileName == BookCover.configFileName
+                || fileName == DirectLinkUpload.ruleFileName
+            ) {
+                return validateJsonObjectOrHomepage(fileName, jsonText, file)
             }
 
             // servers.json 可能被加密存储，需要先尝试解密
@@ -208,6 +216,46 @@ object BackupFileValidator {
                     details = "$fileName 缺少 rules 字段"
                 )
             }
+            ValidationResult(
+                fileName = fileName,
+                state = ValidationState.VALID,
+                message = "格式正确"
+            )
+        } catch (e: Exception) {
+            ValidationResult(
+                fileName = fileName,
+                state = ValidationState.ERROR,
+                message = "JSON 解析失败",
+                details = "解析 $fileName 时出错: ${e.message}",
+                exception = e
+            )
+        }
+    }
+
+    /**
+     * 验证 JSON 对象格式的文件（非数组）。
+     * homepage.json 走专用的结构验证，其他文件只验证是否为有效 JSON 对象。
+     */
+    private fun validateJsonObjectOrHomepage(
+        fileName: String,
+        jsonText: String,
+        file: File
+    ): ValidationResult {
+        return try {
+            // 先验证是否为合法 JSON
+            org.json.JSONObject(jsonText)
+
+            // homepage.json 有专用的结构验证
+            if (fileName == "homepage.json") {
+                return validateHomepageFile(jsonText).copy(fileName = fileName)
+            }
+
+            // highlightRule.json 有 rules 字段检查
+            if (fileName == HighlightRuleStore.backupFileName) {
+                return validateJsonObjectFile(fileName, jsonText)
+            }
+
+            // 其他对象格式文件 — 合法即通过
             ValidationResult(
                 fileName = fileName,
                 state = ValidationState.VALID,

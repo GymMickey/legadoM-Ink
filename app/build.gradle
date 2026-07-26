@@ -27,9 +27,10 @@ static def releaseCode() {
 
 def gitCommits = 0
 try {
-    def result = 'git rev-list HEAD --count'.execute().text.trim()
-    if (result && result.isNumber()) {
-        gitCommits = Integer.parseInt(result)
+    // 按发布 tag 计数，不再跟随每个 commit 跳动
+    def tags = 'git tag -l "v3.26-beta.*"'.execute().text.trim()
+    if (tags) {
+        gitCommits = tags.split("\n").size() + 1
     }
 } catch (Exception ignored) {
 }
@@ -42,9 +43,9 @@ def resolvedReleaseKeyAlias = project.findProperty("RELEASE_KEY_ALIAS") ?: "lega
 def resolvedReleaseStorePassword = project.findProperty("RELEASE_STORE_PASSWORD") ?: null
 def resolvedReleaseKeyPassword = project.findProperty("RELEASE_KEY_PASSWORD") ?: null
 try {
-    def result = 'git rev-list HEAD --count'.execute().text.trim()
-    if (result && result.isNumber()) {
-        gitCommits = Integer.parseInt(result)
+    def tags = 'git tag -l "v3.26-beta.*"'.execute().text.trim()
+    if (tags) {
+        gitCommits = tags.split("\n").size() + 1
     }
 } catch (Exception ignored) {
 }

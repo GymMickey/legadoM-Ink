@@ -218,10 +218,7 @@ private fun BookReviewEditScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 16.dp)
-                    .let { mod ->
-                        if (cardBorder != null) mod.border(cardBorder, MaterialTheme.shapes.extraSmall)
-                        else mod
-                    },
+                    .border(cardBorder, MaterialTheme.shapes.extraSmall),
                 shape = MaterialTheme.shapes.extraSmall,
                 colors = CardDefaults.cardColors(
                     containerColor = Color.Transparent

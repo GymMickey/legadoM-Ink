@@ -31,7 +31,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Sort
+import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
@@ -269,7 +269,7 @@ private fun BookReviewListScreen(
                 Box {
                     IconButton(onClick = { sortExpanded = true }) {
                         Icon(
-                            Icons.Default.Sort,
+                            Icons.AutoMirrored.Filled.Sort,
                             contentDescription = "排序",
                             tint = pageSecondaryTextColor()
                         )

@@ -25,6 +25,9 @@
 *.zip
 *.tar.gz
 
+# 敏感配置（开源项目不能上传）
+app/google-services.json
+
 # 日志
 *.log
 

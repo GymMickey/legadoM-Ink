@@ -1013,8 +1013,18 @@ class BookInfoActivity :
             val deviceId = AppConst.androidId
             val data = runCatching {
                 withContext(IO) {
-                    val record = appDb.readRecordDao.getReadRecord(deviceId, book.name, book.author)
-                    val details = appDb.readRecordDao.getDetailsByBook(deviceId, book.name, book.author)
+                    var record = appDb.readRecordDao.getReadRecord(deviceId, book.name, book.author)
+                    var details = appDb.readRecordDao.getDetailsByBook(deviceId, book.name, book.author)
+                    // 空格 trim fallback：WiFi 传书文件名可能带空格，
+                    // ReadRecordRepository 保存时做了 trim，此处查询也需归一化
+                    if (record == null && details.isEmpty()) {
+                        val tName = book.name.trim()
+                        val tAuthor = book.author.trim()
+                        if (tName != book.name || tAuthor != book.author) {
+                            record = appDb.readRecordDao.getReadRecord(deviceId, tName, tAuthor)
+                            details = appDb.readRecordDao.getDetailsByBook(deviceId, tName, tAuthor)
+                        }
+                    }
                     Triple(record, details, null)
                 }
             }.getOrElse {

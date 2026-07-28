@@ -6,6 +6,7 @@ import io.legado.app.model.BookReviewData
 import io.legado.app.utils.FileUtils
 import io.legado.app.utils.GSON
 import io.legado.app.utils.fromJsonObject
+import io.legado.app.help.book.BookMatcher
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import splitties.init.appCtx
@@ -56,9 +57,8 @@ object BookReviewRepository {
         val reviews = load().reviews
         reviews.find { it.bookUrl == book.bookUrl }
             ?: reviews.find {
-                it.bookName == book.name
-                && it.bookAuthor.isNotBlank()
-                && it.bookAuthor == book.author
+                BookMatcher.isSameBook(it.bookName, it.bookAuthor, book.name, book.author)
+                    && it.bookAuthor.isNotBlank()
             }
     }
 

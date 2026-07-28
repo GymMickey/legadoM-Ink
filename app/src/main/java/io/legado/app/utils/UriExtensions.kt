@@ -4,7 +4,9 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import android.os.ParcelFileDescriptor
+import android.provider.DocumentsContract
 import androidx.appcompat.app.AppCompatActivity
 import androidx.documentfile.provider.DocumentFile
 import androidx.fragment.app.Fragment
@@ -182,7 +184,8 @@ fun Uri.inputStream(context: Context): Result<InputStream> {
             if (isContentScheme()) {
                 DocumentFile.fromSingleUri(context, uri)
                     ?: throw NoStackTraceException("未获取到文件")
-                return@runCatching context.contentResolver.openInputStream(uri)!!
+                val resolvedUri = resolveTreeDocumentUri(context, uri)
+                return@runCatching context.contentResolver.openInputStream(resolvedUri)!!
             } else {
                 val path = RealPathUtil.getPath(context, uri)
                     ?: throw NoStackTraceException("未获取到文件")
@@ -208,7 +211,8 @@ fun Uri.outputStream(context: Context): Result<OutputStream> {
             if (isContentScheme()) {
                 DocumentFile.fromSingleUri(context, uri)
                     ?: throw NoStackTraceException("未获取到文件")
-                return@runCatching context.contentResolver.openOutputStream(uri)!!
+                val resolvedUri = resolveTreeDocumentUri(context, uri)
+                return@runCatching context.contentResolver.openOutputStream(resolvedUri)!!
             } else {
                 val path = RealPathUtil.getPath(context, uri)
                     ?: throw NoStackTraceException("未获取到文件")
@@ -234,7 +238,8 @@ fun Uri.toReadPfd(context: Context): Result<ParcelFileDescriptor> {
             if (isContentScheme()) {
                 DocumentFile.fromSingleUri(context, uri)
                     ?: throw NoStackTraceException("未获取到文件")
-                return@runCatching context.contentResolver.openFileDescriptor(uri, "r")!!
+                val resolvedUri = resolveTreeDocumentUri(context, uri)
+                return@runCatching context.contentResolver.openFileDescriptor(resolvedUri, "r")!!
             } else {
                 val path = RealPathUtil.getPath(context, uri)
                     ?: throw NoStackTraceException("未获取到文件")
@@ -265,7 +270,8 @@ fun Uri.toWritePfd(context: Context): Result<ParcelFileDescriptor> {
             if (isContentScheme()) {
                 DocumentFile.fromSingleUri(context, uri)
                     ?: throw NoStackTraceException("未获取到文件")
-                return@runCatching context.contentResolver.openFileDescriptor(uri, "w")!!
+                val resolvedUri = resolveTreeDocumentUri(context, uri)
+                return@runCatching context.contentResolver.openFileDescriptor(resolvedUri, "w")!!
             } else {
                 val path = RealPathUtil.getPath(context, uri)
                     ?: throw NoStackTraceException("未获取到文件")
@@ -312,4 +318,41 @@ fun Uri.canRead(): Boolean {
         this,
         Intent.FLAG_GRANT_READ_URI_PERMISSION
     ) == PackageManager.PERMISSION_GRANTED
+}
+
+/**
+ * Android 13+ 兼容：tree 级 SAF 权限不会自动传递给子树 document URI。
+ *
+ * WiFi 传书等场景保存的 URI 有两种格式：
+ *   1. tree/document URI：/tree/{treeId}/document/{documentId}
+ *      isDocumentUri() 对此返回 false（首段是 "tree" 不是 "document"）
+ *      需用 isTreeUri() 检测，提取 /document/ 后的 documentId 重建
+ *   2. 纯 document URI：/document/{documentId}
+ *      直接用 getDocumentId() 提取后重建
+ */
+private fun resolveTreeDocumentUri(context: Context, uri: Uri): Uri {
+    if (Build.VERSION.SDK_INT < 33) return uri
+    return try {
+        when {
+            // 情况1：tree/document URI（DocumentFile.uri 的产物）
+            DocumentsContract.isTreeUri(uri) -> {
+                val segments = uri.pathSegments
+                val docIdx = segments.indexOf("document")
+                if (docIdx >= 0 && docIdx + 1 < segments.size) {
+                    val documentId = segments[docIdx + 1]
+                    DocumentsContract.buildDocumentUriUsingTree(uri, documentId)
+                } else uri
+            }
+            // 情况2：纯 document URI
+            DocumentsContract.isDocumentUri(context, uri) -> {
+                DocumentsContract.buildDocumentUriUsingTree(
+                    uri,
+                    DocumentsContract.getDocumentId(uri)
+                )
+            }
+            else -> uri
+        }
+    } catch (_: Exception) {
+        uri
+    }
 }

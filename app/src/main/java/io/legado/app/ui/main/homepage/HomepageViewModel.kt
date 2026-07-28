@@ -15,6 +15,7 @@ import io.legado.app.data.entities.Book
 import io.legado.app.data.repository.ReadRecordRepository
 import io.legado.app.domain.model.HomepageModuleType
 import io.legado.app.help.AppWebDav
+import io.legado.app.help.book.BookMatcher
 import io.legado.app.help.config.LocalConfig
 import io.legado.app.help.storage.Backup
 import kotlinx.coroutines.Dispatchers
@@ -67,8 +68,12 @@ class HomepageViewModel(application: Application) : BaseViewModel(application) {
         appDb.readRecordDao.observeCount(),
         _isBackingUp
     ) { summaries, readBookKeys, totalTime, readBooksCount, backingUp ->
-        val readKeySet = readBookKeys.map { "${it.bookName}|${it.bookAuthor}" }.toSet()
-        val readSummaries = summaries.filter { "${it.name}|${it.author}" in readKeySet }
+        val readKeySet = readBookKeys.map {
+            "${BookMatcher.normalize(it.bookName)}|${BookMatcher.normalize(it.bookAuthor)}"
+        }.toSet()
+        val readSummaries = summaries.filter {
+            "${BookMatcher.normalize(it.name)}|${BookMatcher.normalize(it.author)}" in readKeySet
+        }
         val lastRead = readSummaries.maxByOrNull { it.durChapterTime }?.toBook()
         val recent = readSummaries
             .sortedByDescending { it.durChapterTime }

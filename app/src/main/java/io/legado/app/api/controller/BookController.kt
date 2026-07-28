@@ -12,6 +12,7 @@ import io.legado.app.data.entities.BookSource
 import io.legado.app.help.AppWebDav
 import io.legado.app.help.CacheManager
 import io.legado.app.help.book.BookHelp
+import io.legado.app.help.book.BookMatcher
 import io.legado.app.help.book.ContentProcessor
 import io.legado.app.help.book.isLocal
 import io.legado.app.help.config.AppConfig
@@ -265,9 +266,7 @@ object BookController {
                     }
                     appDb.bookDao.update(book)
                     ReadBook.book?.let {
-                        if (it.name == bookProgress.name &&
-                            it.author == bookProgress.author
-                        ) {
+                        if (BookMatcher.isSameBook(it.name, it.author, bookProgress.name, bookProgress.author)) {
                             ReadBook.webBookProgress = bookProgress
                         }
                     }

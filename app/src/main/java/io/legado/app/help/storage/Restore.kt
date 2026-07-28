@@ -48,6 +48,7 @@ import io.legado.app.help.LauncherIconHelp
 import io.legado.app.help.book.isLocal
 import io.legado.app.help.book.upType
 import io.legado.app.help.book.BookHelp
+import io.legado.app.help.book.BookMatcher
 import io.legado.app.help.config.LocalConfig
 import io.legado.app.help.config.ReadBookConfig
 import io.legado.app.help.config.ThemeConfig
@@ -1378,7 +1379,7 @@ object Restore {
                         LogUtils.d(TAG, "当前数据库中有 ${localBooks.size} 本书")
                         
                         val missingBooks = books.filter { book ->
-                            val exists = localBooks.any { it.bookUrl == book.bookUrl || it.name == book.name }
+                            val exists = localBooks.any { it.bookUrl == book.bookUrl || BookMatcher.textMatches(it.name, book.name) }
                             LogUtils.d(TAG, "书籍《${book.name}》${if (exists) "已存在" else "不存在"}")
                             !exists
                         }.map { book ->
@@ -1674,7 +1675,7 @@ object Restore {
                     
                     val cacheIndex = cacheIndexList?.find { it.bookUrl == bookUrl }
                     if (cacheIndex != null) {
-                        val matchedBook = appDb.bookDao.all.find { it.name == cacheIndex.bookName }
+                        val matchedBook = appDb.bookDao.all.find { BookMatcher.textMatches(it.name, cacheIndex.bookName) }
                         if (matchedBook != null) {
                             // 更新章节的 bookUrl
                             val updatedChapters = chapterList.map { chapter ->
@@ -1718,13 +1719,13 @@ object Restore {
         
         // 其次按 书名+作者 匹配
         val normalizedAuthor = cacheIndex.author.trim()
-        allBooks.filter { 
-            it.name == cacheIndex.bookName && 
-            (it.author?.trim() ?: "") == normalizedAuthor 
+        allBooks.filter {
+            BookMatcher.textMatches(it.name, cacheIndex.bookName) &&
+            (it.author?.trim() ?: "") == normalizedAuthor
         }.firstOrNull()?.let { return it }
-        
+
         // 最后按书名模糊匹配（作者可能为空或不一致）
-        allBooks.filter { it.name == cacheIndex.bookName }.firstOrNull()?.let { return it }
+        allBooks.filter { BookMatcher.textMatches(it.name, cacheIndex.bookName) }.firstOrNull()?.let { return it }
         
         return null
     }

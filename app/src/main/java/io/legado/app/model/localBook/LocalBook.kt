@@ -1,6 +1,8 @@
 package io.legado.app.model.localBook
 
 import android.net.Uri
+import android.os.Build
+import android.provider.DocumentsContract
 import android.util.Base64
 import androidx.documentfile.provider.DocumentFile
 import com.script.ScriptBindings
@@ -449,7 +451,16 @@ object LocalBook {
                 appCtx.contentResolver.openOutputStream(doc.uri)!!.use { oStream ->
                     it.copyTo(oStream)
                 }
-                doc.uri
+                // Android 13+：不保存 tree/document URI（DocumentFile.uri），
+                // 改用干净的 document URI，避免权限级联问题
+                if (Build.VERSION.SDK_INT >= 33) {
+                    DocumentsContract.buildDocumentUriUsingTree(
+                        treeUri,
+                        DocumentsContract.getTreeDocumentId(treeUri) + "/" + fileName
+                    )
+                } else {
+                    doc.uri
+                }
             } else {
                 try {
                     val treeFile = File(treeUri.path!!)

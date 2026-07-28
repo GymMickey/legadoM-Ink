@@ -7,6 +7,7 @@ import io.legado.app.data.appDb
 import io.legado.app.data.entities.BookSourcePart
 import io.legado.app.data.entities.SearchBook
 import io.legado.app.exception.NoStackTraceException
+import io.legado.app.help.book.BookMatcher
 import io.legado.app.help.config.AppConfig
 import io.legado.app.ui.book.search.SearchScope
 import io.legado.app.utils.getPrefBoolean
@@ -247,7 +248,7 @@ class SearchModel(private val scope: CoroutineScope, private val callBack: CallB
                     var hasSame = false
                     equalData.forEach { pBook ->
                         currentCoroutineContext().ensureActive()
-                        if (pBook.name == nBook.name && pBook.author == nBook.author) {
+                        if (BookMatcher.isSameBook(pBook.name, pBook.author, nBook.name, nBook.author)) {
                             pBook.addOrigin(nBook.origin)
                             hasSame = true
                         }
@@ -259,7 +260,7 @@ class SearchModel(private val scope: CoroutineScope, private val callBack: CallB
                     var hasSame = false
                     tagsData.forEach { pBook ->
                         currentCoroutineContext().ensureActive()
-                        if (pBook.name == nBook.name && pBook.author == nBook.author) {
+                        if (BookMatcher.isSameBook(pBook.name, pBook.author, nBook.name, nBook.author)) {
                             pBook.addOrigin(nBook.origin)
                             hasSame = true
                         }
@@ -271,7 +272,7 @@ class SearchModel(private val scope: CoroutineScope, private val callBack: CallB
                     var hasSame = false
                     containsData.forEach { pBook ->
                         currentCoroutineContext().ensureActive()
-                        if (pBook.name == nBook.name && pBook.author == nBook.author) {
+                        if (BookMatcher.isSameBook(pBook.name, pBook.author, nBook.name, nBook.author)) {
                             pBook.addOrigin(nBook.origin)
                             hasSame = true
                         }
@@ -283,7 +284,7 @@ class SearchModel(private val scope: CoroutineScope, private val callBack: CallB
                     var hasSame = false
                     otherData.forEach { pBook ->
                         currentCoroutineContext().ensureActive()
-                        if (pBook.name == nBook.name && pBook.author == nBook.author) {
+                        if (BookMatcher.isSameBook(pBook.name, pBook.author, nBook.name, nBook.author)) {
                             pBook.addOrigin(nBook.origin)
                             hasSame = true
                         }

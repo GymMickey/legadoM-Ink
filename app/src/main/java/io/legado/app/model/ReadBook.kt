@@ -108,8 +108,8 @@ object ReadBook : CoroutineScope by MainScope() {
     fun resetData(book: Book) {
         releaseAndCancel()
         ReadBook.book = book
-        readRecord.bookName = book.name
-        readRecord.bookAuthor = book.author
+        readRecord.bookName = book.name.trim()
+        readRecord.bookAuthor = book.author.trim()
         readRecord.deviceId = AppConst.androidId
         readRecord.lastRead = System.currentTimeMillis()
         sessionStartTime = System.currentTimeMillis()

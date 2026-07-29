@@ -1,11 +1,14 @@
 package io.legado.app.model
 
+import androidx.annotation.Keep
+
 /**
  * 书评数据模型
  *
  * 一本书至多一条书评。bookUrl 必填——入口始终从书开始。
  * 数据存储在 filesDir/bookReview.json，格式为 {"version": 1, "reviews": [...]}
  */
+@Keep
 data class BookReview(
     val id: String,              // UUID，唯一标识
     val bookUrl: String,         // 关联书籍 URL 或本地文件路径，必填
@@ -25,7 +28,8 @@ data class BookReview(
  *
  * version 预留未来扩展（v2 可加 tags / Markdown / 阅读次数等）
  */
+@Keep
 data class BookReviewData(
     val version: Int,
-    val reviews: List<BookReview>
+    val reviews: List<BookReview> = emptyList()
 )

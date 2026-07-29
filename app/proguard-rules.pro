@@ -61,6 +61,17 @@
 -keep class * extends io.legado.app.help.JsExtensions{*;}
 # 数据类
 -keep class **.data.entities.**{*;}
+
+# 书评模型 — GSON 反射反序列化，字段名不能被混淆
+-keep class io.legado.app.model.BookReview { *; }
+-keep class io.legado.app.model.BookReviewData { *; }
+
+# 书评 UI 包 — Compose + ActivityResult 回调，避免 R8 内联后类型错乱
+-keep class io.legado.app.ui.book.review.** { *; }
+
+# 书籍身份匹配 — Kotlin object，伴生对象访问不能被混淆
+-keep class io.legado.app.help.book.BookMatcher { public *; }
+
 -keep class io.legado.app.help.storage.BookCacheIndex{*;}
 -keep class io.legado.app.help.storage.ChapterCacheInfo{*;}
 -keep class io.legado.app.ui.book.cacheSelector.BookCacheIndex{*;}

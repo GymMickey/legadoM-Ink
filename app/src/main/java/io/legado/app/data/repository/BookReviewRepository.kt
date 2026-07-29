@@ -25,8 +25,10 @@ object BookReviewRepository {
         if (file.length() == 0L) return BookReviewData(version = 1, reviews = emptyList())
         val json = file.readText()
         if (json.isBlank()) return BookReviewData(version = 1, reviews = emptyList())
-        return GSON.fromJsonObject<BookReviewData>(json).getOrNull()
-            ?: BookReviewData(version = 1, reviews = emptyList())
+        val data = GSON.fromJsonObject<BookReviewData>(json).getOrNull()
+        // reviews 为 null 说明文件被旧版混淆构建损坏，回退到空数据
+        return if (data != null && data.reviews != null) data
+            else BookReviewData(version = 1, reviews = emptyList())
     }
 
     /** 写入全部数据到文件 */

@@ -36,6 +36,11 @@
 - 删掉 ReadBookActivity 进度 95% 阈值判断逻辑
 - 删掉 BookInfoActivity Snackbar 提示及 RESULT_FINISHED 结果码
 
+**2026/07/30**
+
+- 修复：R8 混淆导致 BookReview 字段名被替换，书评数据保存后清空 — @Keep + 默认空列表 + null-safe 加载三重防御
+- 修复：检查更新接口 repo 名仍指向上游仓库 legado → legadoM-Ink
+
 **2026/07/19**
 
 **WiFi 传书全面升级：**

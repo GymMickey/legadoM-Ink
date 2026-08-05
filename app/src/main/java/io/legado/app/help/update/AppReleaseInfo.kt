@@ -47,7 +47,7 @@ fun appVariantFromAssetName(name: String, preRelease: Boolean = false): AppVaria
 
 private fun extractVersionName(name: String): String {
     // 匹配 "3.26-beta 43" 格式，提取为 "3.26.43" 便于数值比较
-    val betaMatch = Regex("""(\d+(?:\.\d+)+)-beta\s*(\d+)""").find(name)
+    val betaMatch = Regex("""(\d+(?:\.\d+)+)-beta[.\s]*(\d+)""").find(name)
     if (betaMatch != null) {
         return "${betaMatch.groupValues[1]}.${betaMatch.groupValues[2]}"
     }

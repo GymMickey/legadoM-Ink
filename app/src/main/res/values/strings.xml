@@ -318,6 +318,10 @@
     <string name="padding_right">Right</string>
     <string name="check_book_source">Check book sources</string>
     <string name="check_select_source">Check the selected source</string>
+    <string name="check_result">Check Result</string>
+    <string name="check_result_delete_selected">Delete Selected</string>
+    <string name="check_result_filter">Filter</string>
+    <string name="check_result_all_pass">All sources passed</string>
     <string name="progress_show">%1$s      Progress %2$d/%3$d</string>
     <string name="tts_fix">Please install and select Chinese TTS!</string>
     <string name="tts_init_failed">TTS initialization failed!</string>

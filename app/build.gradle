@@ -94,9 +94,9 @@ android {
         minSdk 21
         targetSdk 36
         versionCode releaseCode()
-        versionName version
+        versionName "3.26-beta.27"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
-        project.ext.set("archivesBaseName", "LegadoM-Ink_" + version)
+        project.ext.set("archivesBaseName", "LegadoM-Ink_3.26-beta.27")
 
         // 👇 就是这行，修复渠道占位符报错
         manifestPlaceholders = [APP_CHANNEL_VALUE: "local"]

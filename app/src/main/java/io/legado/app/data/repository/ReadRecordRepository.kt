@@ -442,7 +442,7 @@ class ReadRecordRepository(
 
         val useSourceProgress = source.lastRead >= target.lastRead
 
-        val mergedReadTime = target.readTime + source.readTime
+        val mergedReadTime = max(target.readTime, source.readTime)
         val mergedLastRead = max(target.lastRead, source.lastRead)
 
         dao.insert(
@@ -476,8 +476,8 @@ class ReadRecordRepository(
             } else {
                 dao.insertDetail(
                     existingTargetDetail.copy(
-                        readTime = existingTargetDetail.readTime + detail.readTime,
-                        readWords = existingTargetDetail.readWords + detail.readWords,
+                        readTime = max(existingTargetDetail.readTime, detail.readTime),
+                        readWords = max(existingTargetDetail.readWords, detail.readWords),
                         firstReadTime = min(existingTargetDetail.firstReadTime, detail.firstReadTime),
                         lastReadTime = max(existingTargetDetail.lastReadTime, detail.lastReadTime)
                     )
@@ -624,8 +624,8 @@ class ReadRecordRepository(
             } else {
                 dao.insertDetail(
                     existingTargetDetail.copy(
-                        readTime = existingTargetDetail.readTime + detail.readTime,
-                        readWords = existingTargetDetail.readWords + detail.readWords,
+                        readTime = max(existingTargetDetail.readTime, detail.readTime),
+                        readWords = max(existingTargetDetail.readWords, detail.readWords),
                         firstReadTime = min(existingTargetDetail.firstReadTime, detail.firstReadTime),
                         lastReadTime = max(existingTargetDetail.lastReadTime, detail.lastReadTime)
                     )

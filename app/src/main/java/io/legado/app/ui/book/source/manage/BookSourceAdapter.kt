@@ -17,6 +17,7 @@ import io.legado.app.base.adapter.RecyclerAdapter
 import io.legado.app.data.entities.BookSourcePart
 import io.legado.app.databinding.ItemBookSourceBinding
 import io.legado.app.lib.theme.backgroundColor
+import io.legado.app.help.config.AppConfig
 import io.legado.app.model.Debug
 import io.legado.app.ui.login.SourceLoginActivity
 import io.legado.app.ui.widget.recycler.DragSelectTouchHelper
@@ -238,18 +239,31 @@ class BookSourceAdapter(
         item: BookSourcePart
     ) = binding.run {
         val msg = Debug.debugMessageMap[item.bookSourceUrl] ?: ""
-        ivDebugText.text = msg
         val isEmpty = msg.isEmpty()
         var isFinalMessage = msg.contains(finalMessageRegex)
         if (!Debug.isChecking && !isFinalMessage) {
             Debug.updateFinalMessage(item.bookSourceUrl, "校验失败")
-            ivDebugText.text = Debug.debugMessageMap[item.bookSourceUrl] ?: ""
             isFinalMessage = true
         }
-        ivDebugText.visibility =
-            if (!isEmpty) View.VISIBLE else View.GONE
-        ivProgressBar.visibility =
-            if (isFinalMessage || isEmpty || !Debug.isChecking) View.GONE else View.VISIBLE
+
+        if (AppConfig.isEInkMode) {
+            // E-Ink 模式：隐藏旋转进度条，校验中显示静态文字，避免闪烁
+            ivProgressBar.visibility = View.GONE
+            if (Debug.isChecking && !isFinalMessage && !isEmpty) {
+                ivDebugText.text = "校验中"
+                ivDebugText.visibility = View.VISIBLE
+            } else {
+                ivDebugText.text = msg
+                ivDebugText.visibility = if (!isEmpty) View.VISIBLE else View.GONE
+            }
+        } else {
+            // 普通模式：保留原有动效
+            ivDebugText.text = msg
+            ivDebugText.visibility =
+                if (!isEmpty) View.VISIBLE else View.GONE
+            ivProgressBar.visibility =
+                if (isFinalMessage || isEmpty || !Debug.isChecking) View.GONE else View.VISIBLE
+        }
     }
 
     private fun upSourceHost(binding: ItemBookSourceBinding, position: Int) = binding.run {

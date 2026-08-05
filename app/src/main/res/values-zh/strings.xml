@@ -315,6 +315,10 @@
     <string name="padding_right">右边距</string>
     <string name="check_book_source">校验书源</string>
     <string name="check_select_source">校验所选</string>
+    <string name="check_result">校验结果</string>
+    <string name="check_result_delete_selected">删除选中</string>
+    <string name="check_result_filter">筛选查看</string>
+    <string name="check_result_all_pass">所有书源校验通过</string>
     <string name="progress_show">%1$s      进度 %2$d/%3$d</string>
     <string name="tts_fix">请安装并选择中文 TTS！</string>
     <string name="tts_init_failed">TTS 初始化失败！</string>

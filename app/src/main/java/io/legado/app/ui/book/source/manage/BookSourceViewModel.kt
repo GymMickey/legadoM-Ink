@@ -59,6 +59,39 @@ class BookSourceViewModel(application: Application) : BaseViewModel(application)
         }
     }
 
+    /**
+     * 获取所有失效书源，按失效分组分类
+     * 失效分组定义：分组名包含"失效"或等于"校验超时"（与 BookSource.getInvalidGroupNames() 一致）
+     */
+    fun getInvalidSources(
+        checkedUrls: Set<String>?,
+        success: (Map<String, List<BookSourcePart>>) -> Unit
+    ) {
+        execute {
+            val allGroups = appDb.bookSourceDao.allGroups()
+            val invalidGroups = allGroups.filter { groupName ->
+                "失效" in groupName || groupName == "校验超时" ||
+                groupName == "搜索链接规则为空" || groupName == "发现规则为空"
+            }
+            val result = linkedMapOf<String, List<BookSourcePart>>()
+            invalidGroups.forEach { group ->
+                val sources = appDb.bookSourceDao.getPartByGroup(group)
+                // 只返回本次校验的书源；checkedUrls 为 null 时（恢复校验场景）返回全部
+                val filtered = if (checkedUrls != null) {
+                    sources.filter { it.bookSourceUrl in checkedUrls }
+                } else {
+                    sources
+                }
+                if (filtered.isNotEmpty()) {
+                    result[group] = filtered
+                }
+            }
+            result
+        }.onSuccess { result ->
+            success(result)
+        }
+    }
+
     fun update(vararg bookSource: BookSource) {
         execute { appDb.bookSourceDao.update(*bookSource) }
     }

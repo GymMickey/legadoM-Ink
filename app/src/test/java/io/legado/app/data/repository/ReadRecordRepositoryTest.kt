@@ -76,11 +76,11 @@ class ReadRecordRepositoryTest {
     }
 
     @Test
-    fun mergeReadRecordIntoAccumulatesReadTime() = runBlocking {
+    fun mergeReadRecordKeepsMaxReadTime() = runBlocking {
         val dao = FakeReadRecordDao()
         val repository = ReadRecordRepository(dao) { CURRENT_DEVICE_ID }
-        val target = ReadRecord(CURRENT_DEVICE_ID, "Merge Book", "Author", 360_000_000L, 1_000L)
-        val source = ReadRecord("remote", "Merge Book", "Author", 60_000L, 1_100L)
+        val target = ReadRecord(CURRENT_DEVICE_ID, "Merge Book", "Author", 100L, 1_000L)
+        val source = ReadRecord("remote", "Merge Book", "Author", 200L, 1_100L)
         dao.insert(target)
         dao.insert(source)
 
@@ -88,8 +88,82 @@ class ReadRecordRepositoryTest {
 
         val record = dao.getReadRecord(CURRENT_DEVICE_ID, "Merge Book", "Author")
         assertNotNull(record)
-        assertEquals(360_060_000L, record?.readTime)
+        assertEquals(200L, record?.readTime)
         assertEquals(1_100L, record?.lastRead)
+    }
+
+    @Test
+    fun mergeReadRecordDetailKeepsMaxReadTime() = runBlocking {
+        val dao = FakeReadRecordDao()
+        val repository = ReadRecordRepository(dao) { CURRENT_DEVICE_ID }
+        val target = ReadRecord(CURRENT_DEVICE_ID, "Detail Merge Book", "Author", 100_000L, 1_000L)
+        val source = ReadRecord("remote", "Detail Merge Book", "Author", 100_000L, 1_000L)
+        dao.insert(target)
+        dao.insert(source)
+        // 同一天的 detail，readTime/readWords 相同（模拟同步副本）
+        dao.insertDetail(
+            ReadRecordDetail(CURRENT_DEVICE_ID, "Detail Merge Book", "Author", "2026-05-03", 100_000L, 1_000L, 100L, 1_000L)
+        )
+        dao.insertDetail(
+            ReadRecordDetail("remote", "Detail Merge Book", "Author", "2026-05-03", 100_000L, 1_000L, 100L, 1_000L)
+        )
+
+        repository.mergeReadRecordInto(target, listOf(source))
+
+        val detail = dao.getDetail(CURRENT_DEVICE_ID, "Detail Merge Book", "Author", "2026-05-03")
+        assertNotNull(detail)
+        // MAX 而非 SUM：100_000 而非 200_000
+        assertEquals(100_000L, detail?.readTime)
+        // readWords 同样 MAX 而非 SUM
+        assertEquals(1_000L, detail?.readWords)
+    }
+
+    @Test
+    fun mergeReadRecordDetailPicksLargerReadTime() = runBlocking {
+        val dao = FakeReadRecordDao()
+        val repository = ReadRecordRepository(dao) { CURRENT_DEVICE_ID }
+        val target = ReadRecord(CURRENT_DEVICE_ID, "Asym Book", "Author", 200_000L, 1_000L)
+        val source = ReadRecord("remote", "Asym Book", "Author", 100_000L, 1_000L)
+        dao.insert(target)
+        dao.insert(source)
+        // 同一天，target 的 detail 更大
+        dao.insertDetail(
+            ReadRecordDetail(CURRENT_DEVICE_ID, "Asym Book", "Author", "2026-05-03", 200_000L, 2_000L, 100L, 1_000L)
+        )
+        dao.insertDetail(
+            ReadRecordDetail("remote", "Asym Book", "Author", "2026-05-03", 100_000L, 1_000L, 100L, 1_000L)
+        )
+
+        repository.mergeReadRecordInto(target, listOf(source))
+
+        val detail = dao.getDetail(CURRENT_DEVICE_ID, "Asym Book", "Author", "2026-05-03")
+        assertNotNull(detail)
+        // MAX 选较大值：200_000 而非 100_000 或 300_000
+        assertEquals(200_000L, detail?.readTime)
+        assertEquals(2_000L, detail?.readWords)
+    }
+
+    @Test
+    fun mergeDuplicateDeviceRecordsShouldNotDoubleReadTime() = runBlocking {
+        val dao = FakeReadRecordDao()
+        val repository = ReadRecordRepository(dao) { CURRENT_DEVICE_ID }
+        val bookName = "测试书"
+        val bookAuthor = "测试作者"
+        val readTime = 3_600_000L // 1小时（毫秒）
+
+        // 插入两条不同 deviceId 的同名书记录（模拟旧版跨设备恢复产生的重复数据）
+        dao.insert(
+            ReadRecord(deviceId = "deviceA", bookName = bookName, bookAuthor = bookAuthor, readTime = readTime, lastRead = 1_000L)
+        )
+        dao.insert(
+            ReadRecord(deviceId = "deviceB", bookName = bookName, bookAuthor = bookAuthor, readTime = readTime, lastRead = 2_000L)
+        )
+
+        repository.repairRecords { null }
+
+        val record = dao.getReadRecord(CURRENT_DEVICE_ID, bookName, bookAuthor)
+        assertNotNull(record)
+        assertEquals(readTime, record?.readTime)
     }
 
     @Test
@@ -105,7 +179,7 @@ class ReadRecordRepositoryTest {
 
         val record = dao.getReadRecord(CURRENT_DEVICE_ID, "Repair Book", "Author")
         assertNotNull(record)
-        assertEquals(180_000L, record?.readTime)
+        assertEquals(120_000L, record?.readTime)
         assertEquals(200L, record?.lastRead)
         assertEquals(1, dao.all.size)
     }
@@ -417,6 +491,19 @@ class ReadRecordRepositoryTest {
 
         override val all: List<ReadRecord>
             get() = records.map { it.copy() }
+
+        override val count: Int
+            get() = records.size
+
+        override fun observeCount(): Flow<Int> {
+            return flowOf(records.size)
+        }
+
+        override fun observeAllReadBookKeys(): Flow<List<ReadRecordDao.ReadBookKey>> {
+            return flowOf(
+                records.map { ReadRecordDao.ReadBookKey(it.bookName, it.bookAuthor) }
+            )
+        }
 
         override fun searchReadRecordsByLastRead(query: String): Flow<List<ReadRecord>> {
             return flowOf(

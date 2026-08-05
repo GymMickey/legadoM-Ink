@@ -7,6 +7,9 @@ import android.view.Menu
 import android.view.MenuItem
 import android.view.SubMenu
 import android.view.WindowManager
+import android.content.res.ColorStateList
+import android.graphics.Color
+import android.widget.CheckedTextView
 import androidx.activity.viewModels
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.widget.PopupMenu
@@ -30,7 +33,7 @@ import io.legado.app.data.entities.BookSourcePart
 import io.legado.app.databinding.ActivityBookSourceBinding
 import io.legado.app.databinding.DialogEditTextBinding
 import io.legado.app.help.DirectLinkUpload
-
+import io.legado.app.help.config.AppConfig
 import io.legado.app.help.config.LocalConfig
 import io.legado.app.lib.dialogs.alert
 import io.legado.app.lib.theme.primaryColor
@@ -109,6 +112,8 @@ class BookSourceActivity : VMBaseActivity<ActivityBookSourceBinding, BookSourceV
     override var isSortAscending = true
         private set
     private var snackBar: Snackbar? = null
+    private var lastCheckSnackbarUpdate = 0L
+    private var lastCheckedUrls: Set<String>? = null
     private var isGroupSourcesByDomain = false
     private val hostMap = hashMapOf<String, String>()
     private var locateSourceUrl: String? = null
@@ -582,6 +587,7 @@ class BookSourceActivity : VMBaseActivity<ActivityBookSourceBinding, BookSourceV
                     }
                 }
                 val selectItems = adapter.selection
+                lastCheckedUrls = selectItems.map { it.bookSourceUrl }.toSet()
                 CheckSource.start(this@BookSourceActivity, selectItems)
                 val adapterItems = adapter.getItems()
                 val firstItem = adapterItems.indexOf(selectItems.firstOrNull())
@@ -596,6 +602,12 @@ class BookSourceActivity : VMBaseActivity<ActivityBookSourceBinding, BookSourceV
         dialog.getButton(AlertDialog.BUTTON_NEUTRAL)?.setOnClickListener {
             showDialogFragment<CheckSourceConfig>()
         }
+        // show() 后按钮才真正 attach，此时 applyTint 才能生效
+        dialog.applyTint()
+        // applyTint 会覆盖 E-Ink 描边背景，需恢复
+        if (AppConfig.isEInkMode) {
+            dialog.window?.setBackgroundDrawableResource(R.drawable.bg_eink_border_dialog)
+        }
     }
 
 
@@ -606,6 +618,176 @@ class BookSourceActivity : VMBaseActivity<ActivityBookSourceBinding, BookSourceV
         keepScreenOn(true)
         CheckSource.resume(this)
         startCheckMessageRefreshJob(0, 0)
+    }
+
+    /**
+     * 校验完成后弹出结果对话框
+     * 按失效类型分组展示，支持勾选后筛选查看或一键删除
+     */
+    private fun showCheckResultDialog() {
+        viewModel.getInvalidSources(lastCheckedUrls) { invalidMap ->
+            if (invalidMap.isEmpty()) {
+                toastOnUi("所有书源校验通过")
+                return@getInvalidSources
+            }
+
+            val groups = invalidMap.keys.toList()
+            val labels = groups.mapIndexed { _, group ->
+                "$group (${invalidMap[group]!!.size})"
+            }.toTypedArray()
+            val checked = BooleanArray(groups.size) { true }
+
+            // 计算去重后的失效书源总数
+            val totalUnique = invalidMap.values.flatten()
+                .distinctBy { it.bookSourceUrl }.size
+
+            var dialogRef: AlertDialog? = null
+            val dialog = AlertDialog.Builder(this)
+                .setTitle("校验结果（共 $totalUnique 个）")
+                .setMultiChoiceItems(labels, checked) { _, which, isChecked ->
+                    checked[which] = isChecked
+                    val selectedCount = countSelectedToDelete(groups, checked, invalidMap)
+                    dialogRef?.getButton(AlertDialog.BUTTON_POSITIVE)?.text =
+                        "删除选中($selectedCount)"
+                    if (AppConfig.isEInkMode) {
+                        dialogRef?.let { tintCheckResultDialog(it) }
+                    }
+                }
+                .setPositiveButton("删除选中($totalUnique)") { _, _ ->
+                    confirmDeleteInvalidSources(groups, checked, invalidMap)
+                }
+                .setNeutralButton("筛选查看") { _, _ ->
+                    // 收集所有勾选分组的书源（按 URL 去重）
+                    val selectedSources = mutableListOf<BookSourcePart>()
+                    val seenUrls = mutableSetOf<String>()
+                    groups.forEachIndexed { i, group ->
+                        if (checked[i]) {
+                            invalidMap[group]?.forEach { part ->
+                                if (seenUrls.add(part.bookSourceUrl)) {
+                                    selectedSources.add(part)
+                                }
+                            }
+                        }
+                    }
+                    if (selectedSources.isNotEmpty()) {
+                        searchView.setQuery("", false)
+                        sourceFlowJob?.cancel()
+                        adapter.setItems(
+                            selectedSources,
+                            adapter.diffItemCallback,
+                            !AppConfig.isEInkMode
+                        )
+                        itemTouchCallback.isCanDrag = false
+                        toastOnUi("已筛选 ${selectedSources.size} 个失效书源")
+                    }
+                }
+                .setNegativeButton("关闭", null)
+                .create()
+
+            dialogRef = dialog
+
+            // E-Ink 模式：去除窗口动画和背景遮罩
+            if (AppConfig.isEInkMode) {
+                dialog.window?.run {
+                    val attr = attributes
+                    attr.dimAmount = 0f
+                    attr.windowAnimations = 0
+                    attributes = attr
+                    setBackgroundDrawableResource(R.drawable.bg_eink_border_dialog)
+                }
+            }
+            dialog.show()
+
+            // show() 后按钮才真正 attach，此时 applyTint 才能生效
+            dialog.applyTint()
+
+            // E-Ink 模式：恢复描边背景 + 勾选框 tint 为黑色（需等 ListView 布局完成）
+            if (AppConfig.isEInkMode) {
+                dialog.window?.setBackgroundDrawableResource(R.drawable.bg_eink_border_dialog)
+                dialog.window?.decorView?.post {
+                    tintCheckResultDialog(dialog)
+                }
+            }
+        }
+    }
+
+    /**
+     * E-Ink 模式下将弹窗勾选框 tint 为黑色
+     */
+    private fun tintCheckResultDialog(dialog: AlertDialog) {
+        val listView = dialog.listView ?: return
+        val tint = ColorStateList.valueOf(Color.BLACK)
+        for (i in 0 until listView.childCount) {
+            (listView.getChildAt(i) as? CheckedTextView)?.checkMarkTintList = tint
+        }
+    }
+
+    /**
+     * 计算勾选分组去重后的书源数量
+     */
+    private fun countSelectedToDelete(
+        groups: List<String>,
+        checked: BooleanArray,
+        invalidMap: Map<String, List<BookSourcePart>>
+    ): Int {
+        val urls = mutableSetOf<String>()
+        groups.forEachIndexed { i, group ->
+            if (checked[i]) {
+                invalidMap[group]?.forEach { urls.add(it.bookSourceUrl) }
+            }
+        }
+        return urls.size
+    }
+
+    /**
+     * 确认删除选中的失效书源，显示分组明细
+     */
+    private fun confirmDeleteInvalidSources(
+        groups: List<String>,
+        checked: BooleanArray,
+        invalidMap: Map<String, List<BookSourcePart>>
+    ) {
+        // 按 bookSourceUrl 去重收集待删除书源
+        val toDelete = mutableListOf<BookSourcePart>()
+        val seenUrls = mutableSetOf<String>()
+        val breakdown = mutableListOf<String>()
+
+        groups.forEachIndexed { i, group ->
+            if (checked[i]) {
+                val groupSources = invalidMap[group]!!
+                groupSources.forEach { part ->
+                    if (seenUrls.add(part.bookSourceUrl)) {
+                        toDelete.add(part)
+                    }
+                }
+                breakdown.add("$group (${groupSources.size})")
+            }
+        }
+        if (toDelete.isEmpty()) {
+            toastOnUi("未选择任何失效书源")
+            return
+        }
+
+        val message = buildString {
+            append("确定删除以下失效书源？\n\n")
+            breakdown.forEach { appendLine(it) }
+            appendLine()
+            append("共 ${toDelete.size} 个（已去重）")
+        }
+
+        val dialog = alert(R.string.check_book_source) {
+            setMessage(message)
+            okButton {
+                viewModel.del(toDelete)
+            }
+            cancelButton()
+        }
+        // show() 后按钮才真正 attach，此时 applyTint 才能生效
+        dialog.applyTint()
+        // applyTint 会覆盖 E-Ink 描边背景，需恢复
+        if (AppConfig.isEInkMode) {
+            dialog.window?.setBackgroundDrawableResource(R.drawable.bg_eink_border_dialog)
+        }
     }
 
     @SuppressLint("InflateParams")
@@ -700,6 +882,9 @@ class BookSourceActivity : VMBaseActivity<ActivityBookSourceBinding, BookSourceV
 
     override fun observeLiveBus() {
         observeEvent<String>(EventBus.CHECK_SOURCE) { msg ->
+            val now = System.currentTimeMillis()
+            if (AppConfig.isEInkMode && now - lastCheckSnackbarUpdate < 2000) return@observeEvent
+            lastCheckSnackbarUpdate = now
             snackBar?.setText(msg) ?: let {
                 snackBar = Snackbar
                     .make(binding.root, msg, Snackbar.LENGTH_INDEFINITE)
@@ -718,12 +903,7 @@ class BookSourceActivity : VMBaseActivity<ActivityBookSourceBinding, BookSourceV
                 adapter.itemCount,
                 bundleOf(Pair("checkSourceMessage", null))
             )
-            groups.forEach { group ->
-                if (group.contains("失效") && searchView.query.isEmpty()) {
-                    searchView.setQuery("失效", true)
-                    toastOnUi("发现有失效书源，已为您自动筛选！")
-                }
-            }
+            showCheckResultDialog()
         }
     }
 
@@ -748,7 +928,7 @@ class BookSourceActivity : VMBaseActivity<ActivityBookSourceBinding, BookSourceV
                     if (!Debug.isChecking) {
                         checkMessageRefreshJob?.cancel()
                     }
-                    delay(300L)
+                    delay(if (AppConfig.isEInkMode) 2000L else 300L)
                 }
             }
         }

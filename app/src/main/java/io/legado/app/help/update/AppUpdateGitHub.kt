@@ -27,11 +27,7 @@ object AppUpdateGitHub : AppUpdate.AppUpdateInterface {
         }
 
     private suspend fun getLatestRelease(): List<AppReleaseInfo> {
-        val lastReleaseUrl = if (checkVariant.isBeta()) {
-            "https://api.github.com/repos/GymMickey/legadoM-Ink/releases/tags/beta"
-        } else {
-            "https://api.github.com/repos/GymMickey/legadoM-Ink/releases/latest"
-        }
+        val lastReleaseUrl = "https://api.github.com/repos/GymMickey/legadoM-Ink/releases/latest"
         val res = okHttpClient.newCallResponse {
             url(lastReleaseUrl)
         }

@@ -36,6 +36,20 @@
 - 删掉 ReadBookActivity 进度 95% 阈值判断逻辑
 - 删掉 BookInfoActivity Snackbar 提示及 RESULT_FINISHED 结果码
 
+**2026/08/05**
+
+**阅读记录修复：**
+- 修复：ReadRecordRepository detail 级别合并时 readTime/readWords 使用 SUM 导致两个设备同步副本的同一日阅读时间被翻倍累加，改为 MAX 取值
+
+**书源校验优化：**
+- 校验完成后弹出结果对话框，按失效分组多选展示，支持一键删除或筛选查看
+- 对话框按钮和勾选框颜色跟随主题强调色
+- E-Ink 模式适配：校验中进度条改为静态文字减少闪烁，Snackbar 每 2 秒更新，弹窗勾选框黑色、无动画、描边背景
+
+**检查更新修复：**
+- 修复：beta 版本检查更新请求 /tags/beta 导致 404，统一改为 /releases/latest
+- 已装旧版本设备可通过 beta tag release 自升级到此版本
+
 **2026/07/30**
 
 - 修复：R8 混淆导致 BookReview 字段名被替换，书评数据保存后清空 — @Keep + 默认空列表 + null-safe 加载三重防御

@@ -39,3 +39,10 @@ memory/
 .claude/
 docs/
 .bitfun/
+
+# 分析产物（不入库）
+cleanReadRecords.js
+temp_analysis/
+
+# 本地发布流程文档（不入库）
+release-template.md

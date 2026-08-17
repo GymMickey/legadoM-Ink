@@ -48,7 +48,7 @@ internal object FontUrlImporter {
                 throw FontImportException(FontImportFailure.INVALID_FONT)
             }
             try {
-                Typeface.createFromFile(stagingFile)
+                check(Typeface.createFromFile(stagingFile)?.let { it !== Typeface.DEFAULT } == true)
             } catch (e: Exception) {
                 throw FontImportException(FontImportFailure.INVALID_FONT, cause = e)
             }

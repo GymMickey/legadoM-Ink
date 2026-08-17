@@ -42,7 +42,7 @@
   → 显示可取消的等待窗口，禁止重复提交
   → 在后台线程下载到临时文件
   → 检查 HTTP、重定向、大小和读写异常
-  → Typeface.createFromFile() 实际解析临时文件
+  → Typeface.createFromFile() 实际解析临时文件，并拒绝解析失败时返回的系统默认字体
   → 生成安全且不覆盖旧文件的最终文件名
   → 移动/复制到 App 字体目录
   → 记录本地字体文件路径
@@ -111,7 +111,7 @@ Android/data/<应用包名>/files/font
 文件有效性不依赖 MIME 类型。下载完成后必须满足：
 
 - 文件非空；
-- `Typeface.createFromFile(tempFile)` 能成功解析。
+- `Typeface.createFromFile(tempFile)` 能成功解析，且结果不是解析失败时返回的 `Typeface.DEFAULT`。
 
 因此，伪装成 `.ttf` 的 HTML 错误页会在 Typeface 校验阶段失败。URL 或响应文件名没有扩展名时，最终文件名默认补 `.ttf`，但是否接受仍以 Typeface 的实际解析结果为准。
 
@@ -182,7 +182,6 @@ URL 导入后的 `textFont` 与原有本地字体完全相同，因此直接复�
 | `res/values/strings.xml` | 默认英文文案 |
 | `res/values-zh/strings.xml` | 简体中文文案 |
 | `test/.../FontImportFileUtilsTest.kt` | 文件名、URL、大小限制和失败清理单元测试 |
-| `ui/book/read/page/ReadView.kt` | 保留了一项针对重复分页的尺寸来源调整，详见第 11 节；不是 URL 下载必需逻辑 |
 
 未新增大型依赖，未修改数据库、包名、应用名称、版本策略和发布流程。
 
@@ -242,13 +241,9 @@ URL 导入后的 `textFont` 与原有本地字体完全相同，因此直接复�
 - `PageView.upTipStyle()` 会把 `ChapterProvider.typeface` 用于阅读页的页眉、页脚提示文字；特殊字体的 ascent、descent、字高或字重行为可能改变这些区域的测量结果。
 - 原实现中 `ReadView` 外层和主 `ContentTextView` 都会调用 `ChapterProvider.upViewSize()`，两者代表的高度并不完全相同。
 
-当前工作区保留的尝试性调整：
+开发时曾尝试只让主 `ContentTextView` 提交正文区域尺寸，但该调整仍未完全消除问题。根据维护者审查意见，现已从本次 URL 字体功能中撤出，`ReadView.kt` 保持项目原有逻辑。若以后需要继续处理，应单独评估和提交，不与 URL 字体功能捆绑。
 
-- `ReadView.onSizeChanged()` 不再提交外层高度；
-- 仍由主 `ContentTextView.onSizeChanged()` 提交真正正文区域的尺寸；
-- 横竖屏或分辨率变化时，`ContentTextView` 仍会随布局变化重新提交尺寸，因此理论上仍保留自动适配能力。
-
-但是，该调整在问题字体上仍未完全消除抖动，不能将其标记为已修复。建议主要维护者在合并前重点回归：
+建议主要维护者后续单独评估时重点回归：
 
 - 不同分辨率和屏幕密度；
 - 横竖屏切换；

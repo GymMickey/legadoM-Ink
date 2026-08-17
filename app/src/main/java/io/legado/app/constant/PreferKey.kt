@@ -71,6 +71,7 @@ object PreferKey {
     const val cleanCache = "cleanCache"
     const val saveTabPosition = "saveTabPosition"
     const val fontFolder = "fontFolder"
+    const val importedFontFiles = "importedFontFiles"
     const val backupPath = "backupUri"
     const val restoreIgnore = "restoreIgnore"
     const val restoreShowSelector = "restoreShowSelector"

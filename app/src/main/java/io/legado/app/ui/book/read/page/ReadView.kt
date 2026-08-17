@@ -164,8 +164,8 @@ class ReadView(context: Context, attrs: AttributeSet) :
         setRect9x()
         prevPage.x = -w.toFloat()
         pageDelegate?.setViewSize(w, h)
-        // 更新章节排版所需的布局参数，确保视图尺寸变化时章节内容能正确排版
-        ChapterProvider.upViewSize(w, h)
+        // 章节排版尺寸由 ContentTextView 提供。它扣除了页眉、页脚和系统栏，
+        // 若这里再传入外层尺寸，两套高度会交替触发重新分页，造成页码跳动。
         if (w > 0 && h > 0) {
             upBg()
             callBack.upSystemUiVisibility()

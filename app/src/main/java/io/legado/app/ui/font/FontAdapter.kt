@@ -55,6 +55,13 @@ class FontAdapter(context: Context, curFilePath: String, val callBack: CallBack)
             } else {
                 ivChecked.invisible()
             }
+            if (callBack.canDeleteFont(item)) {
+                ivDelete.visible()
+                ivDelete.setOnClickListener { callBack.onFontDelete(item) }
+            } else {
+                ivDelete.invisible()
+                ivDelete.setOnClickListener(null)
+            }
         }
     }
 
@@ -68,5 +75,7 @@ class FontAdapter(context: Context, curFilePath: String, val callBack: CallBack)
 
     interface CallBack {
         fun onFontSelect(docItem: FileDoc)
+        fun canDeleteFont(docItem: FileDoc): Boolean
+        fun onFontDelete(docItem: FileDoc)
     }
 }

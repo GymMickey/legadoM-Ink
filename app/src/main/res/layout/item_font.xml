@@ -24,4 +24,15 @@
         android:visibility="invisible"
         app:tint="@color/primaryText" />
 
+    <androidx.appcompat.widget.AppCompatImageView
+        android:id="@+id/iv_delete"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:contentDescription="@string/delete_imported_font"
+        android:padding="6dp"
+        android:src="@drawable/ic_outline_delete"
+        android:visibility="invisible"
+        app:tint="@color/primaryText" />
+
 </LinearLayout>

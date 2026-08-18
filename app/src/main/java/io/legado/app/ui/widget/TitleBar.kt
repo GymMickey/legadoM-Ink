@@ -186,6 +186,7 @@ class TitleBar @JvmOverloads constructor(
 
             if (AppConfig.isEInkMode) {
                 setBackgroundResource(R.drawable.bg_eink_border_bottom)
+                toolbar.popupTheme = R.style.AppTheme_PopupOverlay_EInk
             } else if (!opaque && context.transparentNavBar) {
                 setBackgroundColor(Color.TRANSPARENT)
             } else {

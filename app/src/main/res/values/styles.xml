@@ -48,6 +48,12 @@
         <item name="colorAccent">@color/md_grey_900</item>
     </style>
 
+    <style name="AppTheme.PopupOverlay.EInk" parent="ThemeOverlay.AppCompat.Light">
+        <item name="overlapAnchor">true</item>
+        <item name="colorAccent">@color/md_grey_900</item>
+        <item name="actionOverflowMenuStyle">@style/Style.PopupMenu.EInk</item>
+    </style>
+
     <!-- Spinner 样式，统一字体大小为 14sp -->
     <style name="Spinner" parent="android:Theme.Holo.Light">
         <item name="android:textSize">14sp</item>
@@ -70,6 +76,11 @@
 
     <style name="Style.PopupMenu" parent="Widget.AppCompat.PopupMenu">
         <item name="android:popupBackground">@drawable/bg_popup_menu</item>
+    </style>
+
+    <style name="Style.PopupMenu.EInk" parent="Widget.AppCompat.PopupMenu">
+        <item name="android:popupBackground">@drawable/bg_eink_border_dialog</item>
+        <item name="android:popupElevation">0dp</item>
     </style>
 
 

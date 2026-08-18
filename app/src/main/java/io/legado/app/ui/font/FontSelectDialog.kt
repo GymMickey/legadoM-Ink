@@ -83,6 +83,9 @@ class FontSelectDialog : BaseDialogFragment(R.layout.dialog_font_select),
 
     override fun onFragmentCreated(view: View, savedInstanceState: Bundle?) {
         binding.toolBar.setBackgroundColor(primaryColor)
+        if (AppConfig.isEInkMode) {
+            binding.toolBar.popupTheme = R.style.AppTheme_PopupOverlay_EInk
+        }
         binding.toolBar.setTitle(R.string.select_font)
         binding.toolBar.inflateMenu(R.menu.font_select)
         binding.toolBar.menu.applyTint(requireContext())

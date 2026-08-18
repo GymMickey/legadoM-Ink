@@ -56,8 +56,7 @@ class HandleFileContract :
         return Result(
             uri,
             requestCode,
-            intent?.getStringExtra("value"),
-            intent?.getStringExtra("clipboard_json")
+            intent?.getStringExtra("value")
         )
     }
 
@@ -84,8 +83,7 @@ class HandleFileContract :
     data class Result(
         val uri: Uri?,
         val requestCode: Int,
-        val value: String?,
-        val clipboardJson: String? = null
+        val value: String?
     )
 
     data class FileData(

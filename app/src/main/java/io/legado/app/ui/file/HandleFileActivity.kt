@@ -25,6 +25,7 @@ import io.legado.app.utils.externalFiles
 import io.legado.app.utils.getJsonArray
 import io.legado.app.utils.isContentScheme
 import io.legado.app.utils.launch
+import io.legado.app.utils.sendToClip
 import io.legado.app.utils.toastOnUi
 import io.legado.app.utils.viewbindingdelegate.viewBinding
 import splitties.init.appCtx
@@ -182,9 +183,7 @@ class HandleFileActivity :
                     114 -> getFileData()?.let { fileData -> //导出JSON到剪贴板(书单/书源/订阅)
                         val file = fileData.second
                         if (file is java.io.File && file.exists()) {
-                            val json = file.readText()
-                            setResult(RESULT_OK, Intent().putExtra("clipboard_json", json))
-                            finish()
+                            copyToClipboard(file)
                         }
                     }
 
@@ -300,6 +299,17 @@ class HandleFileActivity :
             return Triple(fileName, file, contentType)
         }
         return null
+    }
+
+    private fun copyToClipboard(file: File) {
+        try {
+            sendToClip(file.readText())
+            finish()
+        } catch (e: Exception) {
+            AppLog.put("导出JSON到剪贴板失败", e)
+            toastOnUi(R.string.clipboard_too_large)
+            finish()
+        }
     }
 
     private fun getDirActions(onlySys: Boolean = false): ArrayList<SelectItem<Int>> {

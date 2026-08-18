@@ -8,13 +8,13 @@
         app:showAsAction="ifRoom" />
 
     <item
-        android:id="@+id/menu_import_url"
-        android:title="@string/import_font_from_url"
-        app:showAsAction="ifRoom|withText" />
-
-    <item
         android:id="@+id/menu_other"
         android:title="@string/other_folder"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/menu_import_url"
+        android:title="@string/import_font_from_url"
         app:showAsAction="never" />
 
 </menu>

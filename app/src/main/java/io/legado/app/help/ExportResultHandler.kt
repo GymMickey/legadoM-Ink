@@ -7,8 +7,6 @@ import io.legado.app.databinding.DialogEditTextBinding
 import io.legado.app.lib.dialogs.alert
 import io.legado.app.ui.file.HandleFileContract
 import io.legado.app.utils.isAbsUrl
-import io.legado.app.utils.sendToClip
-import io.legado.app.utils.toastOnUi
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
@@ -22,11 +20,6 @@ object ExportResultHandler {
         result: HandleFileContract.Result,
         onCopy: (String) -> Unit
     ) {
-        result.clipboardJson?.let { json ->
-            onCopy(json)
-            activity.toastOnUi("已复制到剪贴板")
-            return
-        }
         result.uri?.let { uri ->
             activity.alert(R.string.export_success) {
                 if (uri.toString().isAbsUrl()) {

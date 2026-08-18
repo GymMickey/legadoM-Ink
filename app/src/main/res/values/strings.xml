@@ -981,6 +981,7 @@
     <string name="single_url">Single URL</string>
     <string name="export_bookshelf">Export the list of books</string>
     <string name="export_to_clipboard">Export JSON to clipboard</string>
+    <string name="clipboard_too_large">Content too large to copy to clipboard, please use Export to file instead</string>
     <string name="import_bookshelf">Import the list of books</string>
     <string name="pre_download">Download in advance</string>
     <string name="pre_download_m">Pre-download %s pages</string>

@@ -74,7 +74,7 @@ object LocalBook {
     private val nameAuthorPatterns = arrayOf(
         Pattern.compile("(.*?)《([^《》]+)》.*?作者：(.*)"),
         Pattern.compile("(.*?)《([^《》]+)》(.*)"),
-        Pattern.compile("(^)(.+) 作者：(.+)$"),
+        Pattern.compile("(^)(.+)\\s*作者：(.+)$"),
         Pattern.compile("(^)(.+) by (.+)$")
     )
 

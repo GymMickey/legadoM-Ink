@@ -20,12 +20,23 @@ import kotlinx.coroutines.runBlocking
 class RemoteBookWebDav(
     val rootBookUrl: String,
     val authorization: Authorization,
-    val serverID: Long? = null
+    val serverID: Long? = null,
+    private val allowInsecure: Boolean = false
 ) : RemoteBookManager() {
+
+    private fun webDav(path: String): WebDav {
+        val isHttps = path.startsWith("https://", true) || path.startsWith("davs://", true)
+        return WebDav(
+            path,
+            authorization,
+            requireHttps = !allowInsecure && isHttps,
+            allowInsecure = allowInsecure
+        )
+    }
 
     init {
         runBlocking {
-            WebDav(rootBookUrl, authorization).makeAsDir()
+            webDav(rootBookUrl).makeAsDir()
         }
     }
 
@@ -35,7 +46,7 @@ class RemoteBookWebDav(
         if (!NetworkUtils.isAvailable()) throw NoStackTraceException("网络不可用")
         val remoteBooks = mutableListOf<RemoteBook>()
         //读取文件列表
-        val remoteWebDavFileList: List<WebDavFile> = WebDav(path, authorization).listFiles()
+        val remoteWebDavFileList: List<WebDavFile> = webDav(path).listFiles()
         //转化远程文件信息到本地对象
         remoteWebDavFileList.forEach { webDavFile ->
             if (webDavFile.isDir
@@ -51,7 +62,7 @@ class RemoteBookWebDav(
 
     override suspend fun getRemoteBook(path: String): RemoteBook? {
         if (!NetworkUtils.isAvailable()) throw NoStackTraceException("网络不可用")
-        val webDavFile = WebDav(path, authorization).getWebDavFile()
+        val webDavFile = webDav(path).getWebDavFile()
             ?: return null
         return RemoteBook(webDavFile)
     }
@@ -60,7 +71,7 @@ class RemoteBookWebDav(
         AppConfig.defaultBookTreeUri
             ?: throw NoStackTraceException("没有设置书籍保存位置!")
         if (!NetworkUtils.isAvailable()) throw NoStackTraceException("网络不可用")
-        val webdav = WebDav(remoteBook.path, authorization)
+        val webdav = webDav(remoteBook.path)
         return webdav.downloadInputStream().let { inputStream ->
             LocalBook.saveBookFile(inputStream, remoteBook.filename)
         }
@@ -70,11 +81,11 @@ class RemoteBookWebDav(
         if (!NetworkUtils.isAvailable()) throw NoStackTraceException("网络不可用")
         val localBookUri = Uri.parse(book.bookUrl)
         val putUrl = "$rootBookUrl${book.originName}"
-        val webDav = WebDav(putUrl, authorization)
+        val webDavClient = webDav(putUrl)
         if (localBookUri.isContentScheme()) {
-            webDav.upload(localBookUri)
+            webDavClient.upload(localBookUri)
         } else {
-            webDav.upload(localBookUri.path!!)
+            webDavClient.upload(localBookUri.path!!)
         }
         book.origin = BookType.webDavTag + CustomUrl(putUrl)
             .putAttribute("serverID", serverID)
@@ -84,7 +95,7 @@ class RemoteBookWebDav(
 
     override suspend fun delete(remoteBookUrl: String) {
         if (!NetworkUtils.isAvailable()) throw NoStackTraceException("网络不可用")
-        WebDav(remoteBookUrl, authorization).delete()
+        webDav(remoteBookUrl).delete()
     }
 
 }

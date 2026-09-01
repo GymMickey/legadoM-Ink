@@ -6,7 +6,10 @@ import API, {
   legado_http_entry_point,
   setWebsocketOnMessage,
 } from './api'
-import ajax from './axios'
+import ajax, {
+  clearWebServiceToken,
+  webServiceAuthRequiredEvent,
+} from './axios'
 import { validatorHttpUrl } from '@/utils/utils'
 
 import { createApp } from 'vue'
@@ -49,6 +52,11 @@ const responseCheckInterceptor = (resp: AxiosResponse) => {
 }
 
 const axiosErrorInterceptor = (err: unknown) => {
+  const status = (err as { response?: { status?: number } })?.response?.status
+  if (status === 401) {
+    clearWebServiceToken()
+    window.dispatchEvent(new Event(webServiceAuthRequiredEvent))
+  }
   notification.error({
     message: '后端连接失败，请检查阅读WEB服务或者设置其它可用链接',
     grouping: true,

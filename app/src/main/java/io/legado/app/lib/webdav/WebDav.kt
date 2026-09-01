@@ -6,6 +6,7 @@ import cn.hutool.core.net.URLDecoder
 import io.legado.app.constant.AppLog
 import io.legado.app.exception.NoStackTraceException
 import io.legado.app.help.http.newCallResponse
+import io.legado.app.help.http.getWebDavClient
 import io.legado.app.help.http.okHttpClient
 import io.legado.app.help.http.text
 import io.legado.app.model.analyzeRule.AnalyzeUrl
@@ -40,14 +41,16 @@ import java.util.concurrent.TimeUnit
 @Suppress("unused", "MemberVisibilityCanBePrivate")
 open class WebDav(
     val path: String,
-    val authorization: Authorization
+    val authorization: Authorization,
+    private val requireHttps: Boolean = false,
+    private val allowInsecure: Boolean = false,
 ) {
     companion object {
 
-        fun fromPath(path: String): WebDav {
+        fun fromPath(path: String, allowInsecure: Boolean = false): WebDav {
             val id = AnalyzeUrl(path).serverID ?: throw WebDavException("没有serverID")
             val authorization = Authorization(id)
-            return WebDav(path, authorization)
+            return WebDav(path, authorization, allowInsecure = allowInsecure)
         }
 
         @SuppressLint("DateTimeFormatter")
@@ -82,13 +85,18 @@ open class WebDav(
 
 
     private val url: URL = URL(CustomUrl(path).getUrl())
+    private val httpsPath = url.protocol.equals("https", true)
+        || path.startsWith("https://", true)
+        || path.startsWith("davs://", true)
     private val httpUrl: String? by lazy {
         val raw = url.toString()
             .replace("davs://", "https://")
             .replace("dav://", "http://")
-        return@lazy kotlin.runCatching {
-            raw.toHttpUrl().toString()
-        }.getOrNull()
+        val parsed = kotlin.runCatching { raw.toHttpUrl() }.getOrNull() ?: return@lazy null
+        if ((requireHttps || (!allowInsecure && httpsPath)) && !parsed.isHttps) {
+            throw WebDavException("应用同步和备份必须使用 HTTPS")
+        }
+        return@lazy parsed.toString()
     }
     private val webDavClient by lazy {
         val authInterceptor = Interceptor { chain ->
@@ -101,7 +109,10 @@ open class WebDav(
             }
             chain.proceed(request)
         }
-        okHttpClient.newBuilder().run {
+        (if (requireHttps || allowInsecure || httpsPath) {
+            getWebDavClient(allowInsecure)
+        } else okHttpClient)
+            .newBuilder().run {
             callTimeout(0, TimeUnit.SECONDS)
             interceptors().add(0, authInterceptor)
             addNetworkInterceptor(authInterceptor)
@@ -228,7 +239,8 @@ open class WebDav(
                     size = size,
                     contentType = contentType,
                     resourceType = resourceType,
-                    lastModify = lastModify
+                    lastModify = lastModify,
+                    allowInsecure = allowInsecure
                 )
                 list.add(webDavFile)
             } catch (e: MalformedURLException) {
@@ -268,7 +280,7 @@ open class WebDav(
             }.use { it.code != 401 }
         }.onFailure {
             currentCoroutineContext().ensureActive()
-        }.getOrDefault(true)
+        }.getOrDefault(false)
     }
 
     /**

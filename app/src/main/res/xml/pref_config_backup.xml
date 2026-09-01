@@ -27,6 +27,15 @@
             android:title="@string/web_dav_pw"
             app:iconSpaceReserved="false" />
 
+        <io.legado.app.lib.prefs.SwitchPreference
+            android:defaultValue="false"
+            android:key="unsafeWebDav"
+            android:summary="@string/unsafe_webdav_summary"
+            android:title="@string/unsafe_webdav_title"
+            app:allowDividerAbove="false"
+            app:allowDividerBelow="false"
+            app:iconSpaceReserved="false" />
+
         <io.legado.app.lib.prefs.EditTextPreference
             android:key="webDavDir"
             android:title="@string/sub_dir"

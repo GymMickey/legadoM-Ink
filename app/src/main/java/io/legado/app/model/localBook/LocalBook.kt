@@ -529,9 +529,11 @@ object LocalBook {
                 ?: throw NoBooksDirException()
             // 兼容旧版链接
             val webdav: WebDav = kotlin.runCatching {
-                WebDav.fromPath(webDavUrl)
+                WebDav.fromPath(webDavUrl, allowInsecure = AppConfig.unsafeWebDav)
             }.getOrElse {
-                AppWebDav.authorization?.let { WebDav(webDavUrl, it) }
+                AppWebDav.authorization?.let {
+                    WebDav(webDavUrl, it, allowInsecure = AppConfig.unsafeWebDav)
+                }
                     ?: throw WebDavException("Unexpected defaultBookWebDav")
             }
             val inputStream = runBlocking {

@@ -2,7 +2,7 @@
 /** https://github.com/gedoor/legado/tree/master/app/src/main/java/io/legado/app/web */
 
 import type { webReadConfig } from '@/web'
-import ajax from './axios'
+import ajax, { getWebServiceAuthHeaders } from './axios'
 import type {
   BaseBook,
   Book,
@@ -39,6 +39,9 @@ export const setApiEntryPoint = (
   ajax.defaults.baseURL = legado_http_entry_point
 }
 
+export const authenticate = () =>
+  ajax.post<LeagdoApiResponse<boolean>>('auth', null)
+
 // 书架API
 // Http
 const getReadConfig = async (http_url = legado_http_entry_point) => {
@@ -62,11 +65,22 @@ const saveBookProgress = (bookProgress: BookProgress) =>
 /**主要在直接关闭浏览器情况下可靠发送书籍进度 */
 const saveBookProgressWithBeacon = (bookProgress: BookProgress) => {
   if (!bookProgress) return
-  // 常规请求可能会被取消 使用Fetch keep-alive 或者 navigator.sendBeacon
-  navigator.sendBeacon(
-    new URL('saveBookProgress', legado_http_entry_point),
-    JSON.stringify(bookProgress),
+  // Cookie carries the authenticated session because sendBeacon cannot set headers.
+  const url = new URL('saveBookProgress', legado_http_entry_point)
+  const body = JSON.stringify(bookProgress)
+  const sent = navigator.sendBeacon(
+    url,
+    new Blob([body], { type: 'application/json' }),
   )
+  if (!sent) {
+    void fetch(url, {
+      method: 'POST',
+      body,
+      headers: { 'Content-Type': 'application/json', ...getWebServiceAuthHeaders() },
+      credentials: 'include',
+      keepalive: true,
+    })
+  }
 }
 
 const getBookShelf = () => ajax.get<LeagdoApiResponse<Book[]>>('getBookshelf')
@@ -225,6 +239,7 @@ const getBackupPreview = () =>
 const getBackupUrl = () => `${legado_http_entry_point}backup`
 
 export default {
+  authenticate,
   getReadConfig,
   saveReadConfig,
   saveBookProgress,

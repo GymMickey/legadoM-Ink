@@ -301,6 +301,8 @@ dependencies {
     //kapt("androidx.room:room-compiler:$room_version")
     ksp(libs.room.compiler)
     androidTestImplementation(libs.room.testing)
+    androidTestImplementation(libs.mockwebserver)
+    androidTestImplementation(libs.okhttp.tls)
     
     //liveEventBus
     implementation(libs.liveeventbus)

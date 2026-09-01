@@ -102,6 +102,7 @@ class WebService : BaseService() {
                         getPort()
                     )
                 })
+                notificationList.add(getString(R.string.web_service_http_warning))
                 hostAddress = notificationList.first()
             } else {
                 hostAddress = getString(R.string.network_connection_unavailable)
@@ -168,15 +169,7 @@ class WebService : BaseService() {
                         getPort()
                     )
                 })
-                if (AppConfig.webServiceAuthEnabled) {
-                    val token = AppConfig.webServiceToken
-                    val maskedToken = if (token.length > 8) {
-                        "${token.take(4)}****${token.takeLast(4)}"
-                    } else {
-                        "****"
-                    }
-                    notificationList.add("Token: $maskedToken")
-                }
+                notificationList.add(getString(R.string.web_service_http_warning))
                 hostAddress = notificationList.first()
                 isRun = true
                 postEvent(EventBus.WEB_SERVICE, hostAddress)

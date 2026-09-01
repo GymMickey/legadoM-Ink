@@ -33,6 +33,7 @@ import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.bottomsheet.BottomSheetBehavior
+import io.legado.app.help.http.SSLHelper
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import io.legado.app.R
 import io.legado.app.help.config.AppConfig
@@ -307,7 +308,7 @@ class ReadWebSearchPanel @JvmOverloads constructor(
                     handler: SslErrorHandler?,
                     error: SslError?
                 ) {
-                    handler?.proceed()
+                    SSLHelper.handleSslError(handler)
                 }
 
                 private fun shouldOverrideUrlLoading(uri: Uri?): Boolean {

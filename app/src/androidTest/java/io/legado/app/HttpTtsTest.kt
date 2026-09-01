@@ -1,6 +1,5 @@
 package io.legado.app
 
-import io.legado.app.help.config.AppConfig
 import io.legado.app.model.analyzeRule.AnalyzeUrl
 import kotlinx.coroutines.runBlocking
 import org.junit.Test
@@ -16,7 +15,7 @@ class HttpTtsTest {
             }
         """.trimIndent()
         val analyzeUrl =
-            AnalyzeUrl(url, speakText = "魔神", speakSpeed = AppConfig.speechRatePlay + 5)
+            AnalyzeUrl(url, speakText = "魔神", speakSpeed = 10)
         runBlocking {
             val response = analyzeUrl.getResponseAwait()
             response.headers

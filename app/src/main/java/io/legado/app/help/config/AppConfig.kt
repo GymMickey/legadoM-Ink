@@ -2,6 +2,7 @@ package io.legado.app.help.config
 
 import android.content.SharedPreferences
 import android.os.Build
+import android.util.Base64
 import io.legado.app.BuildConfig
 import io.legado.app.constant.AppConst
 import io.legado.app.constant.MangaReadMode
@@ -11,6 +12,7 @@ import io.legado.app.model.debug.DebugCategory
 import io.legado.app.utils.GSON
 import io.legado.app.utils.canvasrecorder.CanvasRecorderFactory
 import io.legado.app.utils.fromJsonObject
+import io.legado.app.utils.defaultSharedPreferences
 import io.legado.app.utils.getPrefBoolean
 import io.legado.app.utils.getPrefInt
 import io.legado.app.utils.getPrefLong
@@ -26,6 +28,7 @@ import io.legado.app.utils.sysConfiguration
 import io.legado.app.utils.toastOnUi
 import splitties.init.appCtx
 import java.net.InetAddress
+import java.security.SecureRandom
 
 /**
  * 应用全局配置单例
@@ -591,17 +594,43 @@ object AppConfig : SharedPreferences.OnSharedPreferenceChangeListener {
         }
 
     var webServiceAuthEnabled: Boolean
-        get() = appCtx.getPrefBoolean(PreferKey.webServiceAuthEnabled, false)
+        get() {
+            val preferences = appCtx.defaultSharedPreferences
+            if (!preferences.getBoolean(PreferKey.webServiceAuthInitialized, false)) {
+                // A missing preference means either a fresh install or an upgraded legacy user.
+                // Package install/update times distinguish those cases without changing legacy
+                // users' disabled setting silently.
+                val enabled = if (isFreshInstall()) {
+                    true
+                } else {
+                    preferences.getBoolean(PreferKey.webServiceAuthEnabled, false)
+                }
+                appCtx.putPrefBoolean(PreferKey.webServiceAuthEnabled, enabled)
+                appCtx.putPrefBoolean(PreferKey.webServiceAuthInitialized, true)
+            }
+            return preferences.getBoolean(PreferKey.webServiceAuthEnabled, false)
+        }
         set(value) {
             appCtx.putPrefBoolean(PreferKey.webServiceAuthEnabled, value)
+            appCtx.putPrefBoolean(PreferKey.webServiceAuthInitialized, true)
         }
 
     var webServiceToken: String
-        get() = appCtx.getPrefString(PreferKey.webServiceToken, "")
-            .orEmpty()
-            .ifBlank { AppConst.androidId }
+        get() = synchronized(webServiceTokenLock) {
+            appCtx.getPrefString(PreferKey.webServiceToken)
+                ?.takeIf { it.isNotBlank() }
+                ?: generateWebServiceToken().also {
+                    appCtx.putPrefString(PreferKey.webServiceToken, it)
+                }
+        }
         set(value) {
             appCtx.putPrefString(PreferKey.webServiceToken, value)
+        }
+
+    var webServiceAllowedOrigins: String
+        get() = appCtx.getPrefString(PreferKey.webServiceAllowedOrigins, "").orEmpty()
+        set(value) {
+            appCtx.putPrefString(PreferKey.webServiceAllowedOrigins, value)
         }
 
     var unsafeSsl: Boolean
@@ -609,6 +638,26 @@ object AppConfig : SharedPreferences.OnSharedPreferenceChangeListener {
         set(value) {
             appCtx.putPrefBoolean(PreferKey.unsafeSsl, value)
         }
+
+    /** 仅对用户自定义 WebDAV 生效，允许 HTTP 和不受信任的服务器证书。 */
+    var unsafeWebDav: Boolean
+        get() = appCtx.getPrefBoolean(PreferKey.unsafeWebDav, false)
+        set(value) {
+            appCtx.putPrefBoolean(PreferKey.unsafeWebDav, value)
+        }
+
+    private fun isFreshInstall(): Boolean = runCatching {
+        val packageInfo = appCtx.packageManager.getPackageInfo(appCtx.packageName, 0)
+        packageInfo.firstInstallTime == packageInfo.lastUpdateTime
+    }.getOrDefault(false)
+
+    private fun generateWebServiceToken(): String {
+        val bytes = ByteArray(32)
+        SecureRandom().nextBytes(bytes)
+        return Base64.encodeToString(bytes, Base64.URL_SAFE or Base64.NO_WRAP)
+    }
+
+    private val webServiceTokenLock = Any()
 
     var tocUiUseReplace: Boolean
         get() = appCtx.getPrefBoolean(PreferKey.tocUiUseReplace)

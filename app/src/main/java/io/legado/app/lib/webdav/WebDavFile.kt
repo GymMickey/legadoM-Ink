@@ -12,8 +12,9 @@ class WebDavFile(
     val size: Long,
     val contentType: String,
     val resourceType: String,
-    val lastModify: Long
-) : WebDav(urlStr, authorization) {
+    val lastModify: Long,
+    allowInsecure: Boolean = false
+) : WebDav(urlStr, authorization, allowInsecure = allowInsecure) {
 
     val isDir by lazy {
         isDir(contentType, resourceType)

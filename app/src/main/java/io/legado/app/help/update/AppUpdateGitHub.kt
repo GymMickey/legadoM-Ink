@@ -6,7 +6,7 @@ import io.legado.app.exception.NoStackTraceException
 import io.legado.app.help.config.AppConfig
 import io.legado.app.help.coroutine.Coroutine
 import io.legado.app.help.http.newCallResponse
-import io.legado.app.help.http.okHttpClient
+import io.legado.app.help.http.secureOkHttpClient
 import io.legado.app.help.http.text
 import io.legado.app.utils.GSON
 import io.legado.app.utils.fromJsonObject
@@ -28,7 +28,7 @@ object AppUpdateGitHub : AppUpdate.AppUpdateInterface {
 
     private suspend fun getLatestRelease(): List<AppReleaseInfo> {
         val lastReleaseUrl = "https://api.github.com/repos/GymMickey/legadoM-Ink/releases/latest"
-        val res = okHttpClient.newCallResponse {
+        val res = secureOkHttpClient.newCallResponse {
             url(lastReleaseUrl)
         }
         if (!res.isSuccessful) {
@@ -87,7 +87,7 @@ object AppUpdateGitHub : AppUpdate.AppUpdateInterface {
 
     private suspend fun getAllReleases(): List<AppReleaseInfo> {
         val latestReleaseUrl = "https://api.github.com/repos/GymMickey/legadoM-Ink/releases/latest"
-        val res = okHttpClient.newCallResponse {
+        val res = secureOkHttpClient.newCallResponse {
             url(latestReleaseUrl)
         }
         if (!res.isSuccessful) {

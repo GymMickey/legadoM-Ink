@@ -8,7 +8,6 @@ import io.legado.app.constant.AppLog
 import io.legado.app.constant.AppPattern
 import io.legado.app.help.config.AppConfig
 import io.legado.app.help.http.CookieManager.cookieJarHeader
-import io.legado.app.help.http.SSLHelper
 import io.legado.app.help.http.okHttpClient
 import io.legado.app.model.analyzeRule.AnalyzeUrl.Companion.customIp
 import io.legado.app.utils.DebugLog
@@ -20,7 +19,6 @@ import org.chromium.net.CronetEngine.Builder.HTTP_CACHE_DISK
 import org.chromium.net.ExperimentalCronetEngine
 import org.chromium.net.UploadDataProvider
 import org.chromium.net.UrlRequest
-import org.chromium.net.X509Util
 import org.json.JSONObject
 import splitties.init.appCtx
 
@@ -28,7 +26,6 @@ internal const val BUFFER_SIZE = 32 * 1024
 
 val cronetEngine: ExperimentalCronetEngine? by lazy {
     CronetLoader.preDownload()
-    disableCertificateVerify()
     val builder = ExperimentalCronetEngine.Builder(appCtx).apply {
         if (CronetLoader.install()) {
             setLibraryLoader(CronetLoader)//设置自定义so库加载
@@ -37,7 +34,7 @@ val cronetEngine: ExperimentalCronetEngine? by lazy {
         enableHttpCache(HTTP_CACHE_DISK, (1024 * 1024 * 50).toLong())//设置50M的磁盘缓存
         enableQuic(true)//设置支持http/3
         enableHttp2(true)  //设置支持http/2
-        enablePublicKeyPinningBypassForLocalTrustAnchors(true)
+        enablePublicKeyPinningBypassForLocalTrustAnchors(false)
         enableBrotli(true)//Brotli压缩
         setExperimentalOptions(options)
     }
@@ -63,7 +60,7 @@ val options by lazy {
     //启用DnsHttpsSvcb更容易迁移到http3
     val dnsSvcb = JSONObject()
     dnsSvcb.put("enable", true)
-    dnsSvcb.put("enable_insecure", true)
+    dnsSvcb.put("enable_insecure", false)
     dnsSvcb.put("use_alpn", true)
     options.put("UseDnsHttpsSvcb", dnsSvcb)
 
@@ -123,17 +120,4 @@ private fun customHost(url: String): String {
         else -> null
     } ?: return url
     return url.replaceFirst(host, ip)
-}
-
-private fun disableCertificateVerify() {
-    runCatching {
-        val sDefaultTrustManager = X509Util::class.java.getDeclaredField("sDefaultTrustManager")
-        sDefaultTrustManager.isAccessible = true
-        sDefaultTrustManager.set(null, SSLHelper.unsafeTrustManagerExtensions)
-    }
-    runCatching {
-        val sTestTrustManager = X509Util::class.java.getDeclaredField("sTestTrustManager")
-        sTestTrustManager.isAccessible = true
-        sTestTrustManager.set(null, SSLHelper.unsafeTrustManagerExtensions)
-    }
 }

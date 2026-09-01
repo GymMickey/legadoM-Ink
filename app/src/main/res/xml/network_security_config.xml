@@ -1,18 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<network-security-config xmlns:tools="http://schemas.android.com/tools">
-    <base-config
-        cleartextTrafficPermitted="true"
-        tools:ignore="InsecureBaseConfiguration">
+<network-security-config>
+    <!--
+        HTTP remains available to user-managed book sources for compatibility.
+        App-owned update/sync/backup clients enforce HTTPS separately.
+    -->
+    <base-config cleartextTrafficPermitted="true">
         <trust-anchors>
             <certificates src="system" />
-            <certificates src="user" />
         </trust-anchors>
     </base-config>
-
-    <debug-overrides cleartextTrafficPermitted="true">
-        <trust-anchors>
-            <certificates src="user" />
-            <certificates src="system"/>
-        </trust-anchors>
-    </debug-overrides>
 </network-security-config>

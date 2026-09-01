@@ -100,7 +100,12 @@ class RemoteBookViewModel(application: Application) : BaseViewModel(application)
             isDefaultWebdav = false
             appDb.serverDao.get(AppConfig.remoteServerId)?.getWebDavConfig()?.let {
                 val authorization = Authorization(it)
-                remoteBookWebDav = RemoteBookWebDav(it.url, authorization, AppConfig.remoteServerId)
+                remoteBookWebDav = RemoteBookWebDav(
+                    it.url,
+                    authorization,
+                    AppConfig.remoteServerId,
+                    allowInsecure = AppConfig.unsafeWebDav
+                )
                 return@execute
             }
             isDefaultWebdav = true

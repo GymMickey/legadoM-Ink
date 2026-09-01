@@ -21,6 +21,7 @@ import io.legado.app.constant.AppConst
 import io.legado.app.data.entities.BaseSource
 import io.legado.app.databinding.FragmentWebViewLoginBinding
 import io.legado.app.help.http.CookieStore
+import io.legado.app.help.http.SSLHelper
 import io.legado.app.help.webView.PooledWebView
 import io.legado.app.lib.theme.accentColor
 import io.legado.app.utils.NetworkUtils
@@ -134,7 +135,7 @@ class WebViewLoginFragment : BaseFragment(R.layout.fragment_web_view_login) {
                 handler: SslErrorHandler?,
                 error: SslError?
             ) {
-                handler?.proceed()
+                SSLHelper.handleSslError(handler)
             }
         }
         webView.webChromeClient = object : WebChromeClient() {

@@ -22,6 +22,13 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
 
+    <permission
+        android:name="${applicationId}.permission.READ_READER_PROVIDER"
+        android:protectionLevel="signature" />
+    <permission
+        android:name="${applicationId}.permission.WRITE_READER_PROVIDER"
+        android:protectionLevel="signature" />
+
     <application
         android:name=".App"
         android:allowBackup="true"
@@ -588,7 +595,8 @@
             android:authorities="${applicationId}.readerProvider"
             android:enabled="true"
             android:exported="true"
-            tools:ignore="ExportedContentProvider" />
+            android:readPermission="${applicationId}.permission.READ_READER_PROVIDER"
+            android:writePermission="${applicationId}.permission.WRITE_READER_PROVIDER" />
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileProvider"

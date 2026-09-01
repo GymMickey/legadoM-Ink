@@ -17,6 +17,7 @@ import androidx.fragment.app.activityViewModels
 import androidx.preference.ListPreference
 import androidx.preference.Preference
 import androidx.preference.PreferenceCategory
+import androidx.preference.SwitchPreferenceCompat
 import com.jeremyliao.liveeventbus.LiveEventBus
 import io.legado.app.R
 import io.legado.app.constant.EventBus
@@ -70,6 +71,8 @@ class OtherConfigFragment : PreferenceFragment(),
     override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
         putPrefBoolean(PreferKey.processText, isProcessTextEnabled())
         addPreferencesFromResource(R.xml.pref_config_other)
+        findPreference<SwitchPreferenceCompat>(PreferKey.webServiceAuthEnabled)?.isChecked =
+            AppConfig.webServiceAuthEnabled
         upPreferenceSummary(PreferKey.userAgent, AppConfig.userAgent)
         upPreferenceSummary(PreferKey.preDownloadNum, AppConfig.preDownloadNum.toString())
         upPreferenceSummary(PreferKey.backwardPreDownloadNum, AppConfig.backwardPreDownloadNum.toString())
@@ -77,6 +80,7 @@ class OtherConfigFragment : PreferenceFragment(),
         upPreferenceSummary(PreferKey.threadCount, AppConfig.threadCount.toString())
         upPreferenceSummary(PreferKey.webPort, AppConfig.webPort.toString())
         upWebServiceTokenSummary()
+        upWebServiceAllowedOriginsSummary()
         upPreferenceSummary(PreferKey.checkSource, CheckSource.summary)
         upPreferenceSummary(PreferKey.bitmapCacheSize, AppConfig.bitmapCacheSize.toString())
         upPreferenceSummary(PreferKey.imageRetainNum, AppConfig.imageRetainNum.toString())
@@ -149,6 +153,7 @@ class OtherConfigFragment : PreferenceFragment(),
                 }
 
             PreferKey.webServiceToken -> showWebServiceTokenDialog()
+            PreferKey.webServiceAllowedOrigins -> showWebServiceAllowedOriginsDialog()
 
             PreferKey.cleanCache -> clearCache()
             PreferKey.uploadRule -> startActivity(Intent(context, DirectLinkUploadActivity::class.java))
@@ -233,6 +238,8 @@ class OtherConfigFragment : PreferenceFragment(),
                     WebService.start(requireContext())
                 }
             }
+
+            PreferKey.webServiceAllowedOrigins -> upWebServiceAllowedOriginsSummary()
 
             PreferKey.recordLog -> {
                 AppConfig.recordLog = appCtx.getPrefBoolean(PreferKey.recordLog)
@@ -469,6 +476,29 @@ class OtherConfigFragment : PreferenceFragment(),
             "${token.take(4)}****${token.takeLast(4)}"
         } else {
             "****"
+        }
+    }
+
+    @SuppressLint("InflateParams")
+    private fun showWebServiceAllowedOriginsDialog() {
+        alert(getString(R.string.web_service_allowed_origins_title)) {
+            val alertBinding = DialogEditTextBinding.inflate(layoutInflater).apply {
+                editView.hint = getString(R.string.web_service_allowed_origins_summary)
+                editView.setText(AppConfig.webServiceAllowedOrigins)
+            }
+            customView { alertBinding.root }
+            okButton {
+                AppConfig.webServiceAllowedOrigins = alertBinding.editView.text?.toString().orEmpty().trim()
+                upWebServiceAllowedOriginsSummary()
+            }
+            cancelButton()
+        }
+    }
+
+    private fun upWebServiceAllowedOriginsSummary() {
+        val pref = findPreference<Preference>(PreferKey.webServiceAllowedOrigins) ?: return
+        pref.summary = AppConfig.webServiceAllowedOrigins.ifBlank {
+            getString(R.string.web_service_allowed_origins_summary)
         }
     }
 

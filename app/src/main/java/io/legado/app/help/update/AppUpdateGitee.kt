@@ -6,7 +6,7 @@ import io.legado.app.exception.NoStackTraceException
 import io.legado.app.help.config.AppConfig
 import io.legado.app.help.coroutine.Coroutine
 import io.legado.app.help.http.newCallResponse
-import io.legado.app.help.http.okHttpClient
+import io.legado.app.help.http.secureOkHttpClient
 import io.legado.app.help.http.text
 import io.legado.app.utils.GSON
 import io.legado.app.utils.fromJsonArray
@@ -29,7 +29,7 @@ object AppUpdateGitee : AppUpdate.AppUpdateInterface {
 
     private suspend fun getLatestRelease(): List<AppReleaseInfo> {
         val lastReleaseUrl = "https://github.com"
-        val res = okHttpClient.newCallResponse {
+        val res = secureOkHttpClient.newCallResponse {
             url(lastReleaseUrl)
         }
         if (!res.isSuccessful) {

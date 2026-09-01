@@ -103,9 +103,12 @@
     <string name="web_service">Web 服务</string>
     <string name="web_service_desc">用浏览器写源或看书</string>
     <string name="web_service_auth_title">Web服务认证</string>
-    <string name="web_service_auth_summary">要求API请求携带Token认证，在公共网络下建议开启</string>
+    <string name="web_service_auth_summary">要求 API 请求携带 Token；新安装默认开启，升级用户保留原设置</string>
+    <string name="web_service_http_warning">Token 只用于访问认证，不能加密 HTTP 连接。仅应在可信局域网使用；不建议在酒店、公司访客网、公共 WiFi 或存在陌生设备的网络中开启。</string>
     <string name="web_service_token_title">Web服务Token</string>
     <string name="web_service_token_summary">设置Web服务认证令牌</string>
+    <string name="web_service_allowed_origins_title">Web服务允许的来源</string>
+    <string name="web_service_allowed_origins_summary">可选，填写逗号分隔的 http(s) 来源；内置页面的同源请求始终允许</string>
     <string name="web_edit_source">Web 编辑书源</string>
     <string name="offline_cache">离线缓存</string>
     <string name="offline_cache_t">离线缓存</string>
@@ -664,6 +667,8 @@
     <string name="web_dav_url">WebDav 服务器地址</string>
     <string name="web_dav_account">WebDav 账号</string>
     <string name="web_dav_account_s">输入你的 WebDav 账号</string>
+    <string name="unsafe_webdav_title">允许不安全 WebDAV</string>
+    <string name="unsafe_webdav_summary">默认关闭，优先使用 HTTPS 和系统证书。仅在可信的自定义 WebDAV 服务确有需要时开启，以兼容 HTTP 或自签证书；HTTPS 不会跟随重定向降级到 HTTP。</string>
     <string name="rss_source">订阅源</string>
     <string name="rss_source_edit">编辑订阅源</string>
     <string name="screen">筛选</string>
@@ -1276,7 +1281,9 @@
     <string name="web_service_wake_lock">WebService唤醒锁</string>
     <string name="web_service_wake_lock_summary">开启web服务的时候启用唤醒锁,有些手机开启唤醒锁会被杀后台</string>
     <string name="unsafe_ssl_title">跳过SSL验证</string>
-    <string name="unsafe_ssl_summary">跳过所有网络请求的SSL证书验证，可能遭受中间人攻击，仅在网站证书异常时开启</string>
+    <string name="unsafe_ssl_summary">仅允许自定义书源和 WebView 请求跳过 SSL 验证，可能遭受中间人攻击；官方更新、同步和备份链路仍受保护。</string>
+    <string name="webdav_https_required">WebDAV 默认使用 HTTPS。仅在可信的自定义服务确有需要时开启“允许不安全 WebDAV”，以使用 HTTP 或自签证书。</string>
+    <string name="webdav_insecure_warning">已启用不安全 WebDAV：HTTP 或不受信任的证书可能泄露账号和数据，请仅在可信网络中使用。</string>
     <string name="need_restart_app">此更改需要重启应用才能生效，是否立即重启？</string>
 <string name="change_search_scope">切换搜索范围</string>
     <string name="copy_rule">拷贝规则</string>

@@ -72,6 +72,18 @@ object AppWebDav {
     /** 背景图片URL */
     private val bgWebDavUrl get() = "${rootWebDavUrl}background/"
 
+    private val allowInsecureWebDav get() = AppConfig.unsafeWebDav
+
+    private fun appWebDav(path: String, authorization: Authorization): WebDav {
+        val allowInsecure = allowInsecureWebDav
+        return WebDav(
+            path,
+            authorization,
+            requireHttps = !allowInsecure,
+            allowInsecure = allowInsecure
+        )
+    }
+
     /** WebDav授权信息 */
     var authorization: Authorization? = null
         private set
@@ -122,17 +134,29 @@ object AppWebDav {
         kotlin.runCatching {
             authorization = null
             defaultBookWebDav = null
+            val allowInsecure = allowInsecureWebDav
+            if (!allowInsecure && !rootWebDavUrl.startsWith("https://", true)) {
+                appCtx.toastOnUi(R.string.webdav_https_required)
+                return@runCatching
+            }
             val account = appCtx.getPrefString(PreferKey.webDavAccount)
             val password = appCtx.getPrefString(PreferKey.webDavPassword)
             if (!account.isNullOrEmpty() && !password.isNullOrEmpty()) {
+                if (allowInsecure) {
+                    appCtx.toastOnUi(R.string.webdav_insecure_warning)
+                }
                 val mAuthorization = Authorization(account, password)
                 checkAuthorization(mAuthorization)
-                WebDav(rootWebDavUrl, mAuthorization).makeAsDir()
-                WebDav(bookProgressUrl, mAuthorization).makeAsDir()
-                WebDav(exportsWebDavUrl, mAuthorization).makeAsDir()
-                WebDav(bgWebDavUrl, mAuthorization).makeAsDir()
+                appWebDav(rootWebDavUrl, mAuthorization).makeAsDir()
+                appWebDav(bookProgressUrl, mAuthorization).makeAsDir()
+                appWebDav(exportsWebDavUrl, mAuthorization).makeAsDir()
+                appWebDav(bgWebDavUrl, mAuthorization).makeAsDir()
                 val rootBooksUrl = "${rootWebDavUrl}books/"
-                defaultBookWebDav = RemoteBookWebDav(rootBooksUrl, mAuthorization)
+                defaultBookWebDav = RemoteBookWebDav(
+                    rootBooksUrl,
+                    mAuthorization,
+                    allowInsecure = allowInsecure
+                )
                 authorization = mAuthorization
             }
         }
@@ -146,7 +170,7 @@ object AppWebDav {
      */
     @Throws(WebDavException::class)
     private suspend fun checkAuthorization(authorization: Authorization) {
-        if (!WebDav(rootWebDavUrl, authorization).check()) {
+        if (!appWebDav(rootWebDavUrl, authorization).check()) {
             appCtx.removePref(PreferKey.webDavPassword)
             appCtx.toastOnUi(R.string.webdav_application_authorization_error)
             throw WebDavException(appCtx.getString(R.string.webdav_application_authorization_error))
@@ -165,7 +189,7 @@ object AppWebDav {
     suspend fun getBackupNames(): ArrayList<String> {
         val names = arrayListOf<String>()
         authorization?.let {
-            var files = WebDav(rootWebDavUrl, it).listFiles()
+            var files = appWebDav(rootWebDavUrl, it).listFiles()
             files = files.sortedWith { o1, o2 ->
                 AlphanumComparator.compare(o1.displayName, o2.displayName)
             }.reversed()
@@ -188,7 +212,7 @@ object AppWebDav {
     @Throws(WebDavException::class)
     suspend fun downloadAndUnzipBackup(name: String) {
         authorization?.let {
-            val webDav = WebDav(rootWebDavUrl + name, it)
+            val webDav = appWebDav(rootWebDavUrl + name, it)
             webDav.downloadTo(Backup.zipFilePath, true)
             FileUtils.delete(Backup.backupPath)
             ZipUtils.unZipToPath(File(Backup.zipFilePath), Backup.backupPath)
@@ -221,7 +245,7 @@ object AppWebDav {
     suspend fun hasBackUp(backUpName: String): Boolean {
         authorization?.let {
             val url = "$rootWebDavUrl${backUpName}"
-            return WebDav(url, it).exists()
+            return appWebDav(url, it).exists()
         }
         return false
     }
@@ -235,7 +259,7 @@ object AppWebDav {
         return kotlin.runCatching {
             authorization?.let {
                 var lastBackupFile: WebDavFile? = null
-                WebDav(rootWebDavUrl, it).listFiles().reversed().forEach { webDavFile ->
+                appWebDav(rootWebDavUrl, it).listFiles().reversed().forEach { webDavFile ->
                     if (webDavFile.displayName.startsWith("backup")) {
                         if (lastBackupFile == null
                             || webDavFile.lastModify > lastBackupFile.lastModify
@@ -260,7 +284,7 @@ object AppWebDav {
         if (!NetworkUtils.isAvailable()) return
         authorization?.let {
             val putUrl = "$rootWebDavUrl$fileName"
-            WebDav(putUrl, it).upload(Backup.zipFilePath)
+            appWebDav(putUrl, it).upload(Backup.zipFilePath)
         }
     }
 
@@ -277,7 +301,7 @@ object AppWebDav {
                 throw NoStackTraceException("网络未连接")
             authorization.let {
                 it ?: throw NoStackTraceException("webDav未配置")
-                WebDav(bgWebDavUrl, it).listFiles()
+                appWebDav(bgWebDavUrl, it).listFiles()
             }
         }
     }
@@ -296,7 +320,7 @@ object AppWebDav {
             .toSet()
         files.forEach {
             if (!bgWebDavFiles.contains(it.name) && it.exists()) {
-                WebDav("$bgWebDavUrl${it.name}", authorization)
+                appWebDav("$bgWebDavUrl${it.name}", authorization)
                     .upload(it)
             }
         }
@@ -329,7 +353,7 @@ object AppWebDav {
             authorization?.let {
                 // 如果导出的本地文件存在,开始上传
                 val putUrl = exportsWebDavUrl + fileName
-                WebDav(putUrl, it).upload(byteArray, "text/plain")
+                appWebDav(putUrl, it).upload(byteArray, "text/plain")
             }
         } catch (e: Exception) {
             currentCoroutineContext().ensureActive()
@@ -349,7 +373,7 @@ object AppWebDav {
             authorization?.let {
                 // 如果导出的本地文件存在,开始上传
                 val putUrl = exportsWebDavUrl + fileName
-                WebDav(putUrl, it).upload(uri, "text/plain")
+                appWebDav(putUrl, it).upload(uri, "text/plain")
             }
         } catch (e: Exception) {
             currentCoroutineContext().ensureActive()
@@ -378,7 +402,7 @@ object AppWebDav {
             val bookProgress = BookProgress(book)
             val json = GSON.toJson(bookProgress)
             val url = getProgressUrl(book.name, book.author)
-            WebDav(url, authorization).upload(json.toByteArray(), "application/json")
+            appWebDav(url, authorization).upload(json.toByteArray(), "application/json")
             book.syncTime = System.currentTimeMillis()
             onSuccess?.invoke()
         } catch (e: Exception) {
@@ -400,7 +424,7 @@ object AppWebDav {
             if (!NetworkUtils.isAvailable()) return
             val json = GSON.toJson(bookProgress)
             val url = getProgressUrl(bookProgress.name, bookProgress.author)
-            WebDav(url, authorization).upload(json.toByteArray(), "application/json")
+            appWebDav(url, authorization).upload(json.toByteArray(), "application/json")
             onSuccess?.invoke()
         } catch (e: Exception) {
             currentCoroutineContext().ensureActive()
@@ -441,7 +465,7 @@ object AppWebDav {
         val url = getProgressUrl(book.name, book.author)
         kotlin.runCatching {
             val authorization = authorization ?: return null
-            WebDav(url, authorization).download().let { byteArray ->
+            appWebDav(url, authorization).download().let { byteArray ->
                 val json = String(byteArray)
                 if (json.isJson()) {
                     return GSON.fromJsonObject<BookProgress>(json).getOrNull()
@@ -464,7 +488,7 @@ object AppWebDav {
     suspend fun downloadAllBookProgress() {
         val authorization = authorization ?: return
         if (!NetworkUtils.isAvailable()) return
-        val bookProgressFiles = WebDav(bookProgressUrl, authorization).listFiles()
+        val bookProgressFiles = appWebDav(bookProgressUrl, authorization).listFiles()
         val map = hashMapOf<String, WebDavFile>()
         bookProgressFiles.forEach {
             map[it.displayName] = it

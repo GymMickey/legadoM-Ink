@@ -25,6 +25,7 @@ import io.legado.app.constant.AppConst
 import io.legado.app.constant.AppConst.imagePathKey
 import io.legado.app.databinding.ActivityWebViewBinding
 import io.legado.app.help.http.CookieStore
+import io.legado.app.help.http.SSLHelper
 import io.legado.app.help.source.SourceVerificationHelp
 import io.legado.app.lib.dialogs.SelectItem
 import io.legado.app.lib.dialogs.alert
@@ -633,7 +634,7 @@ class WebViewActivity : VMBaseActivity<ActivityWebViewBinding, WebViewModel>() {
             handler: SslErrorHandler?,
             error: SslError?
         ) {
-            handler?.proceed()
+            SSLHelper.handleSslError(handler)
         }
 
     }

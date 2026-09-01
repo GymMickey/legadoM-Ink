@@ -1,7 +1,8 @@
 package io.legado.app.help.http
 
 import android.annotation.SuppressLint
-import android.net.http.X509TrustManagerExtensions
+import android.webkit.SslErrorHandler
+import io.legado.app.help.config.AppConfig
 import io.legado.app.utils.printOnDebug
 
 
@@ -48,10 +49,6 @@ object SSLHelper {
             }
         }
 
-    val unsafeTrustManagerExtensions by lazy {
-        X509TrustManagerExtensions(unsafeTrustManager)
-    }
-
     val unsafeSSLSocketFactory: SSLSocketFactory by lazy {
         try {
             val sslContext = SSLContext.getInstance("SSL")
@@ -68,6 +65,14 @@ object SSLHelper {
      * 当验证 URL 主机名使用的默认规则失败时使用这些回调。如果主机名是可接受的，则返回 true
      */
     val unsafeHostnameVerifier: HostnameVerifier = HostnameVerifier { _, _ -> true }
+
+    fun handleSslError(handler: SslErrorHandler?) {
+        if (AppConfig.unsafeSsl) {
+            handler?.proceed()
+        } else {
+            handler?.cancel()
+        }
+    }
 
     class SSLParams {
         lateinit var sSLSocketFactory: SSLSocketFactory

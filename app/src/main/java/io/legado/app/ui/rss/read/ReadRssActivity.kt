@@ -45,6 +45,7 @@ import io.legado.app.help.WebCacheManager
 import io.legado.app.help.webView.WebJsExtensions
 import io.legado.app.help.config.AppConfig
 import io.legado.app.help.http.CookieManager
+import io.legado.app.help.http.SSLHelper
 import io.legado.app.help.http.okHttpClient
 import io.legado.app.help.http.text
 import io.legado.app.lib.dialogs.SelectItem
@@ -1092,7 +1093,7 @@ class ReadRssActivity : VMBaseActivity<ActivityRssReadBinding, ReadRssViewModel>
         override fun onReceivedSslError(
             view: WebView?, handler: SslErrorHandler?, error: SslError?
         ) {
-            handler?.proceed()
+            SSLHelper.handleSslError(handler)
         }
 
     }

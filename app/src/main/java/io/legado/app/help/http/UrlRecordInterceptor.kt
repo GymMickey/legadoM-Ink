@@ -57,12 +57,13 @@ object UrlRecordInterceptor : Interceptor {
             responseCode = response.code
             return response
         } catch (e: Exception) {
-            errorMsg = e.message
+            errorMsg = sanitizeSensitiveText(e.message)
             throw e
         } finally {
             val duration = System.currentTimeMillis() - startTime
 
             val url = request.url.toString()
+            val sanitizedUrl = sanitizeUrl(url)
             val domain = request.url.host
 
             val sourceName = request.header("X-Source-Name")
@@ -74,6 +75,7 @@ object UrlRecordInterceptor : Interceptor {
                         val buffer = okio.Buffer()
                         body.writeTo(buffer)
                         buffer.readUtf8().takeIf { it.length <= 1000 }
+                            ?.let(::sanitizeSensitiveText)
                     } catch (e: Exception) {
                         null
                     }
@@ -82,11 +84,11 @@ object UrlRecordInterceptor : Interceptor {
 
             // 原有逻辑：写入数据库
             val record = UrlRecord(
-                url = url,
+                url = sanitizedUrl,
                 domain = domain,
                 method = request.method,
                 sourceName = sourceName,
-                sourceUrl = sourceUrl,
+                sourceUrl = sourceUrl?.let(::sanitizeUrl),
                 timestamp = startTime,
                 responseCode = responseCode,
                 duration = duration,
@@ -111,12 +113,11 @@ object UrlRecordInterceptor : Interceptor {
                     }
 
                     // 简单的URL脱敏（移除敏感参数）
-                    val sanitizedUrl = sanitizeUrl(url)
-                    
-                    // 提取请求头信息
-                    val requestHeaders = request.headers.toMap()
+
+                    // 提取请求头信息；认证头和 Cookie 只保留脱敏占位符
+                    val requestHeaders = sanitizeHeaders(request.headers)
                     val userAgent = request.header("User-Agent")
-                    val cookies = request.header("Cookie")
+                    val cookies = request.header("Cookie")?.let { "***" }
 
                     DebugEventCenter.emit(
                         DebugEvent(
@@ -126,7 +127,7 @@ object UrlRecordInterceptor : Interceptor {
                             detail = buildString {
                                 appendLine("Domain: $domain")
                                 sourceName?.let { appendLine("Source: $it") }
-                                sourceUrl?.let { appendLine("SourceURL: $it") }
+                                sourceUrl?.let { appendLine("SourceURL: ${sanitizeUrl(it)}") }
                                 requestBody?.let { appendLine("RequestBody: $it") }
                                 errorMsg?.let { appendLine("Error: $it") }
                             },
@@ -138,7 +139,7 @@ object UrlRecordInterceptor : Interceptor {
                             userAgent = userAgent,
                             cookies = cookies,
                             sourceName = sourceName,
-                            sourceUrl = sourceUrl,
+                            sourceUrl = sourceUrl?.let(::sanitizeUrl),
                             throwable = if (errorMsg != null) IOException(errorMsg) else null,
                             tags = mapOf(
                                 "domain" to domain,
@@ -160,10 +161,10 @@ object UrlRecordInterceptor : Interceptor {
     private fun sanitizeUrl(url: String): String {
         return try {
             val uri = java.net.URI(url)
-            val query = uri.query ?: return url
+            val query = uri.query
 
-            val sanitizedQuery = query.split("&")
-                .mapNotNull { param ->
+            val sanitizedQuery = query?.split("&")
+                ?.mapNotNull { param ->
                     val key = param.split("=").firstOrNull()?.lowercase()
                     when {
                         key in setOf(
@@ -175,20 +176,50 @@ object UrlRecordInterceptor : Interceptor {
                         else -> param
                     }
                 }
-                .joinToString("&")
+                ?.joinToString("&")
 
             java.net.URI(
                 uri.scheme,
-                uri.userInfo,
+                if (uri.userInfo == null) null else "***",
                 uri.host,
                 uri.port,
                 uri.path,
                 sanitizedQuery,
-                uri.fragment
+                null
             ).toString()
         } catch (e: Exception) {
-            url
+            "[invalid-url]"
         }
+    }
+
+    private fun sanitizeHeaders(headers: okhttp3.Headers): Map<String, String> {
+        return headers.names().associateWith { name ->
+            if (isSensitiveHeader(name)) "***" else headers.values(name).joinToString(",")
+        }
+    }
+
+    private fun isSensitiveHeader(name: String): Boolean {
+        val normalized = name.lowercase()
+        return normalized == "authorization" ||
+            normalized == "proxy-authorization" ||
+            normalized == "cookie" ||
+            normalized == "set-cookie" ||
+            normalized.contains("token") ||
+            normalized.contains("secret") ||
+            normalized.contains("password") ||
+            normalized.contains("api-key")
+    }
+
+    private fun sanitizeSensitiveText(value: String?): String? {
+        if (value == null) return null
+        val withoutCredentials = value.replace(
+            Regex("(?i)(https?://)[^/@\\s:]+:[^/@\\s]+@"),
+            "$1***:***@"
+        )
+        return withoutCredentials.replace(
+            Regex("(?i)(\\b(?:token|access_token|auth_token|refresh_token|password|passwd|pwd|secret|client_secret|authorization|cookie|credential|api[_-]?key)\\b\\s*[=:]\\s*)([^\\s,;]+)"),
+            "$1***"
+        )
     }
 
     /**

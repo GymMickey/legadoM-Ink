@@ -3,6 +3,7 @@ package io.legado.app.help.update
 import androidx.annotation.Keep
 import com.google.gson.annotations.SerializedName
 import io.legado.app.exception.NoStackTraceException
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import java.time.Instant
 
 data class AppReleaseInfo(
@@ -143,7 +144,7 @@ data class Asset(
 
         val appVariant = appVariantFromAssetName(name, preRelease)
 
-        return AppReleaseInfo(appVariant, timestamp, note, name, apkUrl, url)
+        return AppReleaseInfo(appVariant, timestamp, note, name, requireHttpsUpdateUrl(apkUrl), url)
     }
 }
 
@@ -160,6 +161,15 @@ data class GiteeAsset(
     fun assetToAppReleaseInfo(preRelease: Boolean, note: String): AppReleaseInfo {
         val appVariant = appVariantFromAssetName(name, preRelease)
 
-        return AppReleaseInfo(appVariant, 0, note, name, apkUrl, "")
+        return AppReleaseInfo(appVariant, 0, note, name, requireHttpsUpdateUrl(apkUrl), "")
     }
+}
+
+private fun requireHttpsUpdateUrl(value: String): String {
+    val url = value.toHttpUrlOrNull()
+        ?: throw NoStackTraceException("更新地址无效")
+    if (!url.isHttps) {
+        throw NoStackTraceException("更新地址必须使用 HTTPS")
+    }
+    return url.toString()
 }

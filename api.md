@@ -4,6 +4,8 @@
 
 您需要先在设置中启用"Web 服务"。
 
+新安装默认开启 Web 服务认证；升级用户保留原有认证开关。认证开启时，HTTP API 必须使用 `Authorization: Bearer <token>`，或先通过该请求头访问 `/auth` 获取 HttpOnly 会话 Cookie `legado_auth`。WebSocket 使用同一请求头或 Cookie。Token 不得放入 URL 查询参数；内置网页会在首次访问时提示输入 Token。跨来源访问还必须在应用中配置明确的允许来源。
+
 ## 使用
 
 ### Web
@@ -185,10 +187,20 @@ Method = POST
 
 ### [Content Provider](/app/src/main/java/io/legado/app/api/ReaderProvider.kt)
 
+Content Provider 仅接受与本应用使用相同签名证书的受控外部调用。调用方必须声明对应的签名级权限：
 
-* 需声明`io.legado.READ_WRITE`权限
+* 只读 URI：`<applicationId>.permission.READ_READER_PROVIDER`
+* 写入或删除 URI：`<applicationId>.permission.WRITE_READER_PROVIDER`
 * `providerHost`为`包名.readerProvider`, 如`io.legado.app.release.readerProvider`,不同包的地址不同,防止冲突安装失败
 * 以下出现的`providerHost`请自行替换
+
+旧文档中的 `io.legado.READ_WRITE` 不再是有效权限名；未使用相同签名证书的应用不能访问本 Provider。
+
+这里的 `signature` 权限只允许使用与主应用相同签名证书的应用访问，不是普通第三方应用可以申请的运行时权限。当前仓库没有明确的独立签名配套应用，因此不降低权限级别。
+
+所有请求的 URI 必须使用 `content` scheme。查询 URI 的参数只能使用文档列出的参数，`url`、`path` 和 JSON 请求体不能为空，`index` 必须是非负整数。
+
+Provider 接口是同步 ContentProvider 接口：调用方会一直等待结果。控制器任务会调度到 IO 线程，避免在 Binder 线程直接执行控制器代码，但这不会把 Binder 调用变成异步调用。普通本地操作最多等待 10 秒，目录刷新、章节列表、正文和封面等可能访问网络的查询最多等待 30 秒。超时会取消任务并等待其退出；查询返回包含错误信息的结构化 JSON，`insert` 返回 `null`，`delete` 返回 `0`。Provider 销毁时会取消其任务作用域。Provider 不注册 `SaveBookProgress` URI；该接口仍属于 Web 服务接口。
 
 #### 插入单个书源or订阅源
 

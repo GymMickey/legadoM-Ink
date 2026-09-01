@@ -89,6 +89,11 @@
 import { ref, computed, reactive } from 'vue'
 import { useBookStore } from '@/store'
 import { legado_http_entry_point } from '@/api'
+import {
+  clearWebServiceToken,
+  getWebServiceAuthHeaders,
+  webServiceAuthRequiredEvent,
+} from '@/api/axios'
 
 const store = useBookStore()
 const isNight = computed(() => store.isNight)
@@ -209,9 +214,15 @@ const handleBackup = async () => {
   try {
     const response = await fetch(`${legado_http_entry_point}backup`, {
       method: 'GET',
+      headers: getWebServiceAuthHeaders(),
+      credentials: 'include',
     })
 
     if (!response.ok) {
+      if (response.status === 401) {
+        clearWebServiceToken()
+        window.dispatchEvent(new Event(webServiceAuthRequiredEvent))
+      }
       throw new Error(`备份失败: ${response.statusText}`)
     }
 
@@ -225,7 +236,14 @@ const handleBackup = async () => {
     document.body.removeChild(a)
     window.URL.revokeObjectURL(url)
 
-    const previewResponse = await fetch(`${legado_http_entry_point}backupPreview`)
+    const previewResponse = await fetch(`${legado_http_entry_point}backupPreview`, {
+      headers: getWebServiceAuthHeaders(),
+      credentials: 'include',
+    })
+    if (previewResponse.status === 401) {
+      clearWebServiceToken()
+      window.dispatchEvent(new Event(webServiceAuthRequiredEvent))
+    }
     const previewData = await previewResponse.json()
 
     if (previewData.isSuccess && previewData.data && Array.isArray(previewData.data.items)) {
@@ -236,8 +254,8 @@ const handleBackup = async () => {
     } else {
       throw new Error(previewData.errorMsg || '获取备份预览失败')
     }
-  } catch (e: any) {
-    errorMsg.value = e.message || '备份过程中发生错误'
+  } catch (e: unknown) {
+    errorMsg.value = e instanceof Error ? e.message : '备份过程中发生错误'
   } finally {
     isBackingUp.value = false
   }

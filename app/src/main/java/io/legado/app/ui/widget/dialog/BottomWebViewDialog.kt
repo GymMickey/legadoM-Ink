@@ -41,6 +41,7 @@ import io.legado.app.data.entities.BaseSource
 import io.legado.app.databinding.DialogWebViewBinding
 import io.legado.app.help.WebCacheManager
 import io.legado.app.help.config.AppConfig
+import io.legado.app.help.http.SSLHelper
 import io.legado.app.help.webView.PooledWebView
 import io.legado.app.help.webView.WebJsExtensions
 import io.legado.app.help.webView.WebJsExtensions.Companion.JS_INJECTION
@@ -829,7 +830,7 @@ class BottomWebViewDialog() : BottomSheetDialogFragment(R.layout.dialog_web_view
         override fun onReceivedSslError(
             view: WebView?, handler: SslErrorHandler?, error: SslError?
         ) {
-            handler?.proceed()
+            SSLHelper.handleSslError(handler)
         }
 
         private var jsInjected = false

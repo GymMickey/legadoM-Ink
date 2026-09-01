@@ -224,7 +224,7 @@ class BackstageWebView(
             handler: SslErrorHandler?,
             error: SslError?
         ) {
-            handler?.proceed()
+            SSLHelper.handleSslError(handler)
         }
 
         private inner class EvalJsRunnable(
@@ -365,7 +365,7 @@ class BackstageWebView(
             handler: SslErrorHandler?,
             error: SslError?
         ) {
-            handler?.proceed()
+            SSLHelper.handleSslError(handler)
         }
 
         private inner class LoadJsRunnable(

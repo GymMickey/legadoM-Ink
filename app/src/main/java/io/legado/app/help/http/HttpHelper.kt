@@ -15,6 +15,7 @@ import okhttp3.Credentials
 import okhttp3.Dns
 import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
+import java.io.IOException
 import java.net.InetSocketAddress
 import java.net.Proxy
 import java.util.concurrent.ConcurrentHashMap
@@ -48,12 +49,24 @@ val cookieJar by lazy {
     }
 }
 
-val okHttpClient: OkHttpClient by lazy {
-    val specs = arrayListOf(
-        ConnectionSpec.MODERN_TLS,
-        ConnectionSpec.COMPATIBLE_TLS,
-        ConnectionSpec.CLEARTEXT
-    )
+private val sourceConnectionSpecs = listOf(
+    ConnectionSpec.MODERN_TLS,
+    ConnectionSpec.COMPATIBLE_TLS,
+    ConnectionSpec.CLEARTEXT
+)
+
+private val secureConnectionSpecs = listOf(
+    ConnectionSpec.MODERN_TLS,
+    ConnectionSpec.COMPATIBLE_TLS
+)
+
+private fun buildHttpClient(
+    specs: List<ConnectionSpec>,
+    allowUnsafeSsl: Boolean,
+    useCronet: Boolean,
+    requireHttps: Boolean = false,
+    followSslRedirects: Boolean = !requireHttps,
+): OkHttpClient {
 
     val builder = OkHttpClient.Builder()
         .connectTimeout(15, TimeUnit.SECONDS)
@@ -63,7 +76,7 @@ val okHttpClient: OkHttpClient by lazy {
         .retryOnConnectionFailure(true)
         .connectionSpecs(specs)
         .followRedirects(true)
-        .followSslRedirects(true)
+        .followSslRedirects(followSslRedirects)
         .addInterceptor(OkHttpExceptionInterceptor)
         .addInterceptor { chain ->
             val request = chain.request()
@@ -96,7 +109,16 @@ val okHttpClient: OkHttpClient by lazy {
             networkResponse
         }
 
-    if (AppConfig.unsafeSsl) {
+    if (requireHttps) {
+        builder.addInterceptor { chain ->
+            if (!chain.request().url.isHttps) {
+                throw IOException("安全网络链路必须使用 HTTPS")
+            }
+            chain.proceed(chain.request())
+        }
+    }
+
+    if (allowUnsafeSsl) {
         builder.sslSocketFactory(SSLHelper.unsafeSSLSocketFactory, SSLHelper.unsafeTrustManager)
         builder.hostnameVerifier(SSLHelper.unsafeHostnameVerifier)
     }
@@ -107,7 +129,7 @@ val okHttpClient: OkHttpClient by lazy {
             cachedAddress ?: Dns.SYSTEM.lookup(hostname)
         }
     }
-    if (AppConfig.isCronet) {
+    if (useCronet) {
         if (Cronet.loader?.install() == true) {
             Cronet.interceptor?.let {
                 builder.addInterceptor(it)
@@ -116,7 +138,7 @@ val okHttpClient: OkHttpClient by lazy {
     }
     builder.addInterceptor(DecompressInterceptor)
     builder.addInterceptor(UrlRecordInterceptor)
-    builder.build().apply {
+    return builder.build().apply {
         val okHttpName =
             OkHttpClient::class.java.name.removePrefix("okhttp3.").removeSuffix("Client")
         val executor = dispatcher.executorService as ThreadPoolExecutor
@@ -130,8 +152,53 @@ val okHttpClient: OkHttpClient by lazy {
     }
 }
 
+/**
+ * 通用书源客户端。允许书源自身使用 HTTP；不安全 SSL 只有在用户明确打开高级选项时生效。
+ */
+val okHttpClient: OkHttpClient by lazy {
+    buildHttpClient(
+        specs = sourceConnectionSpecs,
+        allowUnsafeSsl = false,
+        useCronet = AppConfig.isCronet && !AppConfig.unsafeSsl,
+    )
+}
+
+private val unsafeSourceHttpClient: OkHttpClient by lazy {
+    buildHttpClient(
+        specs = sourceConnectionSpecs,
+        allowUnsafeSsl = true,
+        useCronet = false,
+    )
+}
+
+val sourceHttpClient: OkHttpClient by lazy {
+    if (AppConfig.unsafeSsl) unsafeSourceHttpClient else okHttpClient
+}
+
+/** 应用更新、同步和备份等自身敏感链路只允许 HTTPS 和系统证书。 */
+val secureOkHttpClient: OkHttpClient by lazy {
+    buildHttpClient(
+        specs = secureConnectionSpecs,
+        allowUnsafeSsl = false,
+        useCronet = false,
+        requireHttps = true,
+    )
+}
+
+/**
+ * WebDAV client with an explicit security boundary. It never follows an HTTPS redirect to HTTP.
+ * The insecure variant is used only after the dedicated WebDAV option has been enabled.
+ */
+fun getWebDavClient(allowInsecure: Boolean): OkHttpClient = buildHttpClient(
+    specs = sourceConnectionSpecs,
+    allowUnsafeSsl = allowInsecure,
+    useCronet = false,
+    requireHttps = !allowInsecure,
+    followSslRedirects = false,
+)
+
 val okHttpClientManga by lazy {
-    okHttpClient.newBuilder().run {
+    sourceHttpClient.newBuilder().run {
         val interceptors = interceptors()
         interceptors.add(1) { chain ->
             val request = chain.request()
@@ -152,7 +219,7 @@ val okHttpClientManga by lazy {
 
 fun getProxyClient(proxy: String? = null): OkHttpClient {
     if (proxy.isNullOrBlank()) {
-        return okHttpClient
+        return sourceHttpClient
     }
     proxyClientCache[proxy]?.let {
         return it
@@ -170,7 +237,7 @@ fun getProxyClient(proxy: String? = null): OkHttpClient {
         password = group.groupValues[4].split("@")[2]
     }
     if (host != "") {
-        val builder = okHttpClient.newBuilder()
+        val builder = sourceHttpClient.newBuilder()
         if (type == "http") {
             builder.proxy(Proxy(Proxy.Type.HTTP, InetSocketAddress(host, port)))
         } else {
@@ -188,5 +255,5 @@ fun getProxyClient(proxy: String? = null): OkHttpClient {
         proxyClientCache[proxy] = proxyClient
         return proxyClient
     }
-    return okHttpClient
+    return sourceHttpClient
 }

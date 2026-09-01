@@ -9,6 +9,7 @@ import io.legado.app.data.AppDatabase
 import io.legado.app.data.DatabaseMigrations
 import org.junit.Rule
 import org.junit.Test
+import org.junit.Assert.assertEquals
 import org.junit.runner.RunWith
 import java.io.IOException
 
@@ -20,7 +21,7 @@ import java.io.IOException
  * 测试策略：
  * 1. 从最早的稳定版本（43）开始测试
  * 2. 测试关键版本跳跃（99 → 100）
- * 3. 测试最新版本（100）
+ * 3. 所有迁移最终由 Room 校验到当前 Schema 版本（102）
  */
 @RunWith(AndroidJUnit4::class)
 class MigrationTest {
@@ -63,7 +64,7 @@ class MigrationTest {
     }
 
     /**
-     * 测试关键的 99 → 100 迁移（首页模块表创建 + homepageModules 列添加）
+     * 测试关键的 99 → 100 迁移（首页模块表创建 + homepageModules 列添加），并继续校验到 102
      * 这是用户最可能遇到的升级场景
      */
     @Test
@@ -74,7 +75,7 @@ class MigrationTest {
             close()
         }
 
-        // 打开版本 100 的数据库
+        // 打开当前 Schema 版本 102 的数据库
         Room.databaseBuilder(
             InstrumentationRegistry.getInstrumentation().targetContext,
             AppDatabase::class.java,
@@ -84,15 +85,15 @@ class MigrationTest {
                 openHelper.writableDatabase
                 // 验证首页模块表已创建
                 openHelper.writableDatabase.query("SELECT name FROM sqlite_master WHERE type='table' AND name='homepage_modules'").use {
-                    assert(it.count == 1) { "homepage_modules 表应该存在" }
+                    assertEquals("homepage_modules 表应该存在", 1, it.count)
                 }
                 // 验证首页自定义集表已创建
                 openHelper.writableDatabase.query("SELECT name FROM sqlite_master WHERE type='table' AND name='homepage_custom_sets'").use {
-                    assert(it.count == 1) { "homepage_custom_sets 表应该存在" }
+                    assertEquals("homepage_custom_sets 表应该存在", 1, it.count)
                 }
                 // 验证 book_sources 表新增 homepageModules 列
                 openHelper.writableDatabase.query("SELECT * FROM pragma_table_info('book_sources') WHERE name='homepageModules'").use {
-                    assert(it.count == 1) { "homepageModules 列应该存在于 book_sources 表" }
+                    assertEquals("homepageModules 列应该存在于 book_sources 表", 1, it.count)
                 }
                 close()
             }

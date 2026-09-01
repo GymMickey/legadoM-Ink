@@ -159,7 +159,7 @@ android {
             // proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro', 'cronet-proguard-rules.pro'
         }
     }
-    android.applicationVariants.configureEach { variant ->
+    applicationVariants.configureEach { variant ->
         variant.outputs.configureEach { output ->
             def flavorName = variant.flavorName
             def flavorLabel = [
@@ -177,9 +177,6 @@ android {
     }
 
 
-    room {
-        schemaDirectory "$projectDir/schemas" 
-    }
     // 设定Room的KSP参数
     ksp {
         arg("room.incremental", "true")
@@ -216,6 +213,10 @@ android {
         disable 'MissingTranslation'
     }
 
+}
+
+room {
+    schemaDirectory "$projectDir/schemas"
 }
 
 dependencies {

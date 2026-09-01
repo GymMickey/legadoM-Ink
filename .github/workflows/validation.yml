@@ -1,0 +1,181 @@
+name: Validation
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      android: ${{ steps.filter.outputs.android }}
+      android_test: ${{ steps.filter.outputs.android_test }}
+      room: ${{ steps.filter.outputs.room }}
+      web: ${{ steps.filter.outputs.web }}
+      security: ${{ steps.filter.outputs.security }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: filter
+        name: Detect affected areas
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            base="${{ github.event.pull_request.base.sha }}"
+            head="${{ github.event.pull_request.head.sha }}"
+          else
+            base="${{ github.event.before }}"
+            head="${{ github.sha }}"
+          fi
+          if [[ -z "$base" || "$base" == "0000000000000000000000000000000000000000" ]]; then
+            base="$(git rev-list --max-parents=0 "$head")"
+          fi
+
+          android=false
+          android_test=false
+          room=false
+          web=false
+          security=false
+          while IFS= read -r path; do
+            case "$path" in
+              app/src/main/*|app/src/androidTest/*|app/build.gradle|build.gradle|settings.gradle|gradle/*|modules/book/*|modules/rhino/*)
+                android=true
+                ;;
+            esac
+            case "$path" in
+              app/src/androidTest/*|app/src/main/java/io/legado/app/api/*|app/src/main/java/io/legado/app/web/*|app/src/main/java/io/legado/app/help/http/*|app/src/main/java/io/legado/app/lib/webdav/*|app/src/main/res/xml/network_security_config.xml|app/src/main/AndroidManifest.xml|app/build.gradle|build.gradle|settings.gradle|gradle/*|modules/book/*|modules/rhino/*)
+                android_test=true
+                ;;
+            esac
+            case "$path" in
+              app/src/main/java/io/legado/app/data/*|app/src/main/java/io/legado/app/help/storage/*|app/schemas/*|app/src/androidTest/java/io/legado/app/MigrationTest.kt|app/src/androidTest/java/io/legado/app/*Backup*)
+                room=true
+                ;;
+            esac
+            case "$path" in
+              modules/web/*|app/src/main/assets/web/*)
+                web=true
+                ;;
+            esac
+            case "$path" in
+              app/src/androidTest/java/io/legado/app/ExampleInstrumentedTest.kt|app/src/androidTest/java/io/legado/app/NetworkSecurityTest.kt|app/src/androidTest/java/io/legado/app/web/*|app/src/main/java/io/legado/app/api/*|app/src/main/java/io/legado/app/web/*|app/src/main/java/io/legado/app/help/http/*|app/src/main/java/io/legado/app/lib/webdav/*|app/src/main/res/xml/network_security_config.xml|app/src/main/AndroidManifest.xml)
+                security=true
+                ;;
+            esac
+          done < <(git diff --name-only "$base" "$head")
+
+          {
+            echo "android=$android"
+            echo "android_test=$android_test"
+            echo "room=$room"
+            echo "web=$web"
+            echo "security=$security"
+          } >> "$GITHUB_OUTPUT"
+
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Compile and run stable unit tests
+        run: ./gradlew :app:compileAppMaxDebugKotlin :app:testAppMaxDebugUnitTest --stacktrace
+
+  android-quality:
+    needs: changes
+    if: needs.changes.outputs.android == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Build and lint affected Android code
+        run: ./gradlew :app:assembleAppMaxDebug :app:lintAppMaxDebug --stacktrace
+
+  android-test-compile:
+    needs: changes
+    if: needs.changes.outputs.android_test == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Compile AndroidTest sources only
+        run: ./gradlew :app:compileAppMaxDebugAndroidTestKotlin --stacktrace
+
+  android-security:
+    needs: changes
+    if: needs.changes.outputs.security == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Run Provider, Web, and network security tests
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          script: ./gradlew :app:connectedAppMaxDebugAndroidTest "-Pandroid.testInstrumentationRunnerArguments.class=io.legado.app.ExampleInstrumentedTest,io.legado.app.NetworkSecurityTest,io.legado.app.web.WebServiceAuthTest" --stacktrace
+
+  room-migrations:
+    needs: changes
+    if: needs.changes.outputs.room == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Run Room migration tests on emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          script: ./gradlew :app:connectedAppMaxDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=io.legado.app.MigrationTest --stacktrace
+
+  web:
+    needs: changes
+    if: needs.changes.outputs.web == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: modules/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+          cache-dependency-path: modules/web/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm type-check
+      - run: pnpm lint
+      - run: pnpm build

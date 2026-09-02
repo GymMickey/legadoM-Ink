@@ -63,12 +63,12 @@ jobs:
                 web=true
                 security=true
                 ;;
-              app/src/main/*|app/src/androidTest/*|app/build.gradle|build.gradle|settings.gradle|gradle/*|gradle.properties|modules/book/*|modules/rhino/*)
+              app/src/main/*|app/src/androidTest/*|app/build.gradle|app/download.gradle|build.gradle|settings.gradle|gradle/*|gradle.properties|modules/book/*|modules/rhino/*)
                 android=true
                 ;;
             esac
             case "$path" in
-              .github/workflows/validation.yml|gradle.properties|app/src/androidTest/*|app/src/main/java/io/legado/app/api/*|app/src/main/java/io/legado/app/web/*|app/src/main/java/io/legado/app/help/http/*|app/src/main/java/io/legado/app/lib/webdav/*|app/src/main/res/xml/network_security_config.xml|app/src/main/AndroidManifest.xml|app/build.gradle|build.gradle|settings.gradle|gradle/*|modules/book/*|modules/rhino/*)
+              .github/workflows/validation.yml|gradle.properties|app/src/androidTest/*|app/src/main/java/io/legado/app/api/*|app/src/main/java/io/legado/app/web/*|app/src/main/java/io/legado/app/help/http/*|app/src/main/java/io/legado/app/lib/webdav/*|app/src/main/res/xml/network_security_config.xml|app/src/main/AndroidManifest.xml|app/build.gradle|app/download.gradle|build.gradle|settings.gradle|gradle/*|modules/book/*|modules/rhino/*)
                 android_test=true
                 ;;
             esac
@@ -108,6 +108,8 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           cache-disabled: true
+      - name: Prepare Cronet compile dependencies
+        run: ./gradlew -PdisableFirebase=true :app:downloadJar --stacktrace
       - name: Compile and run stable unit tests
         run: ./gradlew -PdisableFirebase=true :app:compileAppMaxDebugKotlin :app:testAppMaxDebugUnitTest --stacktrace
 
@@ -124,6 +126,8 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           cache-disabled: true
+      - name: Prepare Cronet compile dependencies
+        run: ./gradlew -PdisableFirebase=true :app:downloadJar --stacktrace
       - name: Build and lint affected Android code
         run: ./gradlew -PdisableFirebase=true :app:assembleAppMaxDebug :app:lintAppMaxDebug --stacktrace
 
@@ -140,6 +144,8 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           cache-disabled: true
+      - name: Prepare Cronet compile dependencies
+        run: ./gradlew -PdisableFirebase=true :app:downloadJar --stacktrace
       - name: Compile AndroidTest sources only
         run: ./gradlew -PdisableFirebase=true :app:compileAppMaxDebugAndroidTestKotlin --stacktrace
 
@@ -156,6 +162,8 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           cache-disabled: true
+      - name: Prepare Cronet compile dependencies
+        run: ./gradlew -PdisableFirebase=true :app:downloadJar --stacktrace
       - name: Run Provider, Web, and network security tests
         uses: reactivecircus/android-emulator-runner@v2
         with:
@@ -176,6 +184,8 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           cache-disabled: true
+      - name: Prepare Cronet compile dependencies
+        run: ./gradlew -PdisableFirebase=true :app:downloadJar --stacktrace
       - name: Run Room migration tests on emulator
         uses: reactivecircus/android-emulator-runner@v2
         with:

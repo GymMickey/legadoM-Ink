@@ -4,9 +4,11 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.runInterruptible
+import kotlin.coroutines.ContinuationInterceptor
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
@@ -33,9 +35,15 @@ internal class ProviderTaskRunner(
         val completed = CountDownLatch(1)
         val job: Job = scope.launch {
             try {
+                val taskContext = currentCoroutineContext()
                 // Some legacy controllers bridge synchronous APIs with runBlocking. Keep that
-                // bridge on IO and make cancellation interrupt the underlying blocking call.
-                result.set(runCatching { runInterruptible { runBlocking { block() } } })
+                // bridge on IO, inherit the task Job, and make cancellation interrupt the
+                // underlying blocking call.
+                result.set(runCatching {
+                    runInterruptible {
+                        runBlocking(taskContext.minusKey(ContinuationInterceptor)) { block() }
+                    }
+                })
             } finally {
                 completed.countDown()
             }

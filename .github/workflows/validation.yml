@@ -169,6 +169,7 @@ jobs:
         with:
           api-level: 35
           arch: x86_64
+          disable-animations: false
           script: ./gradlew -PdisableFirebase=true -PRELEASE_STORE_FILE= :app:connectedAppMaxDebugAndroidTest "-Pandroid.testInstrumentationRunnerArguments.class=io.legado.app.ExampleInstrumentedTest,io.legado.app.NetworkSecurityTest,io.legado.app.web.WebServiceAuthTest" --stacktrace
 
   room-migrations:
@@ -191,6 +192,7 @@ jobs:
         with:
           api-level: 35
           arch: x86_64
+          disable-animations: false
           script: ./gradlew -PdisableFirebase=true -PRELEASE_STORE_FILE= :app:connectedAppMaxDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=io.legado.app.MigrationTest --stacktrace
 
   web:

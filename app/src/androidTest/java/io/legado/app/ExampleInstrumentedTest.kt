@@ -142,13 +142,14 @@ class ExampleInstrumentedTest {
 
     @Test
     fun providerTaskRunnerTimeoutCancelsJobAndPreventsDelayedWrite() = runBlocking {
-        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        // Start the test task before the timeout clock can race with dispatcher scheduling.
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
         val runner = ProviderTaskRunner(scope, cancellationWaitMs = 200)
         val writeCompleted = AtomicBoolean(false)
         val cancellationObserved = AtomicBoolean(false)
         try {
             assertThrows(ProviderTaskRunner.TimeoutException::class.java) {
-                runner.execute(75) {
+                runner.execute(500) {
                     try {
                         delay(5_000)
                         writeCompleted.set(true)

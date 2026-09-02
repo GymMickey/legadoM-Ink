@@ -109,9 +109,9 @@ jobs:
         with:
           cache-disabled: true
       - name: Prepare Cronet compile dependencies
-        run: ./gradlew -PdisableFirebase=true :app:downloadJar --stacktrace
+        run: ./gradlew -PdisableFirebase=true -PRELEASE_STORE_FILE= :app:downloadJar --stacktrace
       - name: Compile and run stable unit tests
-        run: ./gradlew -PdisableFirebase=true :app:compileAppMaxDebugKotlin :app:testAppMaxDebugUnitTest --stacktrace
+        run: ./gradlew -PdisableFirebase=true -PRELEASE_STORE_FILE= :app:compileAppMaxDebugKotlin :app:testAppMaxDebugUnitTest --stacktrace
 
   android-quality:
     needs: changes
@@ -127,9 +127,9 @@ jobs:
         with:
           cache-disabled: true
       - name: Prepare Cronet compile dependencies
-        run: ./gradlew -PdisableFirebase=true :app:downloadJar --stacktrace
+        run: ./gradlew -PdisableFirebase=true -PRELEASE_STORE_FILE= :app:downloadJar --stacktrace
       - name: Build and lint affected Android code
-        run: ./gradlew -PdisableFirebase=true :app:assembleAppMaxDebug :app:lintAppMaxDebug --stacktrace
+        run: ./gradlew -PdisableFirebase=true -PRELEASE_STORE_FILE= :app:assembleAppMaxDebug :app:lintAppMaxDebug --stacktrace
 
   android-test-compile:
     needs: changes
@@ -145,9 +145,9 @@ jobs:
         with:
           cache-disabled: true
       - name: Prepare Cronet compile dependencies
-        run: ./gradlew -PdisableFirebase=true :app:downloadJar --stacktrace
+        run: ./gradlew -PdisableFirebase=true -PRELEASE_STORE_FILE= :app:downloadJar --stacktrace
       - name: Compile AndroidTest sources only
-        run: ./gradlew -PdisableFirebase=true :app:compileAppMaxDebugAndroidTestKotlin --stacktrace
+        run: ./gradlew -PdisableFirebase=true -PRELEASE_STORE_FILE= :app:compileAppMaxDebugAndroidTestKotlin --stacktrace
 
   android-security:
     needs: changes
@@ -163,13 +163,13 @@ jobs:
         with:
           cache-disabled: true
       - name: Prepare Cronet compile dependencies
-        run: ./gradlew -PdisableFirebase=true :app:downloadJar --stacktrace
+        run: ./gradlew -PdisableFirebase=true -PRELEASE_STORE_FILE= :app:downloadJar --stacktrace
       - name: Run Provider, Web, and network security tests
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 35
           arch: x86_64
-          script: ./gradlew -PdisableFirebase=true :app:connectedAppMaxDebugAndroidTest "-Pandroid.testInstrumentationRunnerArguments.class=io.legado.app.ExampleInstrumentedTest,io.legado.app.NetworkSecurityTest,io.legado.app.web.WebServiceAuthTest" --stacktrace
+          script: ./gradlew -PdisableFirebase=true -PRELEASE_STORE_FILE= :app:connectedAppMaxDebugAndroidTest "-Pandroid.testInstrumentationRunnerArguments.class=io.legado.app.ExampleInstrumentedTest,io.legado.app.NetworkSecurityTest,io.legado.app.web.WebServiceAuthTest" --stacktrace
 
   room-migrations:
     needs: changes
@@ -185,13 +185,13 @@ jobs:
         with:
           cache-disabled: true
       - name: Prepare Cronet compile dependencies
-        run: ./gradlew -PdisableFirebase=true :app:downloadJar --stacktrace
+        run: ./gradlew -PdisableFirebase=true -PRELEASE_STORE_FILE= :app:downloadJar --stacktrace
       - name: Run Room migration tests on emulator
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 35
           arch: x86_64
-          script: ./gradlew -PdisableFirebase=true :app:connectedAppMaxDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=io.legado.app.MigrationTest --stacktrace
+          script: ./gradlew -PdisableFirebase=true -PRELEASE_STORE_FILE= :app:connectedAppMaxDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=io.legado.app.MigrationTest --stacktrace
 
   web:
     needs: changes

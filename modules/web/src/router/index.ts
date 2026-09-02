@@ -7,7 +7,7 @@ import { backupRoutes } from './backupRouter'
 const router = createRouter({
   //   history: createWebHistory(process.env.BASE_URL),
   history: createWebHashHistory(),
-  routes: ([] as any[]).concat(bookRoutes, sourceRoutes, backupRoutes),
+  routes: [...bookRoutes, ...sourceRoutes, ...backupRoutes],
 })
 
 router.afterEach(to => {

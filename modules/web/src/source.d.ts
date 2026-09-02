@@ -79,10 +79,6 @@ type BookSoure = BaseSource & {
   // 段评规则
   ruleReview?: ReviewRule
 }
-type RuleSearch = {
-  checkKeyWord?: string
-  [prop: string]: string
-}
 /* type ExploreRule = {
     [prop:string]: string
 }

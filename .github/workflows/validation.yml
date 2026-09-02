@@ -167,7 +167,7 @@ jobs:
       - name: Run Provider, Web, and network security tests
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 35
+          api-level: 34
           arch: x86_64
           cores: 4
           ram-size: 4096M
@@ -193,7 +193,7 @@ jobs:
       - name: Run Room migration tests on emulator
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 35
+          api-level: 34
           arch: x86_64
           cores: 4
           ram-size: 4096M

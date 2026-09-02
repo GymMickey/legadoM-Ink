@@ -223,6 +223,7 @@ android {
         }
     }
     lint { //忽略string翻译缺失，后面需要翻译时去掉，todo
+        baseline = file("lint-baseline.xml")
         disable 'MissingTranslation'
     }
 

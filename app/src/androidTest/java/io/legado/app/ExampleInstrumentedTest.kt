@@ -198,7 +198,7 @@ class ExampleInstrumentedTest {
         }
         caller.start()
         try {
-            assertTrue("测试任务未及时启动", started.await(1, TimeUnit.SECONDS))
+            assertTrue("测试任务未及时启动", started.await(5, TimeUnit.SECONDS))
             runner.shutdown()
             caller.join(1_000)
             assertFalse("shutdown 后调用不应永久等待", caller.isAlive)

@@ -3,6 +3,7 @@ name: Validation
 on:
   push:
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -41,14 +42,33 @@ jobs:
           room=false
           web=false
           security=false
+
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            {
+              echo "android=true"
+              echo "android_test=true"
+              echo "room=true"
+              echo "web=true"
+              echo "security=true"
+            } >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
           while IFS= read -r path; do
             case "$path" in
-              app/src/main/*|app/src/androidTest/*|app/build.gradle|build.gradle|settings.gradle|gradle/*|modules/book/*|modules/rhino/*)
+              .github/workflows/validation.yml)
+                android=true
+                android_test=true
+                room=true
+                web=true
+                security=true
+                ;;
+              app/src/main/*|app/src/androidTest/*|app/build.gradle|build.gradle|settings.gradle|gradle/*|gradle.properties|modules/book/*|modules/rhino/*)
                 android=true
                 ;;
             esac
             case "$path" in
-              app/src/androidTest/*|app/src/main/java/io/legado/app/api/*|app/src/main/java/io/legado/app/web/*|app/src/main/java/io/legado/app/help/http/*|app/src/main/java/io/legado/app/lib/webdav/*|app/src/main/res/xml/network_security_config.xml|app/src/main/AndroidManifest.xml|app/build.gradle|build.gradle|settings.gradle|gradle/*|modules/book/*|modules/rhino/*)
+              .github/workflows/validation.yml|gradle.properties|app/src/androidTest/*|app/src/main/java/io/legado/app/api/*|app/src/main/java/io/legado/app/web/*|app/src/main/java/io/legado/app/help/http/*|app/src/main/java/io/legado/app/lib/webdav/*|app/src/main/res/xml/network_security_config.xml|app/src/main/AndroidManifest.xml|app/build.gradle|build.gradle|settings.gradle|gradle/*|modules/book/*|modules/rhino/*)
                 android_test=true
                 ;;
             esac
@@ -85,8 +105,9 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-          cache: gradle
       - uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-disabled: true
       - name: Compile and run stable unit tests
         run: ./gradlew -PdisableFirebase=true :app:compileAppMaxDebugKotlin :app:testAppMaxDebugUnitTest --stacktrace
 
@@ -100,8 +121,9 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-          cache: gradle
       - uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-disabled: true
       - name: Build and lint affected Android code
         run: ./gradlew -PdisableFirebase=true :app:assembleAppMaxDebug :app:lintAppMaxDebug --stacktrace
 
@@ -115,8 +137,9 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-          cache: gradle
       - uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-disabled: true
       - name: Compile AndroidTest sources only
         run: ./gradlew -PdisableFirebase=true :app:compileAppMaxDebugAndroidTestKotlin --stacktrace
 
@@ -130,8 +153,9 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-          cache: gradle
       - uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-disabled: true
       - name: Run Provider, Web, and network security tests
         uses: reactivecircus/android-emulator-runner@v2
         with:
@@ -149,8 +173,9 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-          cache: gradle
       - uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-disabled: true
       - name: Run Room migration tests on emulator
         uses: reactivecircus/android-emulator-runner@v2
         with:

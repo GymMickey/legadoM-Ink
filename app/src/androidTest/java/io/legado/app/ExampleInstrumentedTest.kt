@@ -150,7 +150,7 @@ class ExampleInstrumentedTest {
         val scope = CoroutineScope(SupervisorJob() + dispatcher)
         val runner = ProviderTaskRunner(scope, cancellationWaitMs = 200)
         val writeCompleted = AtomicBoolean(false)
-        val cancellationObserved = AtomicBoolean(false)
+        val cancellationObserved = CountDownLatch(1)
         try {
             assertThrows(ProviderTaskRunner.TimeoutException::class.java) {
                 runner.execute(500) {
@@ -158,14 +158,14 @@ class ExampleInstrumentedTest {
                         delay(5_000)
                         writeCompleted.set(true)
                     } catch (_: CancellationException) {
-                        cancellationObserved.set(true)
+                        cancellationObserved.countDown()
                         throw CancellationException("test cancellation")
                     } finally {
-                        if (!currentCoroutineContext().isActive) cancellationObserved.set(true)
+                        if (!currentCoroutineContext().isActive) cancellationObserved.countDown()
                     }
                 }
             }
-            assertTrue("超时后任务应观察到取消", cancellationObserved.get())
+            assertTrue("超时后任务应观察到取消", cancellationObserved.await(1_000, TimeUnit.MILLISECONDS))
             assertFalse("超时后任务不得继续写入", writeCompleted.get())
             delay(100)
             assertFalse("超时后任务不得延迟完成写入", writeCompleted.get())
@@ -206,11 +206,11 @@ class ExampleInstrumentedTest {
             assertFalse("shutdown 后任务不得完成写入", completed.get())
         } finally {
             runner.shutdown()
-            dispatcher.close()
             if (caller.isAlive) {
                 caller.interrupt()
                 caller.join(1_000)
             }
+            dispatcher.close()
         }
     }
 }

@@ -12,6 +12,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -25,6 +26,7 @@ import org.junit.Assert.assertThrows
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -142,8 +144,10 @@ class ExampleInstrumentedTest {
 
     @Test
     fun providerTaskRunnerTimeoutCancelsJobAndPreventsDelayedWrite() = runBlocking {
-        // Start the test task before the timeout clock can race with dispatcher scheduling.
-        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
+        // Use a dedicated dispatcher so the runner can return to its timeout clock while the
+        // test task is suspended, instead of Unconfined executing the task inline.
+        val dispatcher = Executors.newSingleThreadExecutor().asCoroutineDispatcher()
+        val scope = CoroutineScope(SupervisorJob() + dispatcher)
         val runner = ProviderTaskRunner(scope, cancellationWaitMs = 200)
         val writeCompleted = AtomicBoolean(false)
         val cancellationObserved = AtomicBoolean(false)
@@ -167,12 +171,14 @@ class ExampleInstrumentedTest {
             assertFalse("超时后任务不得延迟完成写入", writeCompleted.get())
         } finally {
             runner.shutdown()
+            dispatcher.close()
         }
     }
 
     @Test
     fun providerTaskRunnerShutdownCancelsRunningTaskWithoutPermanentWait() {
-        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        val dispatcher = Executors.newSingleThreadExecutor().asCoroutineDispatcher()
+        val scope = CoroutineScope(SupervisorJob() + dispatcher)
         val runner = ProviderTaskRunner(scope, cancellationWaitMs = 200)
         val started = CountDownLatch(1)
         val cancelled = AtomicBoolean(false)
@@ -200,6 +206,7 @@ class ExampleInstrumentedTest {
             assertFalse("shutdown 后任务不得完成写入", completed.get())
         } finally {
             runner.shutdown()
+            dispatcher.close()
             if (caller.isAlive) {
                 caller.interrupt()
                 caller.join(1_000)

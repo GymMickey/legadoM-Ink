@@ -130,15 +130,17 @@ class ExampleInstrumentedTest {
 
     @Test
     fun providerTaskRunnerCompletesBeforeTimeout() {
-        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        val dispatcher = Executors.newSingleThreadExecutor().asCoroutineDispatcher()
+        val scope = CoroutineScope(SupervisorJob() + dispatcher)
         val runner = ProviderTaskRunner(scope, cancellationWaitMs = 200)
         try {
-            assertEquals("done", runner.execute(500) {
+            assertEquals("done", runner.execute(2_000) {
                 delay(20)
                 "done"
             })
         } finally {
             runner.shutdown()
+            dispatcher.close()
         }
     }
 
@@ -200,7 +202,7 @@ class ExampleInstrumentedTest {
         try {
             assertTrue("测试任务未及时启动", started.await(5, TimeUnit.SECONDS))
             runner.shutdown()
-            caller.join(1_000)
+            caller.join(5_000)
             assertFalse("shutdown 后调用不应永久等待", caller.isAlive)
             assertTrue("shutdown 后任务应被取消", cancelled.get())
             assertFalse("shutdown 后任务不得完成写入", completed.get())

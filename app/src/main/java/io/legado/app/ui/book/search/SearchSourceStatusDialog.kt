@@ -14,6 +14,7 @@ import io.legado.app.R
 import io.legado.app.data.appDb
 import io.legado.app.help.config.AppConfig
 import io.legado.app.lib.theme.backgroundColor
+import io.legado.app.lib.theme.EInkVisuals
 import io.legado.app.model.webBook.SourceSearchRecord
 import io.legado.app.ui.book.source.edit.BookSourceEditActivity
 import io.legado.app.utils.startActivity
@@ -50,14 +51,22 @@ class SearchSourceStatusDialog : BottomSheetDialogFragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         // 设置 BottomSheet 背景为应用主题背景色
-        (view.parent as? View)?.setBackgroundColor(backgroundColor)
+        (view.parent as? View)?.let { sheet ->
+            if (AppConfig.isEInkMode) {
+                sheet.setBackgroundResource(R.drawable.bg_eink_border_top)
+            } else {
+                sheet.setBackgroundColor(backgroundColor)
+            }
+        }
 
         val recyclerView = view.findViewById<RecyclerView>(R.id.recycler_view)
         recyclerView.layoutManager = LinearLayoutManager(requireContext())
+        recyclerView.itemAnimator = null
         val adapter = SourceStatusAdapter { record ->
             openBookSourceEdit(record.sourceUrl)
         }
         recyclerView.adapter = adapter
+        EInkVisuals.applyDialog(view)
 
         viewModel.sourceRecordsLiveData.observe(viewLifecycleOwner) { records ->
             adapter.submitList(records.sortedByDescending { it.duration })
@@ -92,6 +101,7 @@ class SearchSourceStatusDialog : BottomSheetDialogFragment() {
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
             val view = LayoutInflater.from(parent.context)
                 .inflate(R.layout.item_search_source_status, parent, false)
+            EInkVisuals.applyItem(view)
             return VH(view, onSourceClick)
         }
 

@@ -19,6 +19,7 @@ import io.legado.app.R
 import io.legado.app.constant.AppLog
 import io.legado.app.help.config.AppConfig
 import io.legado.app.help.coroutine.Coroutine
+import io.legado.app.lib.theme.EInkVisuals
 import io.legado.app.lib.theme.ThemeStore
 import io.legado.app.utils.dpToPx
 import io.legado.app.utils.setBackgroundKeepPadding
@@ -85,6 +86,7 @@ abstract class BaseDialogFragment(
             view.setBackgroundColor(ThemeStore.backgroundColor())
         }
         onFragmentCreated(view, savedInstanceState)
+        EInkVisuals.applyDialog(view)
         observeLiveBus()    // 模板方法：子类覆写 observeLiveBus() 注册事件订阅，自动在 onViewCreated 中调用
     }
 

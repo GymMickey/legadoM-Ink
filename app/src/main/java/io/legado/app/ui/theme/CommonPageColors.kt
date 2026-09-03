@@ -5,19 +5,21 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.luminance
+import io.legado.app.help.config.AppConfig
 
 @Composable
 fun pageTopBarContainerColor(): Color {
-    return MaterialTheme.colorScheme.secondary
+    return if (AppConfig.isEInkMode) Color.White else MaterialTheme.colorScheme.secondary
 }
 
 @Composable
 fun pageCardContainerColor(): Color {
-    return MaterialTheme.colorScheme.surfaceVariant
+    return if (AppConfig.isEInkMode) Color.White else MaterialTheme.colorScheme.surfaceVariant
 }
 
 @Composable
 fun pageCardElevatedContainerColor(): Color {
+    if (AppConfig.isEInkMode) return Color.White
     val background = MaterialTheme.colorScheme.background
     val surface = MaterialTheme.colorScheme.surface
     val onSurface = MaterialTheme.colorScheme.onSurface
@@ -30,6 +32,7 @@ fun pageCardElevatedContainerColor(): Color {
 
 @Composable
 fun pageHeaderContainerColor(): Color {
+    if (AppConfig.isEInkMode) return Color.White
     val background = MaterialTheme.colorScheme.background
     val surfaceVariant = MaterialTheme.colorScheme.surfaceVariant
     val onSurface = MaterialTheme.colorScheme.onSurface
@@ -42,6 +45,7 @@ fun pageHeaderContainerColor(): Color {
 
 @Composable
 fun pageSecondaryTextColor(): Color {
+    if (AppConfig.isEInkMode) return Color(0xFF4A4A4A)
     val background = MaterialTheme.colorScheme.background
     val onSurfaceVariant = MaterialTheme.colorScheme.onSurfaceVariant
     val onSurface = MaterialTheme.colorScheme.onSurface
@@ -54,6 +58,7 @@ fun pageSecondaryTextColor(): Color {
 
 @Composable
 fun pageAccentColor(): Color {
+    if (AppConfig.isEInkMode) return Color.Black
     val background = MaterialTheme.colorScheme.background
     val primary = MaterialTheme.colorScheme.primary
     return if (background.luminance() < 0.18f) {
@@ -65,6 +70,7 @@ fun pageAccentColor(): Color {
 
 @Composable
 fun pageSurfaceVariantColor(): Color {
+    if (AppConfig.isEInkMode) return Color.White
     val background = MaterialTheme.colorScheme.background
     val surfaceVariant = MaterialTheme.colorScheme.surfaceVariant
     val onSurface = MaterialTheme.colorScheme.onSurface
@@ -77,6 +83,7 @@ fun pageSurfaceVariantColor(): Color {
 
 @Composable
 fun pageMutedIconTint(): Color {
+    if (AppConfig.isEInkMode) return Color(0xFF4A4A4A)
     val background = MaterialTheme.colorScheme.background
     val onSurfaceVariant = MaterialTheme.colorScheme.onSurfaceVariant
     val onSurface = MaterialTheme.colorScheme.onSurface

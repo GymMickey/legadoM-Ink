@@ -9,6 +9,7 @@ import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.RecyclerView
 import io.legado.app.data.entities.Book
 import io.legado.app.data.entities.BookGroup
+import io.legado.app.lib.theme.EInkVisuals
 
 abstract class BaseBooksAdapter<VH : RecyclerView.ViewHolder>(
     val context: Context,
@@ -155,6 +156,11 @@ abstract class BaseBooksAdapter<VH : RecyclerView.ViewHolder>(
     }
 
     final override fun onBindViewHolder(holder: VH, position: Int) {}
+
+    override fun onViewAttachedToWindow(holder: VH) {
+        super.onViewAttachedToWindow(holder)
+        EInkVisuals.applyItem(holder.itemView)
+    }
 
 
     interface CallBack {

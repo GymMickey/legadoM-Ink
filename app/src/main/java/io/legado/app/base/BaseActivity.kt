@@ -6,6 +6,7 @@ import android.content.res.Configuration
 import android.os.Build
 import android.os.Bundle
 import android.util.AttributeSet
+import android.util.TypedValue
 import android.view.Menu
 import android.view.MenuItem
 import android.view.MotionEvent
@@ -78,7 +79,18 @@ abstract class BaseActivity<VB : ViewBinding>(
         attrs: AttributeSet
     ): View? {
         if (AppConst.menuViewNames.contains(name) && parent?.parent is FrameLayout) {
-            (parent.parent as View).setBackgroundColor(backgroundColor)
+            val overflowStyle = TypedValue()
+            val isEInkOverflowMenu = AppConfig.isEInkMode &&
+                    context.theme.resolveAttribute(
+                        androidx.appcompat.R.attr.actionOverflowMenuStyle,
+                        overflowStyle,
+                        true
+                    ) && overflowStyle.resourceId == R.style.Style_PopupMenu_EInk
+            if (!isEInkOverflowMenu) {
+                (parent.parent as View).setBackgroundColor(backgroundColor)
+            } else {
+                // 保留 E-Ink Overflow PopupWindow 的带框背景，避免被菜单项创建覆盖。
+            }
         }
         return super.onCreateView(parent, name, context, attrs)
     }

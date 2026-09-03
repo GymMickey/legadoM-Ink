@@ -7,6 +7,7 @@ import androidx.viewbinding.ViewBinding
 import io.legado.app.base.adapter.DiffRecyclerAdapter
 import io.legado.app.base.adapter.ItemViewHolder
 import io.legado.app.data.entities.Book
+import io.legado.app.lib.theme.EInkVisuals
 
 abstract class BaseBooksAdapter<VB : ViewBinding>(context: Context) :
     DiffRecyclerAdapter<Book, VB>(context) {
@@ -72,6 +73,11 @@ abstract class BaseBooksAdapter<VB : ViewBinding>(context: Context) :
         super.onViewRecycled(holder)
         holder.itemView.setOnClickListener(null)
         holder.itemView.setOnLongClickListener(null)
+    }
+
+    override fun onViewAttachedToWindow(holder: ItemViewHolder) {
+        super.onViewAttachedToWindow(holder)
+        EInkVisuals.applyItem(holder.itemView)
     }
 
     fun notification(bookUrl: String) {

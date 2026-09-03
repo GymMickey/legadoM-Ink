@@ -22,6 +22,7 @@ import io.legado.app.data.entities.BookGroup
 import io.legado.app.databinding.FragmentBookshelf2Binding
 import io.legado.app.help.config.AppConfig
 import io.legado.app.lib.theme.accentColor
+import io.legado.app.lib.theme.EInkVisuals
 import io.legado.app.lib.theme.primaryColor
 import io.legado.app.ui.book.group.GroupEditDialog
 import io.legado.app.ui.book.info.BookInfoActivity
@@ -95,6 +96,7 @@ class BookshelfFragment2() : BaseBookshelfFragment(R.layout.fragment_bookshelf2)
         initRecyclerView()
         initBookGroupData()
         initBooksData()
+        EInkVisuals.applyScreen(view)
     }
 
     private fun initRecyclerView() {

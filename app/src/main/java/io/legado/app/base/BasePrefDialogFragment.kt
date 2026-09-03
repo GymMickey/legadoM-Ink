@@ -7,6 +7,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import io.legado.app.R
 import io.legado.app.help.config.AppConfig
+import io.legado.app.lib.theme.EInkVisuals
 import io.legado.app.utils.dpToPx
 
 
@@ -40,5 +41,10 @@ abstract class BasePrefDialogFragment(
                 }
             })
         }
+    }
+
+    override fun onViewCreated(view: android.view.View, savedInstanceState: android.os.Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        EInkVisuals.applyDialog(view)
     }
 }

@@ -24,17 +24,23 @@ fun LegadoTheme(
     val textPrimaryColor = ThemeStore.textColorPrimary(context)
     val textSecondaryColor = ThemeStore.textColorSecondary(context)
 
-    val isLight = !isNightTheme && ColorUtils.isColorLight(bgColor)
-    val background = Color(bgColor)
-    val primary = Color(accentColor)
-    val secondary = Color(primaryColorValue)
-    val onBackground = Color(textPrimaryColor)
-    val onBackgroundVariant = Color(textSecondaryColor)
+    val isEInk = AppConfig.isEInkMode
+    val isLight = isEInk || (!isNightTheme && ColorUtils.isColorLight(bgColor))
+    val background = if (isEInk) Color.White else Color(bgColor)
+    val primary = if (isEInk) Color.Black else Color(accentColor)
+    val secondary = if (isEInk) Color.White else Color(primaryColorValue)
+    val onBackground = if (isEInk) Color.Black else Color(textPrimaryColor)
+    val onBackgroundVariant = if (isEInk) Color(0xFF4A4A4A) else Color(textSecondaryColor)
 
-    val surface = lerp(background, if (isLight) Color.White else Color.Black, if (isLight) 0.04f else 0.10f)
-    val surfaceVariant = lerp(background, onBackground, if (isLight) 0.05f else 0.14f)
-    val outline = lerp(background, onBackground, if (isLight) 0.12f else 0.24f)
+    val surface = if (isEInk) {
+        Color.White
+    } else {
+        lerp(background, if (isLight) Color.White else Color.Black, if (isLight) 0.04f else 0.10f)
+    }
+    val surfaceVariant = if (isEInk) Color.White else lerp(background, onBackground, if (isLight) 0.05f else 0.14f)
+    val outline = if (isEInk) Color(0xFF666666) else lerp(background, onBackground, if (isLight) 0.12f else 0.24f)
     val onSurfaceVariant = onBackgroundVariant
+    val outlineVariant = if (isEInk) Color(0xFF666666) else outline.copy(alpha = if (isLight) 0.75f else 0.8f)
 
     val colorScheme = if (isLight) {
         lightColorScheme(
@@ -47,9 +53,10 @@ fun LegadoTheme(
             secondaryContainer = surfaceVariant,
             tertiaryContainer = surfaceVariant,
             outline = outline,
-            outlineVariant = outline.copy(alpha = 0.75f),
+            outlineVariant = outlineVariant,
             onPrimary = if (ColorUtils.isColorLight(accentColor)) Color.Black else Color.White,
-            onSecondary = if (ColorUtils.isColorLight(primaryColorValue)) Color.Black else Color.White,
+            onSecondary = if (isEInk) Color.Black
+            else if (ColorUtils.isColorLight(primaryColorValue)) Color.Black else Color.White,
             onBackground = onBackground,
             onSurface = onBackground,
             onSurfaceVariant = onSurfaceVariant,
@@ -67,9 +74,10 @@ fun LegadoTheme(
             secondaryContainer = surfaceVariant,
             tertiaryContainer = surfaceVariant,
             outline = outline,
-            outlineVariant = outline.copy(alpha = 0.8f),
+            outlineVariant = outlineVariant,
             onPrimary = if (ColorUtils.isColorLight(accentColor)) Color.Black else Color.White,
-            onSecondary = if (ColorUtils.isColorLight(primaryColorValue)) Color.Black else Color.White,
+            onSecondary = if (isEInk) Color.Black
+            else if (ColorUtils.isColorLight(primaryColorValue)) Color.Black else Color.White,
             onBackground = onBackground,
             onSurface = onBackground,
             onSurfaceVariant = onSurfaceVariant,

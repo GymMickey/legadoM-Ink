@@ -21,6 +21,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -31,6 +32,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -77,6 +79,11 @@ fun BookBottomSheet(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val context = LocalContext.current
     val scrollState = rememberScrollState()
+    val separatorColor = if (AppConfig.isEInkMode) {
+        MaterialTheme.colorScheme.outlineVariant
+    } else {
+        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+    }
     
     // 预先获取字符串资源，避免在onClick中调用stringResource
     val addedToBookshelfMsg = stringResource(R.string.added_to_bookshelf, book?.name ?: "")
@@ -92,7 +99,9 @@ fun BookBottomSheet(
             sheetState = sheetState,
             modifier = Modifier.fillMaxWidth(),
             containerColor = MaterialTheme.colorScheme.surface,
-            contentColor = MaterialTheme.colorScheme.onSurface
+            contentColor = MaterialTheme.colorScheme.onSurface,
+            tonalElevation = if (AppConfig.isEInkMode) 0.dp else BottomSheetDefaults.Elevation,
+            scrimColor = if (AppConfig.isEInkMode) Color.Transparent else BottomSheetDefaults.ScrimColor
         ) {
             // 整个内容区域可滚动，按钮在滚动内容内部
             Column(
@@ -174,7 +183,7 @@ fun BookBottomSheet(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(1.dp)
-                        .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                        .background(separatorColor)
                 )
                 Spacer(modifier = Modifier.height(12.dp))
 
@@ -220,7 +229,7 @@ fun BookBottomSheet(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(1.dp)
-                                .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                                .background(separatorColor)
                         )
                         Spacer(modifier = Modifier.height(12.dp))
 
@@ -380,8 +389,8 @@ private fun InfoRow(
 }
 
 /**
- * 分类行组件（带外框）
- * 显示分类标签和值，每个分类值单独有外框样式
+ * 分类行组件
+ * 显示分类标签和值；E-Ink 模式使用留白，普通主题保留原有标签样式。
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -393,6 +402,17 @@ private fun CategoryRow(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
+        val categoryBackground = if (AppConfig.isEInkMode) {
+            MaterialTheme.colorScheme.surfaceVariant
+        } else {
+            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+        }
+        val categoryBorder = if (AppConfig.isEInkMode) {
+            MaterialTheme.colorScheme.onSurfaceVariant
+        } else {
+            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+        }
+        val categoryBorderWidth = if (AppConfig.isEInkMode) 1.dp else 0.5.dp
         // 标签
         Text(
             text = "$label:",
@@ -402,9 +422,22 @@ private fun CategoryRow(
             maxLines = 1,
             softWrap = false
         )
-        // 分类值（每个单独有外框）
         // 使用 splitNotBlank 方法分隔分类值（与书架标签一致，使用逗号和换行符）
         val categories = value.splitNotBlank(",", "\n")
+        val categoryModifier = if (AppConfig.isEInkMode) {
+            Modifier
+        } else {
+            Modifier
+                .background(
+                    color = categoryBackground,
+                    shape = RoundedCornerShape(8.dp)
+                )
+                .border(
+                    width = categoryBorderWidth,
+                    color = categoryBorder,
+                    shape = RoundedCornerShape(8.dp)
+                )
+        }
         FlowRow(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -415,16 +448,7 @@ private fun CategoryRow(
                     text = category,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier
-                        .background(
-                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
-                            shape = RoundedCornerShape(8.dp)
-                        )
-                        .border(
-                            width = 0.5.dp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                            shape = RoundedCornerShape(8.dp)
-                        )
+                    modifier = categoryModifier
                         .padding(horizontal = 8.dp, vertical = 4.dp),
                     maxLines = Int.MAX_VALUE,
                     softWrap = true

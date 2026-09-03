@@ -5,6 +5,7 @@ import android.graphics.Color
 import android.util.AttributeSet
 import androidx.appcompat.widget.AppCompatTextView
 import io.legado.app.R
+import io.legado.app.help.config.AppConfig
 import io.legado.app.lib.theme.Selector
 import io.legado.app.lib.theme.ThemeStore
 import io.legado.app.utils.ColorUtils
@@ -31,6 +32,13 @@ class AccentBgTextView @JvmOverloads constructor(
     }
 
     private fun upBackground() {
+        if (AppConfig.isEInkMode) {
+            setBackgroundColor(context.getCompatColor(R.color.eink_surface))
+            setTextColor(context.getCompatColor(R.color.eink_primary_text))
+            elevation = 0f
+            stateListAnimator = null
+            return
+        }
         val accentColor = if (isInEditMode) {
             context.getCompatColor(R.color.accent)
         } else {

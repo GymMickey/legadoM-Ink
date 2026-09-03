@@ -23,6 +23,7 @@ import io.legado.app.databinding.FragmentExploreShowBinding
 import io.legado.app.databinding.ViewLoadMoreBinding
 import io.legado.app.domain.model.BookShelfState
 import io.legado.app.lib.theme.accentColor
+import io.legado.app.lib.theme.EInkVisuals
 import io.legado.app.help.config.AppConfig
 import io.legado.app.lib.theme.primaryColor
 import io.legado.app.ui.book.info.BookInfoActivity
@@ -41,6 +42,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import android.widget.FrameLayout
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -145,6 +147,7 @@ class ExploreShowFragment() : VMBaseFragment<ExploreShowFragmentViewModel>(R.lay
         applyLayoutManager()
 
         recyclerView.adapter = adapter
+        EInkVisuals.applyScreen(binding.root)
         adapter.addFooterView {
             ViewLoadMoreBinding.bind(loadMoreView)
         }
@@ -464,7 +467,10 @@ class ExploreShowFragment() : VMBaseFragment<ExploreShowFragmentViewModel>(R.lay
                                 modifier = Modifier.padding(start = 16.dp, top = 8.dp, end = 16.dp),
                                 shape = RoundedCornerShape(16.dp),
                                 color = MaterialTheme.colorScheme.tertiaryContainer,
-                                shadowElevation = 4.dp,
+                                shadowElevation = if (AppConfig.isEInkMode) 0.dp else 4.dp,
+                                border = if (AppConfig.isEInkMode) {
+                                    BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+                                } else null,
                                 onClick = {
                                     (activity as? ExploreShowActivity)?.showBlockRuleConfig()
                                 }

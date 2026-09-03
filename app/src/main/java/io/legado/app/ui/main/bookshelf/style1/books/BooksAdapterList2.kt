@@ -36,8 +36,8 @@ class BooksAdapterList2(
         payloads: MutableList<Any>
     ) = binding.run {
         if (payloads.isEmpty()) {
-            // 根据配置控制书籍外边框显示和间距
-            if (AppConfig.showBookBorder) {
+            // 普通主题遵循用户的书籍边框设置；E-Ink 使用留白区分条目。
+            if (!AppConfig.isEInkMode && AppConfig.showBookBorder) {
                 root.background = context.resources.getDrawable(io.legado.app.R.drawable.card_border_background, null)
                 (root.layoutParams as? ViewGroup.MarginLayoutParams)?.setMargins(
                     4.dpToPx(), 4.dpToPx(), 4.dpToPx(), 4.dpToPx()

@@ -9,6 +9,7 @@ import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import androidx.viewbinding.ViewBinding
+import io.legado.app.help.config.AppConfig
 import splitties.views.onLongClick
 
 /**
@@ -185,6 +186,7 @@ abstract class DiffRecyclerAdapter<ITEM, VB : ViewBinding>(protected val context
     }
 
     private fun addAnimation(holder: ItemViewHolder) {
+        if (AppConfig.isEInkMode) return
         itemAnimation?.let {
             if (it.itemAnimEnabled) {
                 if (!it.itemAnimFirstOnly || holder.layoutPosition > it.itemAnimStartPosition) {

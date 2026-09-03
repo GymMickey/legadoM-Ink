@@ -12,6 +12,7 @@ import io.legado.app.data.entities.SearchBook
 import io.legado.app.databinding.ItemSearchBinding
 import io.legado.app.domain.model.BookShelfState
 import io.legado.app.help.config.AppConfig
+import io.legado.app.lib.theme.EInkVisuals
 import io.legado.app.ui.book.explore.setShelfState
 import io.legado.app.ui.book.explore.setShelfStateDot
 import com.google.android.material.imageview.ShapeableImageView
@@ -87,6 +88,11 @@ class SearchAdapter(context: Context, val callBack: CallBack) :
             }
             true
         }
+    }
+
+    override fun onViewAttachedToWindow(holder: ItemViewHolder) {
+        super.onViewAttachedToWindow(holder)
+        EInkVisuals.applyItem(holder.itemView)
     }
 
     private fun bind(binding: ItemSearchBinding, searchBook: SearchBook) {

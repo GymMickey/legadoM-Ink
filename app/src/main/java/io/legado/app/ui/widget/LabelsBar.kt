@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.AttributeSet
 import android.widget.LinearLayout
 import android.widget.TextView
+import io.legado.app.lib.theme.EInkVisuals
 import io.legado.app.ui.widget.text.AccentBgTextView
 import io.legado.app.utils.dpToPx
 
@@ -50,6 +51,7 @@ class LabelsBar @JvmOverloads constructor(
         }
         tv.textSize = textSize
         tv.text = label
+        EInkVisuals.applyTextLabel(tv)
         if (onClick != null) {
             tv.setOnClickListener { onClick.invoke(label) }
         }

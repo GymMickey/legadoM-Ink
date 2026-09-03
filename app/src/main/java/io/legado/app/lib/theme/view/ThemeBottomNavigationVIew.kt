@@ -29,8 +29,9 @@ class ThemeBottomNavigationVIew(context: Context, attrs: AttributeSet) :
             setBackgroundColor(Color.TRANSPARENT)
         } else {
             setBackgroundColor(bgColor)
-            elevation = context.elevation
+            elevation = if (AppConfig.isEInkMode) 0f else context.elevation
         }
+        if (AppConfig.isEInkMode) stateListAnimator = null
         val textIsDark = ColorUtils.isColorLight(bgColor)
         val textColor = context.getSecondaryTextColor(textIsDark)
         val colorStateList = Selector.colorBuild()

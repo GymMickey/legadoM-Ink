@@ -5,6 +5,7 @@ import io.legado.app.base.adapter.ItemViewHolder
 import io.legado.app.base.adapter.RecyclerAdapter
 import io.legado.app.data.entities.SearchKeyword
 import io.legado.app.databinding.ItemFilletTextBinding
+import io.legado.app.lib.theme.EInkVisuals
 import io.legado.app.ui.widget.anima.explosion_field.ExplosionField
 import splitties.views.onLongClick
 
@@ -46,6 +47,11 @@ class HistoryKeyAdapter(activity: SearchActivity, val callBack: CallBack) :
                 }
             }
         }
+    }
+
+    override fun onViewAttachedToWindow(holder: ItemViewHolder) {
+        super.onViewAttachedToWindow(holder)
+        EInkVisuals.applyItem(holder.itemView)
     }
 
     interface CallBack {

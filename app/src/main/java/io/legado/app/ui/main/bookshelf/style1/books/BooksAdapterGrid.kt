@@ -10,6 +10,7 @@ import io.legado.app.databinding.ItemBookshelfGrid2Binding
 import io.legado.app.databinding.ItemBookshelfGridBinding
 import io.legado.app.help.book.isLocal
 import io.legado.app.help.config.AppConfig
+import io.legado.app.lib.theme.EInkVisuals
 import io.legado.app.utils.gone
 import io.legado.app.utils.invisible
 import io.legado.app.utils.visible
@@ -131,6 +132,13 @@ class BooksAdapterGrid(context: Context, private val callBack: CallBack) :
                     callBack.openBookInfo(it)
                 }
             }
+        }
+    }
+
+    override fun onViewAttachedToWindow(holder: ItemViewHolder) {
+        super.onViewAttachedToWindow(holder)
+        if (holder.binding is ItemBookshelfGrid2Binding) {
+            EInkVisuals.applyTextLabel(holder.binding.tvName)
         }
     }
 }

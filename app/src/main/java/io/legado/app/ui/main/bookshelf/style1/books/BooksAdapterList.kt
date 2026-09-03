@@ -39,8 +39,8 @@ class BooksAdapterList(
         payloads: MutableList<Any>
     ) = binding.run {
         if (payloads.isEmpty()) {
-            // 根据配置控制书籍外边框显示和间距
-            if (AppConfig.showBookBorder) {
+            // 普通主题遵循用户的书籍边框设置；E-Ink 使用留白区分条目。
+            if (!AppConfig.isEInkMode && AppConfig.showBookBorder) {
                 root.background = context.resources.getDrawable(io.legado.app.R.drawable.card_border_background, null)
                 (root.layoutParams as? ViewGroup.MarginLayoutParams)?.setMargins(
                     4.dpToPx(), 4.dpToPx(), 4.dpToPx(), 4.dpToPx()
@@ -149,9 +149,11 @@ class BooksAdapterList(
             textSize = 11f
             gravity = Gravity.CENTER
             setTextColor(context.resources.getColor(io.legado.app.R.color.tv_text_summary, null))
-            // 根据书籍外边框状态同步标签外框：有边框时使用带描边的标签背景，无边框时仅显示纯文本
-            if (AppConfig.showBookBorder) {
+            // E-Ink 标签保持无框；普通主题继续遵循书籍边框设置。
+            if (!AppConfig.isEInkMode && AppConfig.showBookBorder) {
                 setBackgroundResource(io.legado.app.R.drawable.bg_tag)
+            } else {
+                background = null
             }
             // 设置内边距
             setPadding(8, 4, 8, 4)

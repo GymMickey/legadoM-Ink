@@ -23,12 +23,15 @@ import io.legado.app.base.VMBaseActivity
 import io.legado.app.constant.PreferKey
 import io.legado.app.databinding.ActivityExploreShowBinding
 import io.legado.app.data.entities.rule.ExploreKind
+import io.legado.app.help.config.AppConfig
 import io.legado.app.lib.theme.accentColor
+import io.legado.app.lib.theme.EInkVisuals
 import io.legado.app.ui.blockrule.BlockRuleConfigDialog
 import io.legado.app.ui.book.group.GroupSelectDialog
 import io.legado.app.utils.*
 import io.legado.app.utils.viewbindingdelegate.viewBinding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -110,6 +113,7 @@ class ExploreShowActivity : VMBaseActivity<ActivityExploreShowBinding, ExploreSh
             }
         })
         viewModel.initData(intent)
+        EInkVisuals.applyScreen(binding.root)
         viewModel.exploreKindsData.observe(this) { kinds ->
             exploreKinds.clear()
             exploreKinds.addAll(kinds)
@@ -267,7 +271,14 @@ class ExploreShowActivity : VMBaseActivity<ActivityExploreShowBinding, ExploreSh
             background = createTabBackground(accentColor, context)
             setPadding(12.dpToPx(), 6.dpToPx(), 12.dpToPx(), 6.dpToPx())
             tag = position
-            setTextColor(context.getCompatColor(R.color.primaryText))
+            setTextColor(
+                context.getCompatColor(
+                    if (AppConfig.isEInkMode) R.color.eink_primary_text else R.color.primaryText
+                )
+            )
+            if (AppConfig.isEInkMode) {
+                typeface = android.graphics.Typeface.DEFAULT
+            }
             layoutParams = LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT
@@ -285,6 +296,23 @@ class ExploreShowActivity : VMBaseActivity<ActivityExploreShowBinding, ExploreSh
     private fun createTabBackground(accentColor: Int, context: Context): android.graphics.drawable.Drawable {
         val radius = 16f.dpToPx()
         val strokeWidth = 1f.dpToPx()
+        if (AppConfig.isEInkMode) {
+            val selectedDrawable = GradientDrawable().apply {
+                shape = GradientDrawable.RECTANGLE
+                cornerRadius = radius
+                setColor(context.getCompatColor(R.color.eink_surface))
+                setStroke(strokeWidth.toInt(), context.getCompatColor(R.color.eink_primary_text))
+            }
+            val defaultDrawable = GradientDrawable().apply {
+                shape = GradientDrawable.RECTANGLE
+                cornerRadius = radius
+                setColor(context.getCompatColor(R.color.eink_surface))
+            }
+            return StateListDrawable().apply {
+                addState(intArrayOf(android.R.attr.state_selected), selectedDrawable)
+                addState(intArrayOf(), defaultDrawable)
+            }
+        }
         val selectedDrawable = GradientDrawable().apply {
             shape = GradientDrawable.RECTANGLE
             cornerRadius = radius
@@ -306,7 +334,17 @@ class ExploreShowActivity : VMBaseActivity<ActivityExploreShowBinding, ExploreSh
                 for (i in 0 until row.childCount) {
                     val tabIndex = rowIndex * maxTagsPerRow + i
                     val tabView = row.getChildAt(i) as? TextView
-                    tabView?.isSelected = tabIndex == position
+                    tabView?.let {
+                        it.isSelected = tabIndex == position
+                        if (AppConfig.isEInkMode) {
+                            it.typeface = android.graphics.Typeface.DEFAULT
+                            it.setTypeface(
+                                android.graphics.Typeface.DEFAULT,
+                                if (it.isSelected) android.graphics.Typeface.BOLD
+                                else android.graphics.Typeface.NORMAL
+                            )
+                        }
+                    }
                 }
             }
             ensureTabVisible(position)
@@ -427,7 +465,10 @@ class ExploreShowActivity : VMBaseActivity<ActivityExploreShowBinding, ExploreSh
                                 modifier = Modifier.padding(start = 16.dp, top = 8.dp, end = 16.dp),
                                 shape = RoundedCornerShape(16.dp),
                                 color = MaterialTheme.colorScheme.tertiaryContainer,
-                                shadowElevation = 4.dp,
+                                shadowElevation = if (AppConfig.isEInkMode) 0.dp else 4.dp,
+                                border = if (AppConfig.isEInkMode) {
+                                    BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+                                } else null,
                                 onClick = { showBlockRuleConfig() }
                             ) {
                                 Text(

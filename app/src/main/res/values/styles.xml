@@ -78,8 +78,8 @@
         <item name="android:popupBackground">@drawable/bg_popup_menu</item>
     </style>
 
-    <style name="Style.PopupMenu.EInk" parent="Widget.AppCompat.PopupMenu">
-        <item name="android:popupBackground">@drawable/bg_eink_border_dialog</item>
+    <style name="Style.PopupMenu.EInk" parent="Widget.AppCompat.PopupMenu.Overflow">
+        <item name="android:popupBackground">@drawable/bg_eink_popup_menu</item>
         <item name="android:popupElevation">0dp</item>
     </style>
 

@@ -35,10 +35,12 @@ import io.legado.app.databinding.ActivityBookSearchBinding
 import io.legado.app.domain.model.BookShelfState
 import io.legado.app.lib.dialogs.alert
 import io.legado.app.lib.theme.Selector
+import io.legado.app.lib.theme.EInkVisuals
 import io.legado.app.lib.theme.accentColor
 import io.legado.app.lib.theme.backgroundColor
 import io.legado.app.lib.theme.primaryColor
 import io.legado.app.lib.theme.primaryTextColor
+import io.legado.app.help.config.AppConfig
 import io.legado.app.ui.about.AppLogDialog
 import io.legado.app.model.blockrule.BlockRuleStore
 import io.legado.app.ui.blockrule.BlockRuleConfigDialog
@@ -127,6 +129,7 @@ class SearchActivity : VMBaseActivity<ActivityBookSearchBinding, SearchViewModel
         initOtherView()
         initData()
         receiptIntent(intent)
+        EInkVisuals.applyScreen(binding.root)
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -348,6 +351,12 @@ class SearchActivity : VMBaseActivity<ActivityBookSearchBinding, SearchViewModel
         binding.fbStartStop.applyNavigationBarMargin(true)
         binding.tvClearHistory.setOnClickListener { alertClearHistory() }
         binding.tvSearchProgress.setOnClickListener { showSearchSourceStatusDialog() }
+        if (AppConfig.isEInkMode) {
+            binding.tvClearHistory.background = null
+            binding.tvSearchProgress.setBackgroundResource(R.drawable.bg_eink_border_card)
+            binding.fbStartStop.elevation = 0f
+            binding.fbStartStop.stateListAnimator = null
+        }
     }
 
     private fun initData() {

@@ -13,6 +13,7 @@ import io.legado.app.databinding.ItemBookshelfGridGroupBinding
 import io.legado.app.databinding.ItemBookshelfListGroupBinding
 import io.legado.app.help.book.isLocal
 import io.legado.app.help.config.AppConfig
+import io.legado.app.lib.theme.EInkVisuals
 import io.legado.app.utils.gone
 import io.legado.app.utils.invisible
 import io.legado.app.utils.visible
@@ -77,6 +78,16 @@ class BooksAdapterGrid(context: Context, callBack: CallBack) :
             is GroupListViewHolder -> (getItem(position) as? BookGroup)?.let {
                 holder.registerListener(it)
                 holder.onBind(it, position, payloads)
+            }
+        }
+    }
+
+    override fun onViewAttachedToWindow(holder: RecyclerView.ViewHolder) {
+        super.onViewAttachedToWindow(holder)
+        if (AppConfig.isEInkMode) {
+            when (holder) {
+                is BookViewHolder2 -> EInkVisuals.applyTextLabel(holder.binding.tvName)
+                is GroupViewHolder2 -> EInkVisuals.applyTextLabel(holder.binding.tvName)
             }
         }
     }

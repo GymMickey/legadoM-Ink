@@ -15,6 +15,7 @@ import io.legado.app.databinding.ItemSearchBinding
 import io.legado.app.domain.model.BookShelfState
 import io.legado.app.help.config.AppConfig
 import io.legado.app.help.glide.CoverLoader
+import io.legado.app.lib.theme.EInkVisuals
 import com.google.android.material.imageview.ShapeableImageView
 import io.legado.app.utils.gone
 import io.legado.app.utils.visible
@@ -68,6 +69,15 @@ class ExploreShowAdapter(context: Context, val callBack: CallBack) :
             VIEW_TYPE_GRID -> ItemViewHolder(ItemExploreShowGridBinding.inflate(inflater, parent, false))
             VIEW_TYPE_WATERFALL -> ItemViewHolder(ItemExploreShowWaterfallBinding.inflate(inflater, parent, false))
             else -> super.onCreateViewHolder(parent, viewType)
+        }
+    }
+
+    override fun onViewAttachedToWindow(holder: ItemViewHolder) {
+        super.onViewAttachedToWindow(holder)
+        when (holder.binding) {
+            is ItemSearchBinding,
+            is ItemExploreShowGridBinding,
+            is ItemExploreShowWaterfallBinding -> EInkVisuals.applyItem(holder.itemView)
         }
     }
 
@@ -147,6 +157,11 @@ class ExploreShowAdapter(context: Context, val callBack: CallBack) :
         binding: ItemExploreShowWaterfallBinding,
         item: SearchBook
     ) {
+        if (AppConfig.isEInkMode) {
+            binding.root.cardElevation = 0f
+            binding.root.radius = 0f
+            binding.root.getChildAt(0)?.background = null
+        }
         val shelfState = callBack.getBookShelfState(item)
         binding.ivInBookshelfWaterfall.setShelfState(shelfState)
         binding.ivInBookshelfDotWaterfall.setShelfStateDot(shelfState)

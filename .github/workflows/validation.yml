@@ -164,6 +164,15 @@ jobs:
           cache-disabled: true
       - name: Prepare Cronet compile dependencies
         run: ./gradlew -PdisableFirebase=true -PRELEASE_STORE_FILE= :app:downloadJar --stacktrace
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          test -r /dev/kvm
+          test -w /dev/kvm
+          ls -l /dev/kvm
       - name: Run Provider, Web, and network security tests
         uses: reactivecircus/android-emulator-runner@v2
         with:
@@ -190,6 +199,15 @@ jobs:
           cache-disabled: true
       - name: Prepare Cronet compile dependencies
         run: ./gradlew -PdisableFirebase=true -PRELEASE_STORE_FILE= :app:downloadJar --stacktrace
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          test -r /dev/kvm
+          test -w /dev/kvm
+          ls -l /dev/kvm
       - name: Run Room migration tests on emulator
         uses: reactivecircus/android-emulator-runner@v2
         with:

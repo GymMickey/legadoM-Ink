@@ -1239,6 +1239,14 @@
     <string name="page_anim_speed_summary">数值越小翻页越快，默认触摸300ms/按键100ms</string>
     <string name="touch_page_anim_speed_dialog_title">触摸翻页速度(ms)</string>
     <string name="key_page_anim_speed_dialog_title">按键翻页速度(ms)</string>
+    <string name="ireader_page_h_title">掌阅水波纹翻页（实验性）</string>
+    <string name="ireader_page_h_summary">仅在墨水屏无动画翻页时使用 PAGE_H</string>
+    <string name="ireader_page_h_speed_title">掌阅 PAGE_H 速度</string>
+    <string name="ireader_page_h_speed_slow">慢速</string>
+    <string name="ireader_page_h_speed_medium">中速</string>
+    <string name="ireader_page_h_speed_fast">快速</string>
+    <string name="ireader_page_h_unsupported">当前设备或固件不支持掌阅 PAGE_H</string>
+    <string name="ireader_page_h_requires_no_anim">请先将翻页动画设置为无动画</string>
     <string name="example">示例</string>
     <string name="check_selected_interval">选中所选区间</string>
     <string name="show_add_to_shelf_alert_title">返回时提示放入书架</string>

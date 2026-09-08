@@ -866,6 +866,21 @@ object AppConfig : SharedPreferences.OnSharedPreferenceChangeListener {
             appCtx.putPrefInt(PreferKey.keyPageAnimSpeed, value)
         }
 
+    var iReaderPageHEnabled: Boolean
+        get() = appCtx.getPrefBoolean(PreferKey.iReaderPageHEnabled, false)
+        set(value) {
+            appCtx.putPrefBoolean(PreferKey.iReaderPageHEnabled, value)
+        }
+
+    var iReaderPageHSpeed: Int
+        get() = appCtx.getPrefString(PreferKey.iReaderPageHSpeed, "1")
+            ?.toIntOrNull()
+            ?.coerceIn(0, 2)
+            ?: 1
+        set(value) {
+            appCtx.putPrefString(PreferKey.iReaderPageHSpeed, value.coerceIn(0, 2).toString())
+        }
+
     var bookshelfSort: Int
         get() = appCtx.getPrefInt(PreferKey.bookshelfSort, 0)
         set(value) {

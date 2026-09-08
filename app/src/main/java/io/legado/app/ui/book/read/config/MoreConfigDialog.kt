@@ -16,9 +16,12 @@ import androidx.preference.Preference
 import io.legado.app.R
 import io.legado.app.base.BasePrefDialogFragment
 import io.legado.app.constant.EventBus
+import io.legado.app.constant.PageAnim
 import io.legado.app.constant.PreferKey
 import io.legado.app.help.config.AppConfig
 import io.legado.app.help.config.ReadBookConfig
+import io.legado.app.lib.eink.IReaderPageH
+import io.legado.app.lib.prefs.NameListPreference
 import io.legado.app.lib.prefs.fragment.PreferenceFragment
 import io.legado.app.lib.theme.bottomBackground
 import io.legado.app.lib.theme.primaryColor
@@ -112,6 +115,49 @@ class MoreConfigDialog : BasePrefDialogFragment() {
                 removePref(PreferKey.optimizeRender)
                 preferenceScreen.removePreferenceRecursively(PreferKey.optimizeRender)
             }
+            configurePageHPreferences()
+        }
+
+        private fun configurePageHPreferences() {
+            if (!AppConfig.isEInkMode) {
+                preferenceScreen.removePreferenceRecursively(PreferKey.iReaderPageHEnabled)
+                preferenceScreen.removePreferenceRecursively(PreferKey.iReaderPageHSpeed)
+                return
+            }
+
+            val pageHPreference = findPreference<Preference>(PreferKey.iReaderPageHEnabled)
+                ?: return
+            val speedPreference = findPreference<NameListPreference>(PreferKey.iReaderPageHSpeed)
+
+            when (IReaderPageH.capability()) {
+                IReaderPageH.Capability.UNAVAILABLE,
+                IReaderPageH.Capability.FAILED -> {
+                    pageHPreference.isEnabled = false
+                    pageHPreference.summary = getString(R.string.ireader_page_h_unsupported)
+                    preferenceScreen.removePreferenceRecursively(PreferKey.iReaderPageHSpeed)
+                }
+
+                IReaderPageH.Capability.AVAILABLE -> {
+                    val noAnimation = ReadBook.pageAnim() == PageAnim.noAnim
+                    pageHPreference.isEnabled = noAnimation
+                    pageHPreference.summary = if (noAnimation) {
+                        getString(R.string.ireader_page_h_summary)
+                    } else {
+                        getString(R.string.ireader_page_h_requires_no_anim)
+                    }
+                    speedPreference?.value = AppConfig.iReaderPageHSpeed.toString()
+                    speedPreference?.isEnabled = noAnimation && AppConfig.iReaderPageHEnabled
+                }
+            }
+        }
+
+        private fun updatePageHSpeedPreference() {
+            val speedPreference = findPreference<NameListPreference>(PreferKey.iReaderPageHSpeed)
+                ?: return
+            speedPreference.isEnabled = AppConfig.isEInkMode
+                    && ReadBook.pageAnim() == PageAnim.noAnim
+                    && IReaderPageH.isAvailable()
+                    && AppConfig.iReaderPageHEnabled
         }
 
         override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
@@ -192,6 +238,8 @@ class MoreConfigDialog : BasePrefDialogFragment() {
                 PreferKey.noAnimScrollPage -> {
                     ReadBook.callBack?.upPageAnim()
                 }
+
+                PreferKey.iReaderPageHEnabled -> updatePageHSpeedPreference()
 
                 PreferKey.optimizeRender -> {
                     ChapterProvider.upStyle()

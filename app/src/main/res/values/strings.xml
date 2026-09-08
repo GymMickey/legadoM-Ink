@@ -1244,6 +1244,14 @@
     <string name="page_anim_speed_summary">Smaller value = faster page turn, default touch 300ms/key 100ms</string>
     <string name="touch_page_anim_speed_dialog_title">Touch Page Animation Speed (ms)</string>
     <string name="key_page_anim_speed_dialog_title">Key Page Animation Speed (ms)</string>
+    <string name="ireader_page_h_title">iReader PAGE_H wave transition (Experimental)</string>
+    <string name="ireader_page_h_summary">Use PAGE_H only for E-Ink no-animation page turns</string>
+    <string name="ireader_page_h_speed_title">iReader PAGE_H speed</string>
+    <string name="ireader_page_h_speed_slow">Slow</string>
+    <string name="ireader_page_h_speed_medium">Medium</string>
+    <string name="ireader_page_h_speed_fast">Fast</string>
+    <string name="ireader_page_h_unsupported">This device or firmware does not support iReader PAGE_H</string>
+    <string name="ireader_page_h_requires_no_anim">Set page animation to None first</string>
     <string name="check_selected_interval">Select zones</string>
     <string name="show_add_to_shelf_alert_title">Prompt to add to bookshelf when return</string>
     <string name="show_add_to_shelf_alert_summary">Prompt to add to bookshelf when return from reading books that are not on the bookshelf</string>

@@ -129,6 +129,12 @@
 		<item>@string/adjust_chapter_index</item>
 	</string-array>
 
+    <string-array name="ireader_page_h_speed_title">
+        <item>@string/ireader_page_h_speed_slow</item>
+        <item>@string/ireader_page_h_speed_medium</item>
+        <item>@string/ireader_page_h_speed_fast</item>
+    </string-array>
+
 	<string-array name="icon_names" tools:ignore="Typos">
 		<item>iconMain</item>
 		<item>icon1</item>

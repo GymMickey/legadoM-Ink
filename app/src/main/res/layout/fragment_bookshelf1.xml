@@ -12,7 +12,7 @@
         app:attachToActivity="false"
         app:title="@string/bookshelf" />
 
-    <androidx.viewpager.widget.ViewPager
+    <io.legado.app.ui.widget.recycler.EInkDirectViewPager
         android:id="@+id/view_pager_bookshelf"
         android:layout_width="match_parent"
         android:layout_height="match_parent" />

@@ -83,6 +83,9 @@ class BookshelfFragment1() : BaseBookshelfFragment(R.layout.fragment_bookshelf1)
         get() = bookGroups.getOrNull(currentPosition)
 
     private fun initView() {
+        val einkMode = AppConfig.isEInkMode
+        binding.viewPagerBookshelf.setUserPagingEnabled(!einkMode)
+        binding.viewPagerBookshelf.setDirectPageChangesEnabled(einkMode)
         binding.viewPagerBookshelf.setEdgeEffectColor(primaryColor)
         binding.viewPagerBookshelf.offscreenPageLimit = 2
         binding.viewPagerBookshelf.adapter = adapter

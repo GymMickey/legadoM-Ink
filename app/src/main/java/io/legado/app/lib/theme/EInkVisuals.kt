@@ -3,6 +3,7 @@ package io.legado.app.lib.theme
 import android.content.res.ColorStateList
 import android.graphics.Color
 import android.graphics.drawable.RippleDrawable
+import android.os.Build
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
@@ -58,7 +59,7 @@ object EInkVisuals {
             }
             view.background is RippleDrawable -> view.background = null
         }
-        if (view.foreground is RippleDrawable) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && view.foreground is RippleDrawable) {
             view.foreground = null
         }
         normalizeTextColor(view)

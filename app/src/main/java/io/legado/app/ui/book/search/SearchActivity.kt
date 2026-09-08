@@ -3,7 +3,9 @@ package io.legado.app.ui.book.search
 import android.content.Context
 import android.content.Intent
 import android.graphics.Color
+import android.graphics.Rect
 import android.os.Bundle
+import android.view.ViewGroup
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View.GONE
@@ -36,6 +38,7 @@ import io.legado.app.domain.model.BookShelfState
 import io.legado.app.lib.dialogs.alert
 import io.legado.app.lib.theme.Selector
 import io.legado.app.lib.theme.EInkVisuals
+import io.legado.app.lib.theme.EInkScreenPaginator
 import io.legado.app.lib.theme.accentColor
 import io.legado.app.lib.theme.backgroundColor
 import io.legado.app.lib.theme.primaryColor
@@ -56,6 +59,7 @@ import io.legado.app.utils.ColorUtils
 import io.legado.app.utils.applyNavigationBarMargin
 import io.legado.app.utils.applyNavigationBarPadding
 import io.legado.app.utils.applyTint
+import io.legado.app.utils.dpToPx
 import io.legado.app.utils.getPrefBoolean
 import io.legado.app.utils.getPrefInt
 import io.legado.app.utils.gone
@@ -114,6 +118,32 @@ class SearchActivity : VMBaseActivity<ActivityBookSearchBinding, SearchViewModel
     private var rawSearchBooks: List<SearchBook> = emptyList()
     /** 当前被屏蔽的搜索结果数量（合并去重后） */
     private var blockedCount = 0
+    private val einkScreenPaginator = EInkScreenPaginator<SearchBook>()
+    private var einkPageReady = false
+    private var einkPageLoading = false
+    private var einkNextPageRequested = false
+    private var einkPendingLoadStartCount: Int? = null
+    private var einkSearchItems: List<SearchBook> = emptyList()
+    private var einkSearchMeasuredItemHeight = 0
+    private var einkSearchMeasureWidth = -1
+    private var einkSearchMeasureHeight = -1
+    private var einkSearchMeasureScheduled = false
+    private val einkSearchSpacingDecoration = object : RecyclerView.ItemDecoration() {
+        var spacing = 0
+
+        override fun getItemOffsets(
+            outRect: Rect,
+            view: android.view.View,
+            parent: RecyclerView,
+            state: RecyclerView.State
+        ) {
+            val position = parent.getChildAdapterPosition(view)
+            val itemCount = parent.adapter?.itemCount ?: 0
+            outRect.set(0, 0, 0, if (position >= 0 && position < itemCount - 1) spacing else 0)
+        }
+    }
+    private var restoredEinkPage: Int? = null
+    private var restoredEinkAnchor: String? = null
 
     /** 书籍底部弹窗状态 */
     private var showBookSheet by mutableStateOf(false)
@@ -123,6 +153,9 @@ class SearchActivity : VMBaseActivity<ActivityBookSearchBinding, SearchViewModel
     private var bookSheetComposeView: ComposeView? = null
 
     override fun onActivityCreated(savedInstanceState: Bundle?) {
+        restoredEinkPage = savedInstanceState?.getInt("einkSearchPage")
+            ?.takeIf { it > 0 }
+        restoredEinkAnchor = savedInstanceState?.getString("einkSearchAnchor")
         binding.llInputHelp.setBackgroundColor(backgroundColor)
         initRecyclerView()
         initSearchView()
@@ -132,9 +165,25 @@ class SearchActivity : VMBaseActivity<ActivityBookSearchBinding, SearchViewModel
         EInkVisuals.applyScreen(binding.root)
     }
 
+    override fun onSaveInstanceState(outState: Bundle) {
+        if (AppConfig.isEInkMode && einkPageReady && !einkScreenPaginator.isEmpty) {
+            outState.putInt("einkSearchPage", einkScreenPaginator.currentPage)
+            outState.putString("einkSearchAnchor", einkSearchItems
+                .getOrNull((einkScreenPaginator.currentPage - 1) * einkScreenPaginator.itemsPerPage)
+                ?.bookUrl)
+        }
+        super.onSaveInstanceState(outState)
+    }
+
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         receiptIntent(intent)
+    }
+
+    override fun onDestroy() {
+        einkNextPageRequested = false
+        einkPendingLoadStartCount = null
+        super.onDestroy()
     }
 
     override fun onCompatCreateOptionsMenu(menu: Menu): Boolean {
@@ -257,6 +306,7 @@ class SearchActivity : VMBaseActivity<ActivityBookSearchBinding, SearchViewModel
                 searchView.clearFocus()
                 query.trim().let { searchKey ->
                     isManualStopSearch = false
+                    resetEInkSearchPagination()
                     viewModel.saveSearchKey(searchKey)
                     viewModel.searchKey = ""
                     viewModel.search(searchKey)
@@ -294,7 +344,39 @@ class SearchActivity : VMBaseActivity<ActivityBookSearchBinding, SearchViewModel
         binding.recyclerView.layoutManager = LinearLayoutManager(this)
         binding.recyclerView.adapter = adapter
         binding.recyclerView.itemAnimator = null
-        binding.recyclerView.applyNavigationBarPadding()
+        if (AppConfig.isEInkMode) {
+            binding.einkPagination.root.applyNavigationBarPadding()
+        } else {
+            binding.recyclerView.applyNavigationBarPadding()
+        }
+        binding.einkPagination.btnPrevious.setOnClickListener {
+            if (einkScreenPaginator.previousPage()) {
+                showEInkSearchPage(scrollToTop = true)
+            }
+        }
+        binding.einkPagination.btnNext.setOnClickListener {
+            when {
+                einkScreenPaginator.nextPage() -> showEInkSearchPage(scrollToTop = true)
+                einkScreenPaginator.needsMore(viewModel.hasMore) && !einkPageLoading -> {
+                    einkPageLoading = true
+                    einkNextPageRequested = true
+                    einkPendingLoadStartCount = rawSearchBooks.size
+                    updateEInkSearchPageBar()
+                    viewModel.search("")
+                }
+            }
+        }
+        binding.einkPagination.root.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+            if (AppConfig.isEInkMode && einkPageReady) {
+                updateEinkStopButtonPosition()
+                scheduleEInkSearchPageMeasure()
+            }
+        }
+        binding.recyclerView.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+            if (AppConfig.isEInkMode && einkPageReady) {
+                scheduleEInkSearchPageMeasure()
+            }
+        }
         adapter.registerAdapterDataObserver(object : RecyclerView.AdapterDataObserver() {
             override fun onItemRangeInserted(positionStart: Int, itemCount: Int) {
                 super.onItemRangeInserted(positionStart, itemCount)
@@ -312,6 +394,7 @@ class SearchActivity : VMBaseActivity<ActivityBookSearchBinding, SearchViewModel
         binding.recyclerView.addOnScrollListener(object : RecyclerView.OnScrollListener() {
             override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
                 super.onScrolled(recyclerView, dx, dy)
+                if (AppConfig.isEInkMode) return
                 if (!recyclerView.canScrollVertically(1)) {
                     val layoutManager = recyclerView.layoutManager as LinearLayoutManager
                     val lastPosition = layoutManager.findLastCompletelyVisibleItemPosition()
@@ -348,7 +431,6 @@ class SearchActivity : VMBaseActivity<ActivityBookSearchBinding, SearchViewModel
                 viewModel.search("")
             }
         }
-        binding.fbStartStop.applyNavigationBarMargin(true)
         binding.tvClearHistory.setOnClickListener { alertClearHistory() }
         binding.tvSearchProgress.setOnClickListener { showSearchSourceStatusDialog() }
         if (AppConfig.isEInkMode) {
@@ -356,6 +438,10 @@ class SearchActivity : VMBaseActivity<ActivityBookSearchBinding, SearchViewModel
             binding.tvSearchProgress.setBackgroundResource(R.drawable.bg_eink_border_card)
             binding.fbStartStop.elevation = 0f
             binding.fbStartStop.stateListAnimator = null
+            binding.recyclerView.addItemDecoration(einkSearchSpacingDecoration)
+            updateEinkStopButtonPosition()
+        } else {
+            binding.fbStartStop.applyNavigationBarMargin(true)
         }
     }
 
@@ -375,10 +461,15 @@ class SearchActivity : VMBaseActivity<ActivityBookSearchBinding, SearchViewModel
             }
         }
         viewModel.searchBookLiveData.observe(this) {
+            if (AppConfig.isEInkMode && einkPageLoading && it.isEmpty()) {
+                // SearchViewModel emits an empty marker before loading the next network batch.
+                // Keep the current screen page visible until the merged result arrives.
+                return@observe
+            }
             rawSearchBooks = it
             val filtered = BlockRuleStore.filterSearchBooks(this, it)
             blockedCount = it.size - filtered.size
-            adapter.setItems(filtered)
+            updateEInkSearchItems(filtered)
             // 搜索结果更新后，同步刷新进度条（确保屏蔽数与结果数口径一致）
             viewModel.sourceRecordsLiveData.value?.let { records ->
                 updateSearchProgressChip(records)
@@ -502,6 +593,7 @@ class SearchActivity : VMBaseActivity<ActivityBookSearchBinding, SearchViewModel
      * 滚动到底部事件
      */
     private fun scrollToBottom() {
+        if (AppConfig.isEInkMode) return
         if (isManualStopSearch) {
             return
         }
@@ -585,6 +677,14 @@ class SearchActivity : VMBaseActivity<ActivityBookSearchBinding, SearchViewModel
             binding.fbStartStop.setImageResource(R.drawable.ic_play_24dp)
         } else {
             binding.fbStartStop.invisible()
+        }
+        if (einkPageLoading) {
+            einkPageLoading = false
+            if (!viewModel.hasMore || isManualStopSearch) {
+                einkNextPageRequested = false
+                einkPendingLoadStartCount = null
+            }
+            updateEInkSearchPageBar()
         }
     }
 
@@ -715,10 +815,197 @@ class SearchActivity : VMBaseActivity<ActivityBookSearchBinding, SearchViewModel
         BlockRuleStore.invalidateCache()
         val filtered = BlockRuleStore.filterSearchBooks(this, rawSearchBooks)
         blockedCount = rawSearchBooks.size - filtered.size
-        adapter.setItems(filtered)
+        updateEInkSearchItems(filtered)
         // 屏蔽规则变化后，同步刷新进度条显示
         viewModel.sourceRecordsLiveData.value?.let { records ->
             updateSearchProgressChip(records)
+        }
+    }
+
+    private fun resetEInkSearchPagination() {
+        if (!AppConfig.isEInkMode) return
+        einkPageLoading = false
+        einkNextPageRequested = false
+        einkPendingLoadStartCount = null
+        einkPageReady = false
+        einkSearchItems = emptyList()
+        einkSearchMeasuredItemHeight = 0
+        einkSearchMeasureWidth = -1
+        einkSearchMeasureHeight = -1
+        restoredEinkPage = null
+        restoredEinkAnchor = null
+        einkScreenPaginator.setItems(emptyList(), resetToFirst = true)
+        adapter.setItems(emptyList())
+        einkSearchSpacingDecoration.spacing = 0
+        binding.recyclerView.invalidateItemDecorations()
+        binding.einkPagination.root.gone()
+        updateEinkStopButtonPosition()
+    }
+
+    private fun updateEInkSearchItems(items: List<SearchBook>) {
+        if (!AppConfig.isEInkMode) {
+            adapter.setItems(items)
+            return
+        }
+        einkSearchItems = items
+        einkScreenPaginator.setItems(items)
+        val resultGrew = einkPendingLoadStartCount?.let { rawSearchBooks.size > it } == true
+        if (einkNextPageRequested && resultGrew && einkScreenPaginator.canNext) {
+            einkScreenPaginator.nextPage()
+            einkNextPageRequested = false
+            einkPendingLoadStartCount = null
+        }
+        if (einkPageReady) {
+            showEInkSearchPage()
+        } else {
+            // Do not show an empty page before the first child has a measurable height.
+            adapter.setItems(items)
+            scheduleEInkSearchPageMeasure()
+        }
+    }
+
+    private fun scheduleEInkSearchPageMeasure() {
+        if (einkSearchMeasureScheduled) return
+        einkSearchMeasureScheduled = true
+        binding.recyclerView.post {
+            einkSearchMeasureScheduled = false
+            recalculateEInkSearchPageSize()
+        }
+    }
+
+    private fun recalculateEInkSearchPageSize() {
+        if (!AppConfig.isEInkMode || binding.recyclerView.height <= 0) return
+        val layoutManager = binding.recyclerView.layoutManager ?: return
+        if (einkSearchMeasureWidth != binding.recyclerView.width ||
+            einkSearchMeasureHeight != binding.recyclerView.height
+        ) {
+            einkSearchMeasuredItemHeight = 0
+            einkSearchMeasureWidth = binding.recyclerView.width
+            einkSearchMeasureHeight = binding.recyclerView.height
+        }
+        val itemHeight = (0 until binding.recyclerView.childCount)
+            .mapNotNull { binding.recyclerView.getChildAt(it) }
+            .mapNotNull { child ->
+                val position = binding.recyclerView.getChildAdapterPosition(child)
+                val itemCount = binding.recyclerView.adapter?.itemCount ?: 0
+                val decorationHeight = if (position >= 0 && position < itemCount - 1) {
+                    einkSearchSpacingDecoration.spacing
+                } else {
+                    0
+                }
+                (layoutManager.getDecoratedMeasuredHeight(child) - decorationHeight)
+                    .takeIf { it > 0 }
+            }
+            .filter { it > 0 }
+            .maxOrNull() ?: return
+        // The compact E-Ink layout bounds content; do not carry one anomalous
+        // historical item height to every later page.
+        einkSearchMeasuredItemHeight = itemHeight
+        val availableHeight = binding.recyclerView.height -
+                binding.recyclerView.paddingTop - binding.recyclerView.paddingBottom
+        if (availableHeight <= 0) return
+        var capacity = (availableHeight / einkSearchMeasuredItemHeight).coerceAtLeast(1)
+        if (einkPageReady && binding.recyclerView.canScrollVertically(1)) {
+            // A complete page must not depend on scrolling to reveal its last item.
+            capacity = (capacity - 1).coerceAtLeast(1)
+        }
+        val oldPageSize = einkScreenPaginator.itemsPerPage
+        val wasPageReady = einkPageReady
+        einkScreenPaginator.setItemsPerPage(capacity)
+        if (restoredEinkAnchor != null || restoredEinkPage != null) {
+            val anchorIndex = restoredEinkAnchor?.let { anchor ->
+                einkSearchItems.indexOfFirst { it.bookUrl == anchor }
+            } ?: -1
+            if (anchorIndex >= 0) {
+                einkScreenPaginator.goToItemIndex(anchorIndex)
+            } else {
+                einkScreenPaginator.goToPage(restoredEinkPage ?: 1)
+            }
+            restoredEinkAnchor = null
+            restoredEinkPage = null
+        }
+        einkPageReady = true
+        if (!wasPageReady || oldPageSize != capacity) {
+            showEInkSearchPage(scrollToTop = oldPageSize != capacity)
+        } else {
+            updateEInkSearchPageBar()
+        }
+    }
+
+    private fun showEInkSearchPage(scrollToTop: Boolean = false) {
+        if (!AppConfig.isEInkMode || !einkPageReady) return
+        adapter.setItems(einkScreenPaginator.currentItems)
+        updateEInkSearchPageBar()
+        if (scrollToTop && adapter.isNotEmpty()) {
+            binding.recyclerView.scrollToPosition(0)
+        }
+        binding.recyclerView.post { updateEinkSearchItemSpacing() }
+        scheduleEInkSearchPageMeasure()
+    }
+
+    private fun updateEinkSearchItemSpacing() {
+        if (!AppConfig.isEInkMode || binding.recyclerView.height <= 0) return
+        val itemCount = adapter.itemCount
+        val itemHeight = einkSearchMeasuredItemHeight
+        if (itemCount <= 1 || itemHeight <= 0) {
+            if (einkSearchSpacingDecoration.spacing != 0) {
+                einkSearchSpacingDecoration.spacing = 0
+                binding.recyclerView.invalidateItemDecorations()
+            }
+            return
+        }
+        val availableHeight = binding.recyclerView.height -
+                binding.recyclerView.paddingTop - binding.recyclerView.paddingBottom
+        val remainingHeight = (availableHeight - itemHeight * itemCount).coerceAtLeast(0)
+        val spacing = if (itemCount >= einkScreenPaginator.itemsPerPage) {
+            (remainingHeight / (itemCount - 1)).coerceIn(0, 12.dpToPx())
+        } else {
+            4.dpToPx()
+        }
+        if (einkSearchSpacingDecoration.spacing != spacing) {
+            einkSearchSpacingDecoration.spacing = spacing
+            binding.recyclerView.invalidateItemDecorations()
+        }
+    }
+
+    private fun updateEInkSearchPageBar() {
+        val pageBar = binding.einkPagination
+        val show = AppConfig.isEInkMode && einkPageReady && !einkScreenPaginator.isEmpty
+        if (!show) {
+            pageBar.root.gone()
+            updateEinkStopButtonPosition()
+            return
+        }
+        pageBar.root.visible()
+        pageBar.tvPageIndicator.text =
+            "${einkScreenPaginator.currentPage} / ${einkScreenPaginator.totalPages}"
+        pageBar.btnPrevious.isEnabled = !einkPageLoading && einkScreenPaginator.canPrevious
+        pageBar.btnNext.isEnabled = !einkPageLoading &&
+                (einkScreenPaginator.canNext || einkScreenPaginator.needsMore(viewModel.hasMore))
+        val enabledColor = Color.BLACK
+        val disabledColor = Color.DKGRAY
+        pageBar.btnPrevious.setTextColor(if (pageBar.btnPrevious.isEnabled) enabledColor else disabledColor)
+        pageBar.btnNext.setTextColor(if (pageBar.btnNext.isEnabled) enabledColor else disabledColor)
+        pageBar.tvPageIndicator.setTextColor(enabledColor)
+        updateEinkStopButtonPosition()
+        pageBar.root.post {
+            updateEinkStopButtonPosition()
+            updateEinkSearchItemSpacing()
+        }
+    }
+
+    private fun updateEinkStopButtonPosition() {
+        if (!AppConfig.isEInkMode) return
+        val params = binding.fbStartStop.layoutParams as? ViewGroup.MarginLayoutParams ?: return
+        val pageBarHeight = if (binding.einkPagination.root.visibility == VISIBLE) {
+            binding.einkPagination.root.height
+        } else {
+            0
+        }
+        val bottomMargin = resources.getDimensionPixelSize(R.dimen.fab_margin) + pageBarHeight
+        if (params.bottomMargin != bottomMargin) {
+            params.bottomMargin = bottomMargin
+            binding.fbStartStop.layoutParams = params
         }
     }
 

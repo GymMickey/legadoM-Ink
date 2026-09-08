@@ -45,6 +45,9 @@ class ExploreShowViewModel(application: Application) : BaseViewModel(application
 
     /** 各分类的滚动位置缓存（key = exploreUrl, value = adapter position），跨 Fragment 重建恢复 */
     val scrollPositions = ConcurrentHashMap<String, Int>()
+    /** E-Ink 各分类的屏幕页和锚点，避免用滚动位置代替显示页码。 */
+    val screenPages = ConcurrentHashMap<String, Int>()
+    val screenPageAnchors = ConcurrentHashMap<String, String>()
 
     /** 布局模式，按书源持久化 */
     var layoutMode: Int
@@ -175,6 +178,8 @@ class ExploreShowViewModel(application: Application) : BaseViewModel(application
     override fun onCleared() {
         super.onCleared()
         scrollPositions.clear()
+        screenPages.clear()
+        screenPageAnchors.clear()
         ExploreShowFragmentViewModel.clearDataCache()
     }
 }

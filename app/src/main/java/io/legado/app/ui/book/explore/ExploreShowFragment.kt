@@ -24,6 +24,7 @@ import io.legado.app.databinding.ViewLoadMoreBinding
 import io.legado.app.domain.model.BookShelfState
 import io.legado.app.lib.theme.accentColor
 import io.legado.app.lib.theme.EInkVisuals
+import io.legado.app.lib.theme.EInkScreenPaginator
 import io.legado.app.help.config.AppConfig
 import io.legado.app.lib.theme.primaryColor
 import io.legado.app.ui.book.info.BookInfoActivity
@@ -97,6 +98,18 @@ class ExploreShowFragment() : VMBaseFragment<ExploreShowFragmentViewModel>(R.lay
     private val handler = Handler(Looper.getMainLooper())
     private var loadRetryScheduled = false
     private var fullRefresh = true  // 添加fullRefresh标记，参考订阅源实现
+    private val einkScreenPaginator = EInkScreenPaginator<io.legado.app.data.entities.SearchBook>()
+    private var einkPageReady = false
+    private var einkPageLoading = false
+    private var einkNextPageRequested = false
+    private var einkExploreItems: List<io.legado.app.data.entities.SearchBook> = emptyList()
+    private var einkMaxExploreItemHeight = 0
+    private var einkExploreMeasureWidth = -1
+    private var einkExploreMeasureHeight = -1
+    private var einkExploreMeasureLayoutKey = ""
+    private var einkExploreMeasureScheduled = false
+    private var pendingEinkPage: Int? = null
+    private var pendingEinkAnchor: String? = null
 
     /** 书籍底部弹窗状态 */
     private var showBookSheet by mutableStateOf(false)
@@ -116,6 +129,8 @@ class ExploreShowFragment() : VMBaseFragment<ExploreShowFragmentViewModel>(R.lay
 
     override fun onFragmentCreated(view: View, savedInstanceState: Bundle?) {
         viewModel.init(arguments, activityViewModel.bookSource)
+        pendingEinkPage = activityViewModel.screenPages[viewModel.stableExploreUrl]
+        pendingEinkAnchor = activityViewModel.screenPageAnchors[viewModel.stableExploreUrl]
         initView()
         initData()
     }
@@ -124,6 +139,10 @@ class ExploreShowFragment() : VMBaseFragment<ExploreShowFragmentViewModel>(R.lay
      * 保存 RecyclerView 当前滚动位置到 Activity ViewModel，跨 Fragment 重建恢复
      */
     private fun saveScrollToViewModel() {
+        if (AppConfig.isEInkMode) {
+            saveEInkScreenState()
+            return
+        }
         val lm = binding.recyclerView.layoutManager ?: return
         val pos = when (lm) {
             is LinearLayoutManager -> lm.findFirstVisibleItemPosition().coerceAtLeast(0)
@@ -141,7 +160,42 @@ class ExploreShowFragment() : VMBaseFragment<ExploreShowFragmentViewModel>(R.lay
 
     private fun initView() = binding.run {
         recyclerView.setEdgeEffectColor(primaryColor)
-        recyclerView.applyNavigationBarPadding()
+        if (AppConfig.isEInkMode) {
+            einkPagination.root.applyNavigationBarPadding()
+        } else {
+            recyclerView.applyNavigationBarPadding()
+        }
+        einkPagination.btnPrevious.setOnClickListener {
+            if (einkScreenPaginator.previousPage()) {
+                showEInkExplorePage(scrollToTop = true)
+            }
+        }
+        einkPagination.btnNext.setOnClickListener {
+            when {
+                einkScreenPaginator.nextPage() -> showEInkExplorePage(scrollToTop = true)
+                einkScreenPaginator.needsMore(loadMoreView.hasMore) &&
+                        !einkPageLoading && !viewModel.isLoading -> {
+                    einkPageLoading = true
+                    einkNextPageRequested = true
+                    loadMoreView.hasMore()
+                    loadMoreView.startLoad()
+                    updateEinkExplorePageBar()
+                    viewModel.loadMore()
+                }
+            }
+        }
+        einkPagination.root.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+            if (AppConfig.isEInkMode && einkPageReady) {
+                updateEinkExploreRecyclerInset()
+                scheduleEinkExplorePageMeasure()
+            }
+        }
+        recyclerView.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+            if (AppConfig.isEInkMode && einkPageReady) {
+                updateEinkExploreRecyclerInset()
+                scheduleEinkExplorePageMeasure()
+            }
+        }
 
         // 设置布局管理器
         applyLayoutManager()
@@ -153,6 +207,11 @@ class ExploreShowFragment() : VMBaseFragment<ExploreShowFragmentViewModel>(R.lay
         }
         adapter.addHeaderView {
             ViewLoadMoreBinding.bind(loadMoreViewTop)
+        }
+
+        if (AppConfig.isEInkMode) {
+            loadMoreView.visibility = View.GONE
+            loadMoreViewTop.visibility = View.GONE
         }
 
         loadMoreView.startLoad()
@@ -171,6 +230,7 @@ class ExploreShowFragment() : VMBaseFragment<ExploreShowFragmentViewModel>(R.lay
         recyclerView.addOnScrollListener(object : RecyclerView.OnScrollListener() {
             override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
                 super.onScrolled(recyclerView, dx, dy)
+                if (AppConfig.isEInkMode) return
                 if (!recyclerView.canScrollVertically(1)) {
                     scrollToBottom()
                 } else if (!recyclerView.canScrollVertically(-1) && dy < 0) {
@@ -213,6 +273,11 @@ class ExploreShowFragment() : VMBaseFragment<ExploreShowFragmentViewModel>(R.lay
             if (!hasMore) {
                 loadMoreView.noMore()
             }
+            if (AppConfig.isEInkMode) {
+                einkPageLoading = false
+                if (!hasMore) einkNextPageRequested = false
+                updateEinkExplorePageBar()
+            }
         }
         viewModel.pageLiveData.observe(viewLifecycleOwner) { page ->
             (activity as? ExploreShowActivity)?.updatePageMenu(page, showPageMenu())
@@ -234,6 +299,7 @@ class ExploreShowFragment() : VMBaseFragment<ExploreShowFragmentViewModel>(R.lay
     }
 
     private fun scrollToBottom(forceLoad: Boolean = false) {
+        if (AppConfig.isEInkMode) return
         if (viewModel.isLoading) return
         fullRefresh = false  // 滚动加载时设置为false，参考订阅源实现
         
@@ -252,6 +318,7 @@ class ExploreShowFragment() : VMBaseFragment<ExploreShowFragmentViewModel>(R.lay
     }
 
     private fun scrollToTop(forceLoad: Boolean = false) {
+        if (AppConfig.isEInkMode) return
         if (viewModel.isLoading) return
         if ((oldPage > 1 && !loadMoreView.isLoading && !loadMoreViewTop.isLoading) || forceLoad) {
             loadMoreViewTop.hasMore()
@@ -269,7 +336,175 @@ class ExploreShowFragment() : VMBaseFragment<ExploreShowFragmentViewModel>(R.lay
         }, delayMs)
     }
 
+    private fun saveEInkScreenState() {
+        if (!einkPageReady || einkScreenPaginator.isEmpty) return
+        activityViewModel.screenPages[viewModel.stableExploreUrl] = einkScreenPaginator.currentPage
+        einkScreenPaginator.currentItems.firstOrNull()?.bookUrl?.let { anchor ->
+            activityViewModel.screenPageAnchors[viewModel.stableExploreUrl] = anchor
+        }
+    }
+
+    private fun resetEinkExplorePagination() {
+        if (!AppConfig.isEInkMode) return
+        einkPageReady = false
+        einkPageLoading = false
+        einkNextPageRequested = false
+        einkExploreItems = emptyList()
+        einkMaxExploreItemHeight = 0
+        einkExploreMeasureWidth = -1
+        einkExploreMeasureHeight = -1
+        einkExploreMeasureLayoutKey = ""
+        pendingEinkPage = null
+        pendingEinkAnchor = null
+        einkScreenPaginator.setItems(emptyList(), resetToFirst = true)
+        adapter.setItems(emptyList())
+        binding.einkPagination.root.visibility = View.GONE
+        updateEinkExploreRecyclerInset()
+    }
+
+    private fun updateEinkExploreItems(books: List<io.legado.app.data.entities.SearchBook>) {
+        einkExploreItems = books
+        einkScreenPaginator.setItems(books)
+        if (einkNextPageRequested && einkScreenPaginator.canNext) {
+            einkScreenPaginator.nextPage()
+            einkNextPageRequested = false
+        }
+        if (einkPageReady) {
+            showEInkExplorePage()
+        } else {
+            // Keep the initial result visible until a real child height is available.
+            adapter.setItems(books)
+            scheduleEinkExplorePageMeasure()
+        }
+    }
+
+    private fun scheduleEinkExplorePageMeasure() {
+        if (einkExploreMeasureScheduled) return
+        einkExploreMeasureScheduled = true
+        binding.recyclerView.post {
+            einkExploreMeasureScheduled = false
+            recalculateEinkExplorePageSize()
+        }
+    }
+
+    private fun recalculateEinkExplorePageSize() {
+        if (!AppConfig.isEInkMode || binding.recyclerView.height <= 0) return
+        val layoutManager = binding.recyclerView.layoutManager ?: return
+        val layoutKey = "${activityViewModel.layoutMode}:" + when (layoutManager) {
+            is GridLayoutManager -> "grid:${layoutManager.spanCount}"
+            is StaggeredGridLayoutManager -> "waterfall:${layoutManager.spanCount}"
+            else -> "list"
+        }
+        if (einkExploreMeasureWidth != binding.recyclerView.width ||
+            einkExploreMeasureHeight != binding.recyclerView.height ||
+            einkExploreMeasureLayoutKey != layoutKey
+        ) {
+            einkMaxExploreItemHeight = 0
+            einkExploreMeasureWidth = binding.recyclerView.width
+            einkExploreMeasureHeight = binding.recyclerView.height
+            einkExploreMeasureLayoutKey = layoutKey
+        }
+        val itemHeight = (0 until binding.recyclerView.childCount)
+            .mapNotNull { binding.recyclerView.getChildAt(it) }
+            .map { layoutManager.getDecoratedMeasuredHeight(it) }
+            .filter { it > 0 }
+            .maxOrNull() ?: return
+        einkMaxExploreItemHeight = maxOf(einkMaxExploreItemHeight, itemHeight)
+        if (einkMaxExploreItemHeight <= 0) return
+        val availableHeight = binding.recyclerView.height -
+                binding.recyclerView.paddingTop - binding.recyclerView.paddingBottom
+        if (availableHeight <= 0) return
+        var rows = (availableHeight / einkMaxExploreItemHeight).coerceAtLeast(1)
+        val columns = when (layoutManager) {
+            is GridLayoutManager -> layoutManager.spanCount
+            is StaggeredGridLayoutManager -> layoutManager.spanCount
+            else -> 1
+        }
+        val wasPageReady = einkPageReady
+        if (wasPageReady && binding.recyclerView.canScrollVertically(1)) {
+            // Keep a complete visible page; for grids this removes one complete row.
+            rows = (rows - 1).coerceAtLeast(1)
+        }
+        val capacity = (rows * columns).coerceAtLeast(1)
+        val oldPageSize = einkScreenPaginator.itemsPerPage
+        einkScreenPaginator.setItemsPerPage(capacity)
+        if (pendingEinkAnchor != null || pendingEinkPage != null) {
+            val anchorIndex = pendingEinkAnchor?.let { anchor ->
+                einkExploreItems.indexOfFirst { it.bookUrl == anchor }
+            } ?: -1
+            if (anchorIndex >= 0) {
+                einkScreenPaginator.goToItemIndex(anchorIndex)
+            } else {
+                einkScreenPaginator.goToPage(pendingEinkPage ?: 1)
+            }
+            pendingEinkAnchor = null
+            pendingEinkPage = null
+        }
+        einkPageReady = true
+        if (!wasPageReady || oldPageSize != capacity) {
+            showEInkExplorePage(scrollToTop = oldPageSize != capacity)
+        } else {
+            updateEinkExplorePageBar()
+        }
+    }
+
+    private fun showEInkExplorePage(scrollToTop: Boolean = false) {
+        if (!AppConfig.isEInkMode || !einkPageReady) return
+        adapter.setItems(einkScreenPaginator.currentItems)
+        updateEinkExplorePageBar()
+        if (scrollToTop && adapter.isNotEmpty()) {
+            binding.recyclerView.scrollToPosition(0)
+        }
+        scheduleEinkExplorePageMeasure()
+    }
+
+    private fun updateEinkExplorePageBar() {
+        val pageBar = binding.einkPagination
+        val show = AppConfig.isEInkMode && einkPageReady && !einkScreenPaginator.isEmpty
+        if (!show) {
+            pageBar.root.visibility = View.GONE
+            updateEinkExploreRecyclerInset()
+            return
+        }
+        pageBar.root.visibility = View.VISIBLE
+        pageBar.tvPageIndicator.text =
+            "${einkScreenPaginator.currentPage} / ${einkScreenPaginator.totalPages}"
+        val canInteract = !einkPageLoading && !viewModel.isLoading
+        pageBar.btnPrevious.isEnabled = canInteract && einkScreenPaginator.canPrevious
+        pageBar.btnNext.isEnabled = canInteract &&
+                (einkScreenPaginator.canNext || einkScreenPaginator.needsMore(loadMoreView.hasMore))
+        val enabledColor = android.graphics.Color.BLACK
+        val disabledColor = android.graphics.Color.DKGRAY
+        pageBar.btnPrevious.setTextColor(if (pageBar.btnPrevious.isEnabled) enabledColor else disabledColor)
+        pageBar.btnNext.setTextColor(if (pageBar.btnNext.isEnabled) enabledColor else disabledColor)
+        pageBar.tvPageIndicator.setTextColor(enabledColor)
+        pageBar.root.post { updateEinkExploreRecyclerInset() }
+    }
+
+    private fun updateEinkExploreRecyclerInset() {
+        if (!AppConfig.isEInkMode || !isAdded) return
+        val pageBarHeight = if (binding.einkPagination.root.visibility == View.VISIBLE) {
+            binding.einkPagination.root.height
+        } else {
+            0
+        }
+        binding.recyclerView.setPadding(
+            binding.recyclerView.paddingLeft,
+            binding.recyclerView.paddingTop,
+            binding.recyclerView.paddingRight,
+            pageBarHeight
+        )
+    }
+
     private fun upData(books: List<io.legado.app.data.entities.SearchBook>) {
+        if (AppConfig.isEInkMode) {
+            updateEinkExploreItems(books)
+            loadMoreView.stopLoad()
+            _blockedCount = viewModel.getBlockedCount()
+            updateBlockProgressChip()
+            (activity as? ExploreShowActivity)?.updateBlockedCount()
+            return
+        }
         // stopLoad() 延迟到数据更新之后调用，防止 RecyclerView 布局过程中的
         // 滚动回调触发 scrollToBottom() 时，isLoading 已被过早复位导致重复加载
         if (books.isEmpty() && adapter.isEmpty()) {
@@ -358,6 +593,7 @@ class ExploreShowFragment() : VMBaseFragment<ExploreShowFragmentViewModel>(R.lay
             .show { targetPage ->
                 if (targetPage != currentPage) {
                     fullRefresh = true  // 页数跳转时设置为true，参考订阅源实现
+                    resetEinkExplorePagination()
                     
                     // loadMoreViewTop已经在initView中添加为header，不需要重复添加
                     // 只需要根据目标页数控制其显示状态
@@ -532,7 +768,7 @@ class ExploreShowFragment() : VMBaseFragment<ExploreShowFragmentViewModel>(R.lay
         val count = activityViewModel.columnCount
         
         // 保存当前滚动位置，切换布局后恢复
-        val savedPosition = saveScrollPosition()
+        val savedPosition = if (AppConfig.isEInkMode) 0 else saveScrollPosition()
         
         // 清除旧的ItemDecoration和padding，避免重复添加
         while (binding.recyclerView.itemDecorationCount > 0) {
@@ -600,6 +836,12 @@ class ExploreShowFragment() : VMBaseFragment<ExploreShowFragmentViewModel>(R.lay
                     is LinearLayoutManager -> lm.scrollToPositionWithOffset(savedPosition, 0)
                     is StaggeredGridLayoutManager -> lm.scrollToPositionWithOffset(savedPosition, 0)
                 }
+            }
+        }
+        if (AppConfig.isEInkMode) {
+            binding.recyclerView.post {
+                updateEinkExploreRecyclerInset()
+                scheduleEinkExplorePageMeasure()
             }
         }
     }

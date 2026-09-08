@@ -10,4 +10,11 @@
         android:layout_height="match_parent"
         android:clipToPadding="false" />
 
+    <include
+        android:id="@+id/eink_pagination"
+        layout="@layout/view_eink_pagination"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom" />
+
 </FrameLayout>

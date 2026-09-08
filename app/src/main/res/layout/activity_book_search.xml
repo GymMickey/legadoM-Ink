@@ -42,7 +42,7 @@
         android:id="@+id/content_view"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintBottom_toTopOf="@id/eink_pagination"
         app:layout_constraintTop_toBottomOf="@id/tv_search_progress">
 
         <androidx.recyclerview.widget.RecyclerView
@@ -53,6 +53,13 @@
             tools:listitem="@layout/item_search" />
 
     </io.legado.app.ui.widget.dynamiclayout.DynamicFrameLayout>
+
+    <include
+        android:id="@+id/eink_pagination"
+        layout="@layout/view_eink_pagination"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:layout_constraintBottom_toBottomOf="parent" />
 
     <LinearLayout
         android:id="@+id/ll_input_help"

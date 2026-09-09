@@ -557,14 +557,17 @@ class ReadView(context: Context, attrs: AttributeSet) :
      * 翻页动画完成后事件
      * @param direction 翻页方向
      */
-    fun fillPage(direction: PageDirection): Boolean {
+    fun fillPage(
+        direction: PageDirection,
+        beforeContentUpdate: (() -> Unit)? = null
+    ): Boolean {
         return when (direction) {
             PageDirection.PREV -> {
-                pageFactory.moveToPrev(true)
+                pageFactory.moveToPrev(true, beforeContentUpdate)
             }
 
             PageDirection.NEXT -> {
-                pageFactory.moveToNext(true)
+                pageFactory.moveToNext(true, beforeContentUpdate)
             }
 
             else -> false

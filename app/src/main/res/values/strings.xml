@@ -1250,6 +1250,12 @@
     <string name="ireader_page_h_speed_slow">Slow</string>
     <string name="ireader_page_h_speed_medium">Medium</string>
     <string name="ireader_page_h_speed_fast">Fast</string>
+    <string name="ireader_page_h_direction_title">Wave direction</string>
+    <string name="ireader_page_h_direction_auto">Automatic (follows page direction)</string>
+    <string name="ireader_page_h_direction_reverse">Reverse</string>
+    <string name="ireader_page_h_direction_auto_short">Automatic</string>
+    <string name="ireader_page_h_direction_reverse_short">Reverse</string>
+    <string name="ireader_page_h_config_summary">%1$s · %2$s</string>
     <string name="ireader_page_h_unsupported">This device or firmware does not support iReader PAGE_H</string>
     <string name="ireader_page_h_requires_no_anim">Set page animation to None first</string>
     <string name="check_selected_interval">Select zones</string>

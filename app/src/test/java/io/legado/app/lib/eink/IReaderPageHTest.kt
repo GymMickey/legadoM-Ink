@@ -24,6 +24,18 @@ class IReaderPageHTest {
     }
 
     @Test
+    fun reverseDirectionSwapsNextAndPreviousMappings() {
+        assertEquals(2, IReaderPageH.calculateEffect(true, 0, 2, reverse = true))
+        assertEquals(3, IReaderPageH.calculateEffect(true, 1, 2, reverse = true))
+        assertEquals(1, IReaderPageH.calculateEffect(true, 2, 2, reverse = true))
+        assertEquals(4, IReaderPageH.calculateEffect(true, 3, 2, reverse = true))
+        assertEquals(1, IReaderPageH.calculateEffect(false, 0, 2, reverse = true))
+        assertEquals(4, IReaderPageH.calculateEffect(false, 1, 2, reverse = true))
+        assertEquals(2, IReaderPageH.calculateEffect(false, 2, 2, reverse = true))
+        assertEquals(3, IReaderPageH.calculateEffect(false, 3, 2, reverse = true))
+    }
+
+    @Test
     fun speedBitsBuildExpectedEffect() {
         assertEquals(129, IReaderPageH.calculateEffect(true, 0, 0))
         assertEquals(65, IReaderPageH.calculateEffect(true, 0, 1))

@@ -255,6 +255,53 @@
 
     </RadioGroup>
 
+    <LinearLayout
+        android:id="@+id/layout_page_h_row"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingHorizontal="16dp"
+        android:paddingVertical="4dp"
+        android:visibility="gone">
+
+        <LinearLayout
+            android:id="@+id/layout_page_h_info"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center_vertical"
+            android:minHeight="48dp"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/tv_page_h_title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/ireader_page_h_title"
+                android:textSize="14sp" />
+
+            <TextView
+                android:id="@+id/tv_page_h_summary"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:alpha="0.75"
+                android:textSize="12sp" />
+
+        </LinearLayout>
+
+        <androidx.appcompat.widget.SwitchCompat
+            android:id="@+id/switch_page_h"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:minWidth="0dp"
+            android:minHeight="0dp"
+            android:layout_marginStart="8dp" />
+
+    </LinearLayout>
+
     <View
         android:id="@+id/vw_bg_fg1"
         android:layout_width="match_parent"

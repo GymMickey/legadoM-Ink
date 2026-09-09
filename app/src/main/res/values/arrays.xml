@@ -135,6 +135,11 @@
         <item>@string/ireader_page_h_speed_fast</item>
     </string-array>
 
+    <string-array name="ireader_page_h_direction_title">
+        <item>@string/ireader_page_h_direction_auto</item>
+        <item>@string/ireader_page_h_direction_reverse</item>
+    </string-array>
+
 	<string-array name="icon_names" tools:ignore="Typos">
 		<item>iconMain</item>
 		<item>icon1</item>

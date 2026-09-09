@@ -1241,10 +1241,16 @@
     <string name="key_page_anim_speed_dialog_title">按键翻页速度(ms)</string>
     <string name="ireader_page_h_title">掌阅水波纹翻页（实验性）</string>
     <string name="ireader_page_h_summary">仅在墨水屏无动画翻页时使用 PAGE_H</string>
-    <string name="ireader_page_h_speed_title">掌阅 PAGE_H 速度</string>
+    <string name="ireader_page_h_speed_title">水波纹速度</string>
     <string name="ireader_page_h_speed_slow">慢速</string>
     <string name="ireader_page_h_speed_medium">中速</string>
     <string name="ireader_page_h_speed_fast">快速</string>
+    <string name="ireader_page_h_direction_title">水波纹方向</string>
+    <string name="ireader_page_h_direction_auto">自动（跟随翻页方向）</string>
+    <string name="ireader_page_h_direction_reverse">反向</string>
+    <string name="ireader_page_h_direction_auto_short">自动方向</string>
+    <string name="ireader_page_h_direction_reverse_short">反向</string>
+    <string name="ireader_page_h_config_summary">%1$s · %2$s</string>
     <string name="ireader_page_h_unsupported">当前设备或固件不支持掌阅 PAGE_H</string>
     <string name="ireader_page_h_requires_no_anim">请先将翻页动画设置为无动画</string>
     <string name="example">示例</string>

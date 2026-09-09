@@ -181,6 +181,7 @@ object PreferKey {
     /** 按键翻页动画速度(毫秒) */
     const val keyPageAnimSpeed = "keyPageAnimSpeed"
     const val iReaderPageHEnabled = "iReaderPageHEnabled"
+    const val iReaderPageHDirection = "iReaderPageHDirection"
     const val iReaderPageHSpeed = "iReaderPageHSpeed"
     const val showAddToShelfAlert = "showAddToShelfAlert"
     const val ignoreAudioFocus = "ignoreAudioFocus"

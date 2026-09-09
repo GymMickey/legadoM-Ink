@@ -872,6 +872,15 @@ object AppConfig : SharedPreferences.OnSharedPreferenceChangeListener {
             appCtx.putPrefBoolean(PreferKey.iReaderPageHEnabled, value)
         }
 
+    var iReaderPageHDirection: Int
+        get() = appCtx.getPrefString(PreferKey.iReaderPageHDirection, "0")
+            ?.toIntOrNull()
+            ?.coerceIn(0, 1)
+            ?: 0
+        set(value) {
+            appCtx.putPrefString(PreferKey.iReaderPageHDirection, value.coerceIn(0, 1).toString())
+        }
+
     var iReaderPageHSpeed: Int
         get() = appCtx.getPrefString(PreferKey.iReaderPageHSpeed, "1")
             ?.toIntOrNull()

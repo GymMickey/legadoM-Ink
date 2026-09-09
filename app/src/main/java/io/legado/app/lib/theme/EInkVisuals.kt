@@ -12,6 +12,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import io.legado.app.R
 import io.legado.app.help.config.AppConfig
+import io.legado.app.lib.theme.view.ThemeRadioNoButton
 
 /**
  * Small, opt-in visual adjustments shared by the E-Ink target pages.
@@ -73,6 +74,8 @@ object EInkVisuals {
 
     private fun normalizeTextColor(view: View) {
         val textView = view as? TextView ?: return
+        // ThemeRadioNoButton owns checked/unchecked colors for all page animation options.
+        if (textView is ThemeRadioNoButton) return
         val color = textView.textColors.defaultColor
         if (Color.red(color) > 8 || Color.green(color) > 8 || Color.blue(color) > 8) return
 

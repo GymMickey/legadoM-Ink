@@ -50,7 +50,10 @@ class TextPageFactory(dataSource: DataSource) : PageFactory<TextPage>(dataSource
         } ?: ReadBook.setPageIndex(0)
     }
 
-    override fun moveToNext(upContent: Boolean): Boolean = with(dataSource) {
+    override fun moveToNext(upContent: Boolean): Boolean = moveToNext(upContent, null)
+
+    fun moveToNext(upContent: Boolean, beforeContentUpdate: (() -> Unit)?): Boolean =
+        with(dataSource) {
         return if (hasNext()) {
             val chapter = currentChapter
             val pageIndex = pageIndex
@@ -58,11 +61,19 @@ class TextPageFactory(dataSource: DataSource) : PageFactory<TextPage>(dataSource
                 if (chapter == null && nextChapter == null) {
                     return@with false
                 }
-                ReadBook.moveToNextChapter(upContent, false)
+                if (!ReadBook.moveToNextChapter(
+                        upContent = upContent,
+                        upContentInPlace = false,
+                        beforeContentUpdate = beforeContentUpdate
+                    )
+                ) {
+                    return@with false
+                }
             } else {
                 if (pageIndex < 0) {
                     return@with false
                 }
+                beforeContentUpdate?.invoke()
                 ReadBook.setPageIndex(pageIndex.plus(1))
             }
             if (upContent) upContent(resetPageOffset = false)
@@ -71,7 +82,10 @@ class TextPageFactory(dataSource: DataSource) : PageFactory<TextPage>(dataSource
             false
     }
 
-    override fun moveToPrev(upContent: Boolean): Boolean = with(dataSource) {
+    override fun moveToPrev(upContent: Boolean): Boolean = moveToPrev(upContent, null)
+
+    fun moveToPrev(upContent: Boolean, beforeContentUpdate: (() -> Unit)?): Boolean =
+        with(dataSource) {
         return if (hasPrev()) {
             if (pageIndex <= 0) {
                 if (currentChapter == null && prevChapter == null) {
@@ -80,11 +94,19 @@ class TextPageFactory(dataSource: DataSource) : PageFactory<TextPage>(dataSource
                 if (prevChapter != null && prevChapter?.isCompleted == false) {
                     return@with false
                 }
-                ReadBook.moveToPrevChapter(upContent, upContentInPlace = false)
+                if (!ReadBook.moveToPrevChapter(
+                        upContent = upContent,
+                        upContentInPlace = false,
+                        beforeContentUpdate = beforeContentUpdate
+                    )
+                ) {
+                    return@with false
+                }
             } else {
                 if (currentChapter == null) {
                     return@with false
                 }
+                beforeContentUpdate?.invoke()
                 ReadBook.setPageIndex(pageIndex.minus(1))
             }
             if (upContent) upContent(resetPageOffset = false)

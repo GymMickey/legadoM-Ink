@@ -12,19 +12,22 @@ import io.legado.app.ui.book.read.page.entities.PageDirection
 class NoAnimPageDelegate(readView: ReadView) : HorizontalPageDelegate(readView) {
 
     override fun onAnimStart(animationSpeed: Int) {
-        if (!isCancel) {
-            val pageChanged = readView.fillPage(mDirection)
-            if (pageChanged
-                && AppConfig.isEInkMode
+        val direction = mDirection
+        if (!isCancel && direction != PageDirection.NONE) {
+            val usePageH = AppConfig.isEInkMode
                 && AppConfig.iReaderPageHEnabled
                 && ReadBook.pageAnim() == PageAnim.noAnim
                 && IReaderPageH.isAvailable()
-            ) {
-                IReaderPageH.prepare(
-                    forward = mDirection == PageDirection.NEXT,
-                    rotation = readView.display?.rotation ?: Surface.ROTATION_0,
-                    speedIndex = AppConfig.iReaderPageHSpeed
-                )
+
+            readView.fillPage(direction) {
+                if (usePageH) {
+                    IReaderPageH.prepare(
+                        forward = direction == PageDirection.NEXT,
+                        rotation = readView.display?.rotation ?: Surface.ROTATION_0,
+                        speedIndex = AppConfig.iReaderPageHSpeed,
+                        reverse = AppConfig.iReaderPageHDirection == 1
+                    )
+                }
             }
         }
         stopScroll()

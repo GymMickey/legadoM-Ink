@@ -6,6 +6,7 @@ import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
+import androidx.appcompat.app.AlertDialog
 import androidx.core.view.get
 import com.github.liuyueyi.quick.transfer.constants.TransType
 import io.legado.app.R
@@ -13,11 +14,14 @@ import io.legado.app.base.BaseDialogFragment
 import io.legado.app.base.adapter.ItemViewHolder
 import io.legado.app.base.adapter.RecyclerAdapter
 import io.legado.app.constant.EventBus
+import io.legado.app.constant.PageAnim
 import io.legado.app.databinding.DialogReadBookStyleBinding
 import io.legado.app.databinding.ItemReadStyleBinding
 import io.legado.app.help.config.AppConfig
 import io.legado.app.help.config.ReadBookConfig
 import io.legado.app.lib.dialogs.selector
+import io.legado.app.lib.eink.IReaderPageH
+import io.legado.app.lib.theme.EInkVisuals
 import io.legado.app.lib.theme.accentColor
 import io.legado.app.lib.theme.bottomBackground
 import io.legado.app.lib.theme.getPrimaryTextColor
@@ -85,6 +89,7 @@ class ReadStyleDialog : BaseDialogFragment(R.layout.dialog_read_book_style),
         dsbParagraphSpacing.valueFormat = { (it / 10f).toString() }
         styleAdapter = StyleAdapter()
         rvStyle.adapter = styleAdapter
+        updatePageHRow()
         styleAdapter.addFooterView {
             ItemReadStyleBinding.inflate(layoutInflater, it, false).apply {
                 ivStyle.setPadding(6.dpToPx(), 6.dpToPx(), 6.dpToPx(), 6.dpToPx())
@@ -138,6 +143,12 @@ class ReadStyleDialog : BaseDialogFragment(R.layout.dialog_read_book_style),
             ReadBookConfig.pageAnim = binding.rgPageAnim.getIndexById(checkedId)
             callBack?.upPageAnim()
             ReadBook.loadContent(false)
+            updatePageHRow()
+        }
+        layoutPageHInfo.setOnClickListener { showPageHOptions() }
+        switchPageH.setOnCheckedChangeListener { _, isChecked ->
+            AppConfig.iReaderPageHEnabled = isChecked
+            updatePageHRow()
         }
         cbShareLayout.setOnCheckedChangeListener { _, isChecked ->
             ReadBookConfig.shareLayout = isChecked
@@ -196,6 +207,96 @@ class ReadStyleDialog : BaseDialogFragment(R.layout.dialog_read_book_style),
             dsbLineSize.progress = it.lineSpacingExtra
             dsbParagraphSpacing.progress = it.paragraphSpacing
         }
+    }
+
+    private fun updatePageHRow(): Unit = binding.run {
+        val visible = AppConfig.isEInkMode
+            && ReadBook.pageAnim() == PageAnim.noAnim
+            && IReaderPageH.isAvailable()
+        layoutPageHRow.visibility = if (visible) View.VISIBLE else View.GONE
+        if (!visible) return@run
+        tvPageHSummary.text = getString(
+            R.string.ireader_page_h_config_summary,
+            pageHDirectionSummary(),
+            pageHSpeedSummary()
+        )
+        switchPageH.setOnCheckedChangeListener(null)
+        switchPageH.isChecked = AppConfig.iReaderPageHEnabled
+        switchPageH.setOnCheckedChangeListener { _, isChecked ->
+            AppConfig.iReaderPageHEnabled = isChecked
+            updatePageHRow()
+        }
+    }
+
+    private fun pageHDirectionSummary(): String {
+        return if (AppConfig.iReaderPageHDirection == 1) {
+            getString(R.string.ireader_page_h_direction_reverse_short)
+        } else {
+            getString(R.string.ireader_page_h_direction_auto_short)
+        }
+    }
+
+    private fun pageHSpeedSummary(): String {
+        return resources.getStringArray(R.array.ireader_page_h_speed_title)
+            .getOrElse(AppConfig.iReaderPageHSpeed) {
+                getString(R.string.ireader_page_h_speed_medium)
+            }
+    }
+
+    private fun showPageHOptions() {
+        val content = layoutInflater.inflate(R.layout.dialog_ireader_page_h_options, null, false)
+        val directionValue = content.findViewById<android.widget.TextView>(R.id.page_h_direction_value)
+        val speedValue = content.findViewById<android.widget.TextView>(R.id.page_h_speed_value)
+
+        fun updateValues() {
+            directionValue.text = pageHDirectionSummary()
+            speedValue.text = pageHSpeedSummary()
+            binding.tvPageHSummary.text = getString(
+                R.string.ireader_page_h_config_summary,
+                pageHDirectionSummary(),
+                pageHSpeedSummary()
+            )
+        }
+
+        updateValues()
+        content.findViewById<View>(R.id.page_h_direction_row).setOnClickListener {
+            requireContext().selector(
+                getString(R.string.ireader_page_h_direction_title),
+                resources.getStringArray(R.array.ireader_page_h_direction_title).toList()
+            ) { _, index ->
+                AppConfig.iReaderPageHDirection = index
+                updateValues()
+            }
+        }
+        content.findViewById<View>(R.id.page_h_speed_row).setOnClickListener {
+            requireContext().selector(
+                getString(R.string.ireader_page_h_speed_title),
+                resources.getStringArray(R.array.ireader_page_h_speed_title).toList()
+            ) { _, index ->
+                AppConfig.iReaderPageHSpeed = index
+                updateValues()
+            }
+        }
+
+        val dialog = AlertDialog.Builder(requireContext())
+            .setTitle(R.string.ireader_page_h_title)
+            .setView(content)
+            .setNegativeButton(R.string.cancel, null)
+            .create()
+        dialog.setOnShowListener {
+            if (AppConfig.isEInkMode) {
+                dialog.window?.run {
+                    clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
+                    val attr = attributes
+                    attr.dimAmount = 0f
+                    attr.windowAnimations = 0
+                    attributes = attr
+                    setBackgroundDrawableResource(R.drawable.bg_eink_border_dialog)
+                }
+                EInkVisuals.applyDialog(content)
+            }
+        }
+        dialog.show()
     }
 
     override val curFontPath: String

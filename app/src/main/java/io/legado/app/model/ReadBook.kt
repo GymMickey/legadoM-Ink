@@ -411,8 +411,13 @@ object ReadBook : CoroutineScope by MainScope() {
         return hasPrevPage
     }
 
-    fun moveToNextChapter(upContent: Boolean, upContentInPlace: Boolean = true): Boolean {
+    fun moveToNextChapter(
+        upContent: Boolean,
+        upContentInPlace: Boolean = true,
+        beforeContentUpdate: (() -> Unit)? = null
+    ): Boolean {
         if (durChapterIndex < simulatedChapterSize - 1) {
+            beforeContentUpdate?.invoke()
             durChapterPos = 0
             durChapterIndex++
             clearExpiredChapterLoadingJob()
@@ -473,9 +478,11 @@ object ReadBook : CoroutineScope by MainScope() {
     fun moveToPrevChapter(
         upContent: Boolean,
         toLast: Boolean = true,
-        upContentInPlace: Boolean = true
+        upContentInPlace: Boolean = true,
+        beforeContentUpdate: (() -> Unit)? = null
     ): Boolean {
         if (durChapterIndex > 0) {
+            beforeContentUpdate?.invoke()
             durChapterPos = if (toLast) prevTextChapter?.lastReadLength ?: Int.MAX_VALUE else 0
             durChapterIndex--
             clearExpiredChapterLoadingJob()

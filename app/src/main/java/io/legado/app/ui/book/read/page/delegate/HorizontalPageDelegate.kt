@@ -12,6 +12,8 @@ abstract class HorizontalPageDelegate(readView: ReadView) : PageDelegate(readVie
     protected var prevRecorder = CanvasRecorderFactory.create()
     protected var nextRecorder = CanvasRecorderFactory.create()
     private val slopSquare get() = readView.pageSlopSquare2
+    protected open val invalidateDuringSwipe: Boolean = true
+    protected open val resetStartPointDuringSwipe: Boolean = true
 
     override fun setDirection(direction: PageDirection) {
         super.setDirection(direction)
@@ -98,14 +100,16 @@ abstract class HorizontalPageDelegate(readView: ReadView) : PageDelegate(readVie
                     }
                     setDirection(PageDirection.NEXT)
                 }
-                readView.setStartPoint(event.x, event.y, false)
+                if (resetStartPointDuringSwipe) {
+                    readView.setStartPoint(event.x, event.y, false)
+                }
             }
         }
         if (isMoved) {
             isCancel = if (mDirection == PageDirection.NEXT) sumX > lastX else sumX < lastX
             isRunning = true
             //设置触摸点
-            readView.setTouchPoint(sumX, sumY)
+            readView.setTouchPoint(sumX, sumY, invalidateDuringSwipe)
         }
     }
 

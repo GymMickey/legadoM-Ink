@@ -2,6 +2,7 @@ package io.legado.app.ui.book.explore
 
 import android.content.Context
 import android.os.Bundle
+import android.text.TextUtils
 import android.view.ViewGroup
 import android.widget.ImageView
 import androidx.core.view.isVisible
@@ -17,6 +18,7 @@ import io.legado.app.help.config.AppConfig
 import io.legado.app.help.glide.CoverLoader
 import io.legado.app.lib.theme.EInkVisuals
 import com.google.android.material.imageview.ShapeableImageView
+import io.legado.app.utils.dpToPx
 import io.legado.app.utils.gone
 import io.legado.app.utils.visible
 
@@ -61,7 +63,59 @@ class ExploreShowAdapter(context: Context, val callBack: CallBack) :
     }
 
     override fun getViewBinding(parent: ViewGroup): ItemSearchBinding {
-        return ItemSearchBinding.inflate(inflater, parent, false)
+        return ItemSearchBinding.inflate(inflater, parent, false).also {
+            if (AppConfig.isEInkMode && layoutMode == VIEW_TYPE_LIST) {
+                applyEInkCompactLayout(it)
+            }
+        }
+    }
+
+    /** 发现页列表在 E-Ink 下减少无效留白，网格和瀑布流保持原布局。 */
+    private fun applyEInkCompactLayout(binding: ItemSearchBinding) = binding.run {
+        val compactMargin = 4.dpToPx()
+        ivCover.layoutParams = ivCover.layoutParams.apply {
+            width = 72.dpToPx()
+            height = 96.dpToPx()
+            (this as? ViewGroup.MarginLayoutParams)?.setMargins(
+                compactMargin,
+                compactMargin,
+                compactMargin,
+                compactMargin
+            )
+        }
+        (ivInBookshelf.layoutParams as? ViewGroup.MarginLayoutParams)?.setMargins(
+            0,
+            2.dpToPx(),
+            2.dpToPx(),
+            0
+        )
+        (bvOriginCount.layoutParams as? ViewGroup.MarginLayoutParams)?.setMargins(
+            compactMargin,
+            compactMargin,
+            compactMargin,
+            compactMargin
+        )
+        (llNameContainer.layoutParams as? ViewGroup.MarginLayoutParams)?.setMargins(
+            compactMargin,
+            compactMargin,
+            compactMargin,
+            compactMargin
+        )
+        (tvAuthor.parent as? ViewGroup)?.layoutParams?.let {
+            val margins = it as? ViewGroup.MarginLayoutParams ?: return@let
+            margins.leftMargin = compactMargin
+            margins.topMargin = 2.dpToPx()
+        }
+        tvName.maxLines = 1
+        tvName.ellipsize = TextUtils.TruncateAt.END
+        tvAuthor.maxLines = 1
+        tvAuthor.ellipsize = TextUtils.TruncateAt.END
+        tvLasted.maxLines = 1
+        tvLasted.ellipsize = TextUtils.TruncateAt.END
+        tvIntroduce.maxLines = 2
+        tvIntroduce.ellipsize = TextUtils.TruncateAt.END
+        // LabelsBar 已是横向单行容器，保持标签可见但不让其换行撑高条目。
+        llKind.orientation = android.widget.LinearLayout.HORIZONTAL
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ItemViewHolder {

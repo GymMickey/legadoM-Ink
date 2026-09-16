@@ -4,7 +4,6 @@ import android.annotation.SuppressLint
 
 import android.content.Context
 import android.content.Intent
-import android.content.pm.ActivityInfo
 import android.graphics.Bitmap
 import android.content.res.Configuration
 import android.net.Uri
@@ -33,7 +32,6 @@ import androidx.activity.addCallback
 import androidx.activity.viewModels
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isVisible
-import androidx.core.view.size
 import com.script.rhino.runScriptWithContext
 import io.legado.app.R
 import io.legado.app.base.VMBaseActivity
@@ -59,9 +57,7 @@ import io.legado.app.ui.rss.favorites.RssFavoritesDialog
 import io.legado.app.utils.ACache
 import io.legado.app.utils.NetworkUtils
 import io.legado.app.utils.gone
-import io.legado.app.utils.invisible
 import io.legado.app.utils.isTrue
-import io.legado.app.utils.keepScreenOn
 import io.legado.app.utils.longSnackbar
 import io.legado.app.utils.openUrl
 import io.legado.app.utils.setOnApplyWindowInsetsListenerCompat
@@ -70,13 +66,9 @@ import io.legado.app.utils.share
 import io.legado.app.utils.showDialogFragment
 import io.legado.app.utils.splitNotBlank
 import io.legado.app.utils.startActivity
-import io.legado.app.utils.textArray
 import io.legado.app.utils.toastOnUi
-import io.legado.app.utils.toggleSystemBar
 import io.legado.app.utils.viewbindingdelegate.viewBinding
 import io.legado.app.utils.visible
-import org.apache.commons.text.StringEscapeUtils
-import org.jsoup.Jsoup
 import splitties.views.bottomPadding
 import java.io.ByteArrayInputStream
 import java.util.regex.PatternSyntaxException
@@ -101,12 +93,12 @@ import io.legado.app.help.webView.WebJsExtensions.Companion.nameUrl
 import io.legado.app.help.webView.WebViewPool
 import io.legado.app.help.webView.WebViewPool.BLANK_HTML
 import io.legado.app.help.webView.WebViewPool.DATA_HTML
+import io.legado.app.help.webView.VisibleWebMediaPolicy
 import io.legado.app.model.Download
 import kotlinx.coroutines.Dispatchers.IO
 import java.lang.ref.WeakReference
 import splitties.systemservices.powerManager
 import java.net.URLDecoder
-import androidx.core.graphics.createBitmap
 
 /**
  * rss阅读界面
@@ -119,12 +111,10 @@ class ReadRssActivity : VMBaseActivity<ActivityRssReadBinding, ReadRssViewModel>
 
     private lateinit var pooledWebView: PooledWebView
     private lateinit var currentWebView: WebView
+    private lateinit var visibleWebMediaPolicy: VisibleWebMediaPolicy
 
     private var starMenuItem: MenuItem? = null
-    private var ttsMenuItem: MenuItem? = null
-    private var isFullscreen = false
     private var wasScreenOff = false
-    private var customWebViewCallback: WebChromeClient.CustomViewCallback? = null
     private var interfaceInjected: String? = null
     private var needClearHistory = true
     private var erudaEnabled = false
@@ -270,9 +260,9 @@ class ReadRssActivity : VMBaseActivity<ActivityRssReadBinding, ReadRssViewModel>
     override fun onActivityCreated(savedInstanceState: Bundle?) {
         pooledWebView = WebViewPool.acquire(this)
         currentWebView = pooledWebView.realWebView
+        visibleWebMediaPolicy = VisibleWebMediaPolicy(currentWebView).also { it.install() }
         binding.webViewContainer.addView(currentWebView)
         viewModel.upStarMenuData.observe(this) { upStarMenu() }
-        viewModel.upTtsMenuData.observe(this) { upTtsMenu(it) }
         viewModel.upTitleData.observe(this) { binding.titleBar.title = it }
         initView()
         initWebView()
@@ -298,10 +288,6 @@ class ReadRssActivity : VMBaseActivity<ActivityRssReadBinding, ReadRssViewModel>
         onBackPressedDispatcher.addCallback(this) {
             if (binding.findBar.isVisible) {
                 hideFindBar()
-                return@addCallback
-            }
-            if (binding.customWebView.size > 0) { //关闭全屏
-                customWebViewCallback?.onCustomViewHidden()
                 return@addCallback
             }
             if (currentWebView.canGoBack()) {
@@ -382,7 +368,6 @@ class ReadRssActivity : VMBaseActivity<ActivityRssReadBinding, ReadRssViewModel>
 
     override fun onPrepareOptionsMenu(menu: Menu): Boolean {
         starMenuItem = menu.findItem(R.id.menu_rss_star)
-        ttsMenuItem = menu.findItem(R.id.menu_aloud)
         upStarMenu()
         return super.onPrepareOptionsMenu(menu)
     }
@@ -413,7 +398,6 @@ class ReadRssActivity : VMBaseActivity<ActivityRssReadBinding, ReadRssViewModel>
                 } ?: toastOnUi(R.string.null_url)
             }
 
-            R.id.menu_aloud -> readAloud()
             R.id.menu_login -> startActivity<SourceLoginActivity> {
                 putExtra("type", "rssSource")
                 putExtra("key", viewModel.rssSource?.sourceUrl)
@@ -639,19 +623,6 @@ class ReadRssActivity : VMBaseActivity<ActivityRssReadBinding, ReadRssViewModel>
         starMenuItem?.icon?.setTintMutate(primaryTextColor)
     }
 
-    private fun upTtsMenu(isPlaying: Boolean) {
-        lifecycleScope.launch {
-            if (isPlaying) {
-                ttsMenuItem?.setIcon(R.drawable.ic_stop_black_24dp)
-                ttsMenuItem?.setTitle(R.string.aloud_stop)
-            } else {
-                ttsMenuItem?.setIcon(R.drawable.ic_volume_up)
-                ttsMenuItem?.setTitle(R.string.read_aloud)
-            }
-            ttsMenuItem?.icon?.setTintMutate(primaryTextColor)
-        }
-    }
-
     private fun toggleEruda() {
         erudaEnabled = !erudaEnabled
         val erudaScript = if (erudaEnabled) {
@@ -682,22 +653,6 @@ class ReadRssActivity : VMBaseActivity<ActivityRssReadBinding, ReadRssViewModel>
         }
     }
 
-    @SuppressLint("SetJavaScriptEnabled")
-    private fun readAloud() {
-        if (viewModel.tts?.isSpeaking == true) {
-            viewModel.tts?.stop()
-            upTtsMenu(false)
-        } else {
-            currentWebView.settings.javaScriptEnabled = true
-            currentWebView.evaluateJavascript("document.documentElement.outerHTML") {
-                val html = StringEscapeUtils.unescapeJson(it).replace("^\"|\"$".toRegex(), "")
-                viewModel.readAloud(
-                    Jsoup.parse(html).textArray().joinToString("\n")
-                )
-            }
-        }
-    }
-
     override fun onPause() {
         super.onPause()
         if (powerManager.isInteractive) {
@@ -716,6 +671,7 @@ class ReadRssActivity : VMBaseActivity<ActivityRssReadBinding, ReadRssViewModel>
     }
 
     override fun onDestroy() {
+        visibleWebMediaPolicy.restore()
         WebViewPool.release(pooledWebView)
         super.onDestroy()
     }
@@ -724,24 +680,6 @@ class ReadRssActivity : VMBaseActivity<ActivityRssReadBinding, ReadRssViewModel>
     @Suppress("unused")
     private class JSInterface(activity: ReadRssActivity) {
         private val activityRef: WeakReference<ReadRssActivity> = WeakReference(activity)
-        @JavascriptInterface
-        fun lockOrientation(orientation: String) {
-            val ctx = activityRef.get()
-            if (ctx != null && ctx.isFullscreen && !ctx.isFinishing && !ctx.isDestroyed) {
-                ctx.runOnUiThread {
-                    ctx.requestedOrientation = when (orientation) {
-                        "portrait", "portrait-primary" -> ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-                        "portrait-secondary" -> ActivityInfo.SCREEN_ORIENTATION_REVERSE_PORTRAIT
-                        "landscape" -> ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE //横屏且受重力控制正反
-                        "landscape-primary" -> ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE //正向横屏
-                        "landscape-secondary" -> ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE //反向横屏
-                        "any", "unspecified" -> ActivityInfo.SCREEN_ORIENTATION_SENSOR
-                        else -> ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
-                    }
-                }
-            }
-        }
-
         @JavascriptInterface
         fun onCloseRequested() {
             val ctx = activityRef.get()
@@ -754,35 +692,10 @@ class ReadRssActivity : VMBaseActivity<ActivityRssReadBinding, ReadRssViewModel>
     }
 
     inner class CustomWebChromeClient : WebChromeClient() {
-        override fun getDefaultVideoPoster(): Bitmap {
-            return super.getDefaultVideoPoster() ?: createBitmap(100, 100)
-        }
-
         override fun onProgressChanged(view: WebView?, newProgress: Int) {
             super.onProgressChanged(view, newProgress)
             binding.progressBar.setDurProgress(newProgress)
             binding.progressBar.gone(newProgress == 100)
-        }
-
-        override fun onShowCustomView(view: View?, callback: CustomViewCallback?) {
-            isFullscreen = true
-            binding.llView.invisible()
-            binding.customWebView.addView(view)
-            customWebViewCallback = callback
-            keepScreenOn(true)
-            toggleSystemBar(false)
-            if (viewModel.rssSource?.enableJs == false) {
-                requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR
-            }
-        }
-
-        override fun onHideCustomView() {
-            isFullscreen = false
-            binding.customWebView.removeAllViews()
-            binding.llView.visible()
-            requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
-            keepScreenOn(false)
-            toggleSystemBar(true)
         }
 
         /* 覆盖window.close() */
@@ -854,6 +767,9 @@ class ReadRssActivity : VMBaseActivity<ActivityRssReadBinding, ReadRssViewModel>
             view: WebView, request: WebResourceRequest
         ): WebResourceResponse? {
             val url = request.url.toString()
+            if (!request.isForMainFrame && VisibleWebMediaPolicy.isMediaRequest(url, request.requestHeaders)) {
+                return VisibleWebMediaPolicy.blockedResponse()
+            }
             val source = viewModel.rssSource ?: return super.shouldInterceptRequest(view, request)
             
             // 1. 主框架请求 + 有预注入JS：通过OkHttp下载并注入JS
@@ -923,6 +839,15 @@ class ReadRssActivity : VMBaseActivity<ActivityRssReadBinding, ReadRssViewModel>
                 }
             }
             return super.shouldInterceptRequest(view, request)
+        }
+
+        @Suppress("DEPRECATION", "OVERRIDE_DEPRECATION", "KotlinRedundantDiagnosticSuppress")
+        override fun shouldInterceptRequest(view: WebView?, url: String?): WebResourceResponse? {
+            return if (url != null && VisibleWebMediaPolicy.isMediaRequest(url)) {
+                VisibleWebMediaPolicy.blockedResponse()
+            } else {
+                super.shouldInterceptRequest(view, url)
+            }
         }
 
         /**
@@ -1041,6 +966,7 @@ class ReadRssActivity : VMBaseActivity<ActivityRssReadBinding, ReadRssViewModel>
                     view.evaluateJavascript(it, null)
                 }
             }
+            visibleWebMediaPolicy.injectMediaBlocker()
         }
 
         private fun createEmptyResource(): WebResourceResponse {

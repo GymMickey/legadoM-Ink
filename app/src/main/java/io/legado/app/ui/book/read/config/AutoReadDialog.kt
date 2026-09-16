@@ -88,7 +88,6 @@ class AutoReadDialog : BaseDialogFragment(R.layout.dialog_auto_read) {
             override fun onStopTrackingTouch(seekBar: SeekBar) {
                 ReadBookConfig.autoReadSpeed =
                     if (binding.seekAutoRead.progress < 1) 1 else binding.seekAutoRead.progress
-                upTtsSpeechRate()
             }
         })
     }
@@ -111,9 +110,6 @@ class AutoReadDialog : BaseDialogFragment(R.layout.dialog_auto_read) {
                 dismissAllowingStateLoss()
             }
         }
-    }
-
-    private fun upTtsSpeechRate() {
     }
 
     interface CallBack {

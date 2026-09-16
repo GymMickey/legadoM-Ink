@@ -138,7 +138,6 @@
     <string name="previous_chapter">Anterior</string>
     <string name="pt_hide_status_bar">Ocultar barra de estado</string>
     <string name="ps_hide_status_bar">Oculta la barra de navegación del sistema durante lectura</string>
-    <string name="read_aloud">Voz</string>
 <string name="audio_pause">Pausar</string>
     <string name="text_return">Regresar</string>
     <string name="refresh">Actualizar</string>
@@ -161,7 +160,6 @@
     <string name="background">Segundo plano</string>
     <string name="author">Autor</string>
     <string name="author_show">Autor: %s</string>
-    <string name="aloud_stop">Voz detelendia</string>
     <string name="clear_cache">Limpiar caché</string>
     <string name="clear_cache_success">Se limpió la caché</string>
     <string name="action_save">Guardar</string>
@@ -291,8 +289,6 @@
     <string name="check_book_source">Verificar fuentes del libro</string>
     <string name="check_select_source">Verificar fuente seleccionada</string>
     <string name="progress_show">%1$s      Avance %2$d/%3$d</string>
-    <string name="tts_fix">¡Por favor, instale y seleccione un TTS en chino!</string>
-    <string name="tts_init_failed">¡Error al inicializar TTS!</string>
     <string name="jf_convert">Conversión a simplificada</string>
     <string name="jf_convert_o">Desactivado</string>
     <string name="jf_convert_f">Simplificado a tradicional</string>
@@ -585,7 +581,6 @@
     <string name="export">Exportar</string>
     <string name="load_toc">Cargar capítulos</string>
     <string name="load_info">Cargar detalles del libro</string>
-    <string name="tts">TTS</string>
     <string name="web_dav_pw">Contraseña de WebDav</string>
     <string name="web_dav_pw_s">Ingrese su contraseña de WebDav</string>
     <string name="web_dav_url_s">Ingrese la dirección de su servidor</string>
@@ -766,7 +761,6 @@
     <string name="read_record">Leer historial</string>
     <string name="del_read_record">Eliminar historial de lectura</string>
     <string name="read_record_summary">Leer resumen del historial</string>
-    <string name="local_tts">TTS local</string>
     <string name="thread_count">Recuento de subprocesos</string>
     <string name="all_read_time">Tiempo total de lectura</string>
     <string name="un_select_all">Deseleccionar todo</string>
@@ -829,7 +823,6 @@
     <string name="crash_log">Registro de fallos</string>
     <string name="use_zh_layout">Uso de ramas chinas personalizadas</string>
     <string name="image_style">Formato de imagen</string>
-    <string name="system_tts">Sistema TTS</string>
     <string name="export_type">Formato de exportación</string>
     <string name="checkAuthor">Verificar por autor</string>
     <string name="url_already">Esta URL ha sido reemplazada</string>
@@ -894,8 +887,6 @@
     <string name="cover_show_name_summary">封面上显示书名</string>
     <string name="cover_show_author">显示作者</string>
     <string name="cover_show_author_summary">封面上显示作者</string>
-    <string name="read_aloud_prev_paragraph">朗读上一段</string>
-    <string name="read_aloud_next_paragraph">朗读下一段</string>
     <string name="wait_download">待下载</string>
     <string name="download_success">下载完成</string>
     <string name="download_error">下载失败</string>
@@ -919,8 +910,6 @@
     <string name="font_scale_summary">当前字体大小:%.1f</string>
     <string name="search_content_size">search result</string>
     <string name="search_content_empty">Empty search result, check conversation settings</string>
-    <string name="tts_speech_reduce">语速减</string>
-    <string name="tts_speech_add">语速加</string>
     <string name="open_sys_dir_picker_error">打开系统文件夹选择器出错,自动打开应用文件夹选择器</string>
     <string name="open_sys_doc_picker_error">打开系统文件选择器出错,自动打开应用文件选择器</string>
     <string name="expand_text_menu">展开文本选择菜单</string>
@@ -973,9 +962,6 @@
     <string name="cover_rule">封面规则</string>
     <string name="cover_rule_summary">进入详情页时使用封面规则重新获取封面</string>
     <string name="scroll_to_dur_source">定位到当前书源</string>
-    <string name="sys_tts_config">系统tts设置</string>
-    <string name="sys_tts_config_summary">打开系统tts设置界面</string>
-    <string name="cannot_timed_non_playback">非播放状态无法定时</string>
     <string name="all_bookmark">Todos los marcadores</string>
     <string name="change_source_batch">批量换源</string>
     <string name="book_type_different">书籍类型不一样</string>
@@ -984,7 +970,6 @@
     <string name="verification_code">验证码</string>
     <string name="timeout_millisecond">超时毫秒数</string>
     <string name="file_not_supported">Continue to open although %1$s is not supported ?</string>
-    <string name="import_tts">导入TTS</string>
     <string name="import_theme">导入主题</string>
     <string name="import_txt_toc_rule">导入txt目录规则</string>
     <string name="auto_save_cookie">CookieJar</string>

@@ -3,7 +3,6 @@ package io.legado.app.help
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import io.legado.app.R
 import io.legado.app.utils.toastOnUi
 import splitties.init.appCtx
 
@@ -22,18 +21,6 @@ object IntentHelp {
             return Intent.createChooser(intent, "请选择浏览器")
         }
         return intent
-    }
-
-    fun openTTSSetting() {
-        //跳转到文字转语音设置界面
-        kotlin.runCatching {
-            val intent = Intent()
-            intent.action = "com.android.settings.TTS_SETTINGS"
-            intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
-            appCtx.startActivity(intent)
-        }.onFailure {
-            appCtx.toastOnUi(R.string.tip_cannot_jump_setting_page)
-        }
     }
 
     fun toInstallUnknown(context: Context) {

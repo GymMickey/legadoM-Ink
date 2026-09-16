@@ -244,12 +244,6 @@
             app:iconSpaceReserved="false" />
 
         <io.legado.app.lib.prefs.SwitchPreference
-            android:defaultValue="false"
-            android:key="ignoreAudioFocus"
-            android:summary="@string/ignore_audio_focus_summary"
-            android:title="@string/ignore_audio_focus_title" />
-
-        <io.legado.app.lib.prefs.SwitchPreference
             android:defaultValue="true"
             android:key="autoClearExpired"
             android:summary="@string/auto_clear_expired_summary"

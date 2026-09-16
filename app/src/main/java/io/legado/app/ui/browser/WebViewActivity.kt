@@ -1,24 +1,22 @@
 package io.legado.app.ui.browser
 
 import android.annotation.SuppressLint
-import android.content.pm.ActivityInfo
 import android.graphics.Bitmap
 import android.net.Uri
 import android.net.http.SslError
 import android.os.Bundle
 import android.view.Menu
 import android.view.MenuItem
-import android.view.View
 import android.webkit.ConsoleMessage
 import android.webkit.CookieManager
 import android.webkit.SslErrorHandler
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.activity.addCallback
 import androidx.activity.viewModels
-import androidx.core.view.size
 import io.legado.app.R
 import io.legado.app.base.VMBaseActivity
 import io.legado.app.constant.AppConst
@@ -35,15 +33,12 @@ import io.legado.app.ui.association.OnLineImportActivity
 import io.legado.app.ui.file.HandleFileContract
 import io.legado.app.utils.ACache
 import io.legado.app.utils.gone
-import io.legado.app.utils.invisible
-import io.legado.app.utils.keepScreenOn
 import io.legado.app.utils.longSnackbar
 import io.legado.app.utils.openUrl
 import io.legado.app.utils.sendToClip
 import io.legado.app.utils.startActivity
 import io.legado.app.utils.toggleSystemBar
 import io.legado.app.utils.viewbindingdelegate.viewBinding
-import io.legado.app.utils.visible
 import android.webkit.JavascriptInterface
 import android.webkit.URLUtil
 import android.widget.EditText
@@ -61,11 +56,11 @@ import io.legado.app.help.webView.PooledWebView
 import io.legado.app.help.webView.WebViewPool
 import io.legado.app.help.webView.WebViewPool.BLANK_HTML
 import io.legado.app.help.webView.WebViewPool.DATA_HTML
+import io.legado.app.help.webView.VisibleWebMediaPolicy
 import io.legado.app.model.Download
 import splitties.systemservices.powerManager
 import java.lang.ref.WeakReference
 import java.net.URLDecoder
-import androidx.core.graphics.createBitmap
 import io.legado.app.help.WebCacheManager
 import io.legado.app.help.webView.WebJsExtensions.Companion.nameCache
 import io.legado.app.ui.widget.dialog.CookieViewerDialog
@@ -85,14 +80,13 @@ class WebViewActivity : VMBaseActivity<ActivityWebViewBinding, WebViewModel>() {
 
     private lateinit var pooledWebView: PooledWebView
     private lateinit var currentWebView: WebView
+    private lateinit var visibleWebMediaPolicy: VisibleWebMediaPolicy
 
     override val binding by viewBinding(ActivityWebViewBinding::inflate)
     override val viewModel by viewModels<WebViewModel>()
-    private var customWebViewCallback: WebChromeClient.CustomViewCallback? = null
     private var webPic: String? = null
     private var isCloudflareChallenge = false
     private var isFullScreen = false
-    private var isfullscreen = false
     private var wasScreenOff = false
     private var needClearHistory = true
     private val saveImage = registerForActivityResult(HandleFileContract()) {
@@ -113,6 +107,7 @@ class WebViewActivity : VMBaseActivity<ActivityWebViewBinding, WebViewModel>() {
     override fun onActivityCreated(savedInstanceState: Bundle?) {
         pooledWebView = WebViewPool.acquire(this)
         currentWebView = pooledWebView.realWebView
+        visibleWebMediaPolicy = VisibleWebMediaPolicy(currentWebView).also { it.install() }
         binding.webViewContainer.addView(currentWebView)
         currentWebView.post {
             currentWebView.clearHistory()
@@ -139,10 +134,6 @@ class WebViewActivity : VMBaseActivity<ActivityWebViewBinding, WebViewModel>() {
         }
         currentWebView.clearHistory()
         onBackPressedDispatcher.addCallback(this) {
-            if (binding.customWebView.size > 0) { //网页全屏
-                customWebViewCallback?.onCustomViewHidden()
-                return@addCallback
-            }
             if (isFullScreen) { //按钮全屏
                 toggleFullScreen()
                 return@addCallback
@@ -459,6 +450,7 @@ class WebViewActivity : VMBaseActivity<ActivityWebViewBinding, WebViewModel>() {
     }
 
     override fun onDestroy() {
+        visibleWebMediaPolicy.restore()
         WebViewPool.release(pooledWebView)
         super.onDestroy()
     }
@@ -466,28 +458,10 @@ class WebViewActivity : VMBaseActivity<ActivityWebViewBinding, WebViewModel>() {
     @Suppress("unused")
     /**
      * JavaScript 接口类
-     * 用于网页与原生代码交互，支持锁定屏幕方向和关闭页面
+     * 用于网页与原生代码交互，支持关闭页面
      */
     private class JSInterface(activity: WebViewActivity) {
         private val activityRef: WeakReference<WebViewActivity> = WeakReference(activity)
-        @JavascriptInterface
-        fun lockOrientation(orientation: String) {
-            val ctx = activityRef.get()
-            if (ctx != null && ctx.isfullscreen  && !ctx.isFinishing && !ctx.isDestroyed) {
-                ctx.runOnUiThread {
-                    ctx.requestedOrientation = when (orientation) {
-                        "portrait", "portrait-primary" -> ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-                        "portrait-secondary" -> ActivityInfo.SCREEN_ORIENTATION_REVERSE_PORTRAIT
-                        "landscape" -> ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE //横屏且受重力控制正反
-                        "landscape-primary" -> ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE //正向横屏
-                        "landscape-secondary" -> ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE //反向横屏
-                        "any", "unspecified" -> ActivityInfo.SCREEN_ORIENTATION_SENSOR
-                        else -> ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
-                    }
-                }
-            }
-        }
-
         @JavascriptInterface
         fun onCloseRequested() {
             val ctx = activityRef.get()
@@ -501,35 +475,13 @@ class WebViewActivity : VMBaseActivity<ActivityWebViewBinding, WebViewModel>() {
 
     /**
      * 自定义 WebChromeClient
-     * 处理网页进度、全屏视频播放、控制台日志等
+     * 处理网页进度、窗口关闭和控制台日志等
      */
     inner class CustomWebChromeClient : WebChromeClient() {
-        override fun getDefaultVideoPoster(): Bitmap {
-            return super.getDefaultVideoPoster() ?: createBitmap(100, 100)
-        }
-
         override fun onProgressChanged(view: WebView?, newProgress: Int) {
             super.onProgressChanged(view, newProgress)
             binding.progressBar.setDurProgress(newProgress)
             binding.progressBar.gone(newProgress == 100)
-        }
-
-        override fun onShowCustomView(view: View?, callback: CustomViewCallback?) {
-            isfullscreen = true
-            binding.llView.invisible()
-            binding.customWebView.addView(view)
-            customWebViewCallback = callback
-            keepScreenOn(true)
-            toggleSystemBar(false)
-        }
-
-        override fun onHideCustomView() {
-            isfullscreen = false
-            binding.customWebView.removeAllViews()
-            binding.llView.visible()
-            requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
-            keepScreenOn(false)
-            toggleSystemBar(true)
         }
 
         /* 覆盖window.close() */
@@ -558,6 +510,29 @@ class WebViewActivity : VMBaseActivity<ActivityWebViewBinding, WebViewModel>() {
      * 处理页面加载、URL 跳转、SSL 错误等
      */
     inner class CustomWebViewClient : WebViewClient() {
+        override fun shouldInterceptRequest(
+            view: WebView?,
+            request: WebResourceRequest
+        ): WebResourceResponse? {
+            return if (!request.isForMainFrame && VisibleWebMediaPolicy.isMediaRequest(
+                    request.url.toString(), request.requestHeaders
+                )
+            ) {
+                VisibleWebMediaPolicy.blockedResponse()
+            } else {
+                super.shouldInterceptRequest(view, request)
+            }
+        }
+
+        @Suppress("DEPRECATION", "OVERRIDE_DEPRECATION", "KotlinRedundantDiagnosticSuppress")
+        override fun shouldInterceptRequest(view: WebView?, url: String?): WebResourceResponse? {
+            return if (url != null && VisibleWebMediaPolicy.isMediaRequest(url)) {
+                VisibleWebMediaPolicy.blockedResponse()
+            } else {
+                super.shouldInterceptRequest(view, url)
+            }
+        }
+
         override fun shouldOverrideUrlLoading(
             view: WebView?,
             request: WebResourceRequest?
@@ -587,6 +562,7 @@ class WebViewActivity : VMBaseActivity<ActivityWebViewBinding, WebViewModel>() {
         
         override fun onPageFinished(view: WebView?, url: String?) {
             super.onPageFinished(view, url)
+            visibleWebMediaPolicy.injectMediaBlocker()
             val cookieManager = CookieManager.getInstance()
             url?.let {
                 CookieStore.setCookie(it, cookieManager.getCookie(it))

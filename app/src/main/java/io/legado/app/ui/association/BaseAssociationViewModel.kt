@@ -38,9 +38,6 @@ abstract class BaseAssociationViewModel(application: Application) : BaseViewMode
             map.containsKey("name") && map.containsKey("rule") ->
                 successLive.postValue("txtRule" to uri.toString())
 
-            map.containsKey("name") && map.containsKey("url") ->
-                successLive.postValue("httpTts" to uri.toString())
-
             else -> errorLive.postValue("格式不对")
         }
     }

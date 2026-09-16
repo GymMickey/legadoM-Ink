@@ -3,7 +3,6 @@ package io.legado.app.ui.widget.dialog
 import android.annotation.SuppressLint
 import android.app.Dialog
 import android.content.Context
-import android.content.pm.ActivityInfo
 import android.graphics.Bitmap
 import android.net.Uri
 import android.net.http.SslError
@@ -53,8 +52,6 @@ import io.legado.app.help.webView.WebJsExtensions.Companion.nameSource
 import io.legado.app.help.webView.WebViewPool
 import io.legado.app.model.analyzeRule.AnalyzeUrl
 import io.legado.app.ui.association.OnLineImportActivity
-import io.legado.app.utils.invisible
-import io.legado.app.utils.keepScreenOn
 import io.legado.app.utils.longSnackbar
 import io.legado.app.utils.openUrl
 import io.legado.app.utils.setLayout
@@ -63,7 +60,6 @@ import io.legado.app.utils.toastOnUi
 import io.legado.app.utils.viewbindingdelegate.viewBinding
 import io.legado.app.utils.visible
 import kotlinx.coroutines.launch
-import androidx.core.view.size
 import io.legado.app.constant.AppConst.imagePathKey
 import io.legado.app.exception.NoStackTraceException
 import io.legado.app.help.coroutine.Coroutine
@@ -75,6 +71,7 @@ import io.legado.app.help.webView.WebJsExtensions.Companion.JS_URL
 import io.legado.app.help.webView.WebJsExtensions.Companion.nameUrl
 import io.legado.app.help.webView.WebViewPool.BLANK_HTML
 import io.legado.app.help.webView.WebViewPool.DATA_HTML
+import io.legado.app.help.webView.VisibleWebMediaPolicy
 import io.legado.app.lib.dialogs.SelectItem
 import io.legado.app.lib.dialogs.selector
 import io.legado.app.model.Download
@@ -91,7 +88,6 @@ import java.io.ByteArrayInputStream
 import java.lang.ref.WeakReference
 import java.net.URLDecoder
 import java.util.Date
-import androidx.core.graphics.createBitmap
 
 class BottomWebViewDialog() : BottomSheetDialogFragment(R.layout.dialog_web_view), WebJsExtensions.Callback {
 
@@ -133,17 +129,16 @@ class BottomWebViewDialog() : BottomSheetDialogFragment(R.layout.dialog_web_view
     }
     private lateinit var pooledWebView: PooledWebView
     private lateinit var currentWebView: WebView
+    private lateinit var visibleWebMediaPolicy: VisibleWebMediaPolicy
     private var source: BaseSource? = null
     private var preloadJs: String? = null
-    private var isFullScreen = false
-    private var customWebViewCallback: WebChromeClient.CustomViewCallback? = null
-    private var originOrientation: Int? = null
     private var needClearHistory = true
 
     override fun onAttach(context: Context) {
         super.onAttach(context)
         pooledWebView = WebViewPool.acquire(context)
         currentWebView = pooledWebView.realWebView
+        visibleWebMediaPolicy = VisibleWebMediaPolicy(currentWebView).also { it.install() }
     }
 
     @Suppress("DEPRECATION")
@@ -231,18 +226,8 @@ class BottomWebViewDialog() : BottomSheetDialogFragment(R.layout.dialog_web_view
                                 ) {
                                     outline.setRoundRect(0, 0, view.width, view.height, radius)
                                 }
-                            }
+                        }
                         currentWebView.clipToOutline = true
-                        binding.customWebView.outlineProvider =
-                            object : android.view.ViewOutlineProvider() {
-                                override fun getOutline(
-                                    view: View,
-                                    outline: android.graphics.Outline
-                                ) {
-                                    outline.setRoundRect(0, 0, view.width, view.height, radius)
-                                }
-                            }
-                        binding.customWebView.clipToOutline = true
                     }
                 } else { //取消圆角
                     sheet.backgroundTintList = null
@@ -251,8 +236,6 @@ class BottomWebViewDialog() : BottomSheetDialogFragment(R.layout.dialog_web_view
                     if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.S_V2) {
                         currentWebView.outlineProvider = null
                         currentWebView.clipToOutline = false
-                        binding.customWebView.outlineProvider = null
-                        binding.customWebView.clipToOutline = false
                     }
                 }
             }
@@ -511,10 +494,6 @@ class BottomWebViewDialog() : BottomSheetDialogFragment(R.layout.dialog_web_view
         }
         dialog?.setOnKeyListener { _, keyCode, event ->
             if (keyCode == KeyEvent.KEYCODE_BACK && event.action == KeyEvent.ACTION_UP) {
-                if (binding.customWebView.size > 0) { //网页全屏
-                    customWebViewCallback?.onCustomViewHidden()
-                    return@setOnKeyListener true
-                }
                 if (currentWebView.canGoBack()) {
                     val list = currentWebView.copyBackForwardList()
                     val size = list.size
@@ -628,11 +607,8 @@ class BottomWebViewDialog() : BottomSheetDialogFragment(R.layout.dialog_web_view
     }
 
     override fun onDestroyView() {
-        customWebViewCallback?.onCustomViewHidden()
+        visibleWebMediaPolicy.restore()
         WebViewPool.release(pooledWebView)
-        originOrientation?.let {
-            activity?.requestedOrientation = it
-        }
         super.onDestroyView()
     }
 
@@ -651,25 +627,6 @@ class BottomWebViewDialog() : BottomSheetDialogFragment(R.layout.dialog_web_view
     @Suppress("unused")
     private class JSInterface(dialog: BottomWebViewDialog) {
         private val dialogRef: WeakReference<BottomWebViewDialog> = WeakReference(dialog)
-
-        @JavascriptInterface
-        fun lockOrientation(orientation: String) {
-            val fra = dialogRef.get() ?: return
-            val ctx = fra.requireActivity()
-            if (fra.isFullScreen && fra.dialog?.isShowing == true) {
-                fra.lifecycleScope.launch(Dispatchers.Main) {
-                    ctx.requestedOrientation = when (orientation) {
-                        "portrait", "portrait-primary" -> ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-                        "portrait-secondary" -> ActivityInfo.SCREEN_ORIENTATION_REVERSE_PORTRAIT
-                        "landscape" -> ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE //横屏且受重力控制正反
-                        "landscape-primary" -> ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE //正向横屏
-                        "landscape-secondary" -> ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE //反向横屏
-                        "any", "unspecified" -> ActivityInfo.SCREEN_ORIENTATION_SENSOR
-                        else -> ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
-                    }
-                }
-            }
-        }
 
         @JavascriptInterface
         fun onCloseRequested() {
@@ -735,32 +692,6 @@ class BottomWebViewDialog() : BottomSheetDialogFragment(R.layout.dialog_web_view
     )
 
     inner class CustomWebChromeClient : WebChromeClient() {
-        override fun getDefaultVideoPoster(): Bitmap {
-            return super.getDefaultVideoPoster() ?: createBitmap(100, 100)
-        }
-
-        override fun onShowCustomView(view: View?, callback: CustomViewCallback?) {
-            originOrientation = activity?.requestedOrientation //先记录原始方向，避免被js控制的影响
-            isFullScreen = true
-            binding.webViewContainer.invisible()
-            binding.customWebView.addView(view)
-            customWebViewCallback = callback
-            dialog?.keepScreenOn(true)
-            behavior?.state = BottomSheetBehavior.STATE_EXPANDED
-        }
-
-        override fun onHideCustomView() {
-            originOrientation?.let {
-                activity?.requestedOrientation = it
-                originOrientation = null
-            }
-            isFullScreen = false
-            binding.webViewContainer.visible()
-            binding.customWebView.removeAllViews()
-            customWebViewCallback = null
-            dialog?.keepScreenOn(false)
-        }
-
         /* 覆盖window.close() */
         override fun onCloseWindow(window: WebView?) {
             dismiss()
@@ -807,6 +738,11 @@ class BottomWebViewDialog() : BottomSheetDialogFragment(R.layout.dialog_web_view
             currentWebView.evaluateJavascript(basicJs, null)
         }
 
+        override fun onPageFinished(view: WebView, url: String) {
+            super.onPageFinished(view, url)
+            visibleWebMediaPolicy.injectMediaBlocker()
+        }
+
         private fun shouldOverrideUrlLoading(url: Uri): Boolean {
             return when (url.scheme) {
                 "http", "https" -> false
@@ -838,6 +774,9 @@ class BottomWebViewDialog() : BottomSheetDialogFragment(R.layout.dialog_web_view
             view: WebView, request: WebResourceRequest
         ): WebResourceResponse? {
             val url = request.url.toString()
+            if (!request.isForMainFrame && VisibleWebMediaPolicy.isMediaRequest(url, request.requestHeaders)) {
+                return VisibleWebMediaPolicy.blockedResponse()
+            }
             if (request.isForMainFrame) {
                 if (!preloadJs.isNullOrEmpty()) {
                     jsInjected = false

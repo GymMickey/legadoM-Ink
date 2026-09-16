@@ -23,8 +23,8 @@ import java.util.concurrent.atomic.AtomicLong
 
 // - 作用 ：缓存计算器，负责计算各类缓存大小和执行清理操作
 // - 主要功能 ：
-//   - 计算7种缓存类型的大小（书籍、Epub、临时文件、TTS、ACache、数据库、日志）
-//   - 计算可展开缓存的详情列表（如每本书的缓存、每个TTS引擎的缓存）
+//   - 计算缓存类型的大小（书籍、Epub、临时文件、ACache、数据库、日志）
+//   - 计算可展开缓存的详情列表（如每本书的缓存）
 //   - 执行缓存清理操作（支持整体清理和单独清理）
 
 data class CacheDetail(
@@ -62,7 +62,6 @@ object StorageCalculator {
     private var cachedBookSize = AtomicLong(-1L)
     private var cachedEpubSize = AtomicLong(-1L)
     private var cachedTempSize = AtomicLong(-1L)
-    private var cachedTtsSize = AtomicLong(-1L)
     private var cachedACacheSize = AtomicLong(-1L)
     private var cachedDbSize = AtomicLong(-1L)
     private var cachedLogSize = AtomicLong(-1L)
@@ -70,7 +69,6 @@ object StorageCalculator {
     
     // 缓存数量统计
     private var cachedBookCount = -1
-    private var cachedTtsCount = -1
     private var cachedACacheCount = -1
     
     // 书籍文件夹名到Book对象的映射缓存，避免每次都查询数据库
@@ -85,13 +83,11 @@ object StorageCalculator {
         cachedBookSize.set(-1L)
         cachedEpubSize.set(-1L)
         cachedTempSize.set(-1L)
-        cachedTtsSize.set(-1L)
         cachedACacheSize.set(-1L)
         cachedDbSize.set(-1L)
         cachedLogSize.set(-1L)
         cachedWebViewSize.set(-1L)
         cachedBookCount = -1
-        cachedTtsCount = -1
         cachedACacheCount = -1
         bookFolderMap = null
         bookFolderMapTime = 0L
@@ -221,72 +217,6 @@ object StorageCalculator {
             } else {
                 FileUtils.delete(appCtx.externalFiles.getFile("book_cache", bookUrl).absolutePath)
             }
-        }
-    }
-
-    suspend fun calculateTtsCacheSize(): Long = withContext(Dispatchers.IO) {
-        if (isCacheValid() && cachedTtsSize.get() >= 0) {
-            return@withContext cachedTtsSize.get()
-        }
-        val ttsDir = appCtx.cacheDir.getFile("httpTTS")
-        val size = calculateDirSizeFast(ttsDir)
-        cachedTtsSize.set(size)
-        markCacheTime()
-        size
-    }
-
-    suspend fun calculateTtsCacheDetails(): List<CacheDetail> = withContext(Dispatchers.IO) {
-        val ttsDir = appCtx.cacheDir.getFile("httpTTS")
-        val details = mutableListOf<CacheDetail>()
-        
-        ttsDir.listFiles()?.forEach { engineDir ->
-            if (engineDir.isDirectory) {
-                val sizeAndLastModified = calculateDirSizeAndLastModified(engineDir)
-                if (sizeAndLastModified.first > 0) {
-                    details.add(CacheDetail(
-                        id = engineDir.name,
-                        name = getTtsEngineName(engineDir.name),
-                        meta = "最后使用: ${formatLastModified(sizeAndLastModified.second)}",
-                        size = sizeAndLastModified.first,
-                        formattedSize = ConvertUtils.formatFileSize(sizeAndLastModified.first),
-                        path = engineDir.absolutePath
-                    ))
-                }
-            }
-        }
-        
-        details.sortedByDescending { it.size }
-    }
-
-    private fun getTtsEngineName(engineId: String): String {
-        return when (engineId) {
-            "baidu" -> "百度TTS"
-            "xunfei" -> "讯飞TTS"
-            "azure" -> "Azure TTS"
-            "google" -> "Google TTS"
-            else -> engineId
-        }
-    }
-
-    private fun formatLastModified(lastModified: Long): String {
-        if (lastModified == 0L) return "未知"
-        val now = System.currentTimeMillis()
-        val diff = now - lastModified
-        return when {
-            diff < 60 * 60 * 1000 -> "刚刚"
-            diff < 24 * 60 * 60 * 1000 -> "${diff / (60 * 60 * 1000)}小时前"
-            diff < 7 * 24 * 60 * 60 * 1000 -> "${diff / (24 * 60 * 60 * 1000)}天前"
-            else -> "${diff / (24 * 60 * 60 * 1000)}天前"
-        }
-    }
-
-    fun clearTtsCache(engineId: String? = null) {
-        invalidateCache()
-        val ttsDir = appCtx.cacheDir.getFile("httpTTS")
-        if (engineId == null) {
-            FileUtils.delete(ttsDir.absolutePath)
-        } else {
-            FileUtils.delete(ttsDir.getFile(engineId).absolutePath)
         }
     }
 
@@ -700,38 +630,6 @@ object StorageCalculator {
         return size
     }
 
-    /**
-     * 计算目录大小和最后修改时间
-     * 单次遍历同时获取两个值，避免遍历两次
-     * @return Pair(大小, 最后修改时间)
-     */
-    private fun calculateDirSizeAndLastModified(dir: File): Pair<Long, Long> {
-        if (!dir.exists()) return Pair(0L, 0L)
-        var size = 0L
-        var lastModified = 0L
-        try {
-            val stack = java.util.ArrayDeque<File>()
-            stack.push(dir)
-            while (stack.isNotEmpty()) {
-                val current = stack.pop()
-                current.listFiles()?.forEach { file ->
-                    if (file.isFile) {
-                        size += file.length()
-                        val fileTime = file.lastModified()
-                        if (fileTime > lastModified) {
-                            lastModified = fileTime
-                        }
-                    } else if (file.isDirectory) {
-                        stack.push(file)
-                    }
-                }
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-        return Pair(size, lastModified)
-    }
-
     suspend fun countCachedBooks(): Int = withContext(Dispatchers.IO) {
         if (isCacheValid() && cachedBookCount >= 0) {
             return@withContext cachedBookCount
@@ -739,17 +637,6 @@ object StorageCalculator {
         val cacheDir = appCtx.externalFiles.getFile("book_cache")
         val count = cacheDir.listFiles()?.count { it.isDirectory } ?: 0
         cachedBookCount = count
-        markCacheTime()
-        count
-    }
-
-    suspend fun countTtsEngines(): Int = withContext(Dispatchers.IO) {
-        if (isCacheValid() && cachedTtsCount >= 0) {
-            return@withContext cachedTtsCount
-        }
-        val ttsDir = appCtx.cacheDir.getFile("httpTTS")
-        val count = ttsDir.listFiles()?.count { it.isDirectory } ?: 0
-        cachedTtsCount = count
         markCacheTime()
         count
     }

@@ -26,12 +26,6 @@
         app:showAsAction="ifRoom" />
 
     <item
-        android:id="@+id/menu_aloud"
-        android:title="@string/read_aloud"
-        android:icon="@drawable/ic_volume_up"
-        app:showAsAction="ifRoom" />
-
-    <item
         android:id="@+id/menu_login"
         android:title="@string/login"
         app:showAsAction="never" />

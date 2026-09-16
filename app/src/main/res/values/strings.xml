@@ -161,7 +161,6 @@
     <string name="previous_chapter">Prior</string>
     <string name="pt_hide_status_bar">Hide status bar</string>
     <string name="ps_hide_status_bar">Hide system navigation bar when reading</string>
-    <string name="read_aloud">Speech</string>
 <string name="audio_pause">Pause</string>
     <string name="text_return">Back</string>
     <string name="refresh">Refresh</string>
@@ -187,7 +186,6 @@
     <string name="background">Background</string>
     <string name="author">Author</string>
     <string name="author_show">Author: %s</string>
-    <string name="aloud_stop">Speak Stopped</string>
     <string name="clear_cache">Clear cache</string>
     <string name="sure_clear_cache">Are you sure to clear cache of %s?</string>
     <string name="sure_clear_all_cache">Are you sure to clear all cache?</string>
@@ -326,8 +324,6 @@
     <string name="check_result_filter">Filter</string>
     <string name="check_result_all_pass">All sources passed</string>
     <string name="progress_show">%1$s      Progress %2$d/%3$d</string>
-    <string name="tts_fix">Please install and select Chinese TTS!</string>
-    <string name="tts_init_failed">TTS initialization failed!</string>
     <string name="jf_convert">Simplified conversion</string>
     <string name="jf_convert_o">Off</string>
     <string name="jf_convert_f">Simplified to traditional</string>
@@ -662,7 +658,6 @@
     <string name="export">Export</string>
     <string name="load_toc">Load chapters</string>
     <string name="load_info">Load book detail</string>
-    <string name="tts">TTS</string>
     <string name="web_dav_pw">WebDav password</string>
     <string name="web_dav_pw_s">Input you WebDav authorized password</string>
     <string name="web_dav_url_s">Input you server address</string>
@@ -935,7 +930,6 @@
     <string name="read_record">Read record</string>
     <string name="del_read_record">Delete Read record</string>
     <string name="read_record_summary">Read record summary</string>
-    <string name="local_tts">Local TTS</string>
     <string name="thread_count">Thread count</string>
     <string name="all_read_time">Total read time</string>
     <string name="un_select_all">Unselect all</string>
@@ -1008,7 +1002,6 @@
     <string name="crash_log">Crash log</string>
     <string name="use_zh_layout">Custom Chinese line feed</string>
     <string name="image_style">Style of Images</string>
-    <string name="system_tts">System tts</string>
     <string name="export_type">Exported file format</string>
     <string name="checkAuthor">Check by author</string>
     <string name="url_already">This URL has subscribed</string>
@@ -1086,8 +1079,6 @@
     <string name="cover_show_name_summary">Book title shown on cover</string>
     <string name="cover_show_author">show author</string>
     <string name="cover_show_author_summary">Author shown on cover</string>
-    <string name="read_aloud_prev_paragraph">Read aloud the previous paragraph</string>
-    <string name="read_aloud_next_paragraph">Read aloud the next paragraph</string>
     <string name="wait_download">wait download</string>
     <string name="download_success">download success</string>
     <string name="download_error">download failure</string>
@@ -1115,8 +1106,6 @@
     <string name="font_scale_summary">font scale:%.1f</string>
     <string name="search_content_size">search result</string>
     <string name="search_content_empty">Empty search result, check conversation settings</string>
-    <string name="tts_speech_reduce">Decrease speech speed</string>
-    <string name="tts_speech_add">Increase speech speed</string>
     <string name="open_sys_dir_picker_error">Error opening system folder selector, automatically open application folder selector</string>
     <string name="open_sys_doc_picker_error">Error opening system file selector, automatically open application file selector</string>
     <string name="expand_text_menu">Expand text selection menu</string>
@@ -1190,9 +1179,6 @@
     <string name="cover_html_keep_one_template">At least one template must be kept</string>
     <string name="discard">Discard</string>
     <string name="scroll_to_dur_source">Navigate to the current book source</string>
-    <string name="sys_tts_config">System tts Settings</string>
-    <string name="sys_tts_config_summary">Open the system tts settings interface</string>
-    <string name="cannot_timed_non_playback">When the non-playback state is not legal</string>
     <string name="all_bookmark">All bookmarks</string>
     <string name="collapse_all">Collapse all</string>
     <string name="expand_all">Expand all</string>
@@ -1206,7 +1192,6 @@
     <string name="verification_code">Verification code</string>
     <string name="timeout_millisecond">Timed out milliseconds</string>
     <string name="file_not_supported">Continue to open although %1$s is not supported ?</string>
-    <string name="import_tts">Import TTS</string>
     <string name="import_theme">Import theme</string>
     <string name="import_txt_toc_rule">Import txt directory rules</string>
     <string name="auto_save_cookie">CookieJar</string>
@@ -1478,7 +1463,6 @@
     <string name="hide_manga_title">Hide Manga List Title</string>
     <string name="refresh_explore">Refresh Explore</string>
     <string name="padding_display_cutouts">Padding display cutouts</string>
-    <string name="read_aloud_pause_resume">Pause/Resume Speech</string>
     <string name="manga_epaper">E-Paper Mode</string>
     <string name="manga_epaper_stting">E-Paper Settings</string>
     <string name="manga_epaper_value">Threshold</string>
@@ -1618,7 +1602,6 @@
     <string name="enter_img_src_path">Please enter image URL</string>
     <string name="empty_img_src_input">Image URL cannot be empty</string>
     <string name="invalid_file_path">Invalid file path</string>
-    <string name="is_system_tts_no_export">Cannot export system TTS</string>
     <string name="click_image_way">Click Image Method</string>
     <string name="auto_update_summary">Auto check for app updates daily</string>
 

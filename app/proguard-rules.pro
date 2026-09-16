@@ -177,13 +177,6 @@ cn.hutool.core.util.**{*;}
 -keep class org.jsoup.**{*;}
 -dontwarn org.jspecify.annotations.NullMarked
 
-## ExoPlayer 反射设置ua 保证该私有变量不被混淆
--keepclassmembers class androidx.media3.datasource.cache.CacheDataSource$Factory {
-    *** upstreamDataSourceFactory;
-}
-## ExoPlayer 如果还不能播放就取消注释这个
-# -keep class com.google.android.exoplayer2.** {*;}
-
 ## 对外提供api
 -keep class io.legado.app.api.ReturnData{*;}
 
@@ -201,23 +194,6 @@ cn.hutool.core.util.**{*;}
 -keep class org.eclipse.tm4e.** { *; }
 -keep class org.joni.** { *; }
 
-# GSYVideoPlayer
--keep class com.shuyu.gsyvideoplayer.** { *; }
--dontwarn com.shuyu.gsyvideoplayer.**
-#-keep class com.shuyu.gsyvideoplayer.video.** { *; }
-#-dontwarn com.shuyu.gsyvideoplayer.video.**
-#-keep class com.shuyu.gsyvideoplayer.video.base.** { *; }
-#-dontwarn com.shuyu.gsyvideoplayer.video.base.**
-#-keep class com.shuyu.gsyvideoplayer.utils.** { *; }
-#-dontwarn com.shuyu.gsyvideoplayer.utils.**
-#-keep class com.shuyu.gsyvideoplayer.player.** {*;}
-#-dontwarn com.shuyu.gsyvideoplayer.player.**
-#-keep class tv.danmaku.ijk.** { *; }
-#-dontwarn tv.danmaku.ijk.**
-#-keep class androidx.media3.** {*;}
-#-keep interface androidx.media3.**
-#-keep class com.shuyu.alipay.** {*;}
-#-keep interface com.shuyu.alipay.**
 -keep public class * extends android.view.View{
     *** get*();
     void set*(***);

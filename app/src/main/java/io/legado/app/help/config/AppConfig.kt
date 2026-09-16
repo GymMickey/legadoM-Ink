@@ -493,14 +493,6 @@ object AppConfig : SharedPreferences.OnSharedPreferenceChangeListener {
     val noAnimScrollPage: Boolean
         get() = appCtx.getPrefBoolean(PreferKey.noAnimScrollPage, false)
 
-    const val defaultSpeechRate = 5
-
-    var ttsTimer: Int
-        get() = appCtx.getPrefInt(PreferKey.ttsTimer, 0)
-        set(value) {
-            appCtx.putPrefInt(PreferKey.ttsTimer, value)
-        }
-
     var chineseConverterType: Int
         get() = appCtx.getPrefInt(PreferKey.chineseConverterType)
         set(value) {
@@ -792,8 +784,6 @@ object AppConfig : SharedPreferences.OnSharedPreferenceChangeListener {
     val loadCoverOnlyWifi get() = appCtx.getPrefBoolean(PreferKey.loadCoverOnlyWifi, false)
 
     val showAddToShelfAlert get() = appCtx.getPrefBoolean(PreferKey.showAddToShelfAlert, true)
-
-    val ignoreAudioFocus get() = appCtx.getPrefBoolean(PreferKey.ignoreAudioFocus, false)
 
     val onlyLatestBackup get() = appCtx.getPrefBoolean(PreferKey.onlyLatestBackup, false)
 

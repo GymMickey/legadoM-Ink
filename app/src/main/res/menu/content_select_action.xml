@@ -15,10 +15,6 @@
         android:title="@string/bookmark" />
 
     <item
-        android:id="@+id/menu_aloud"
-        android:title="@string/read_aloud" />
-
-    <item
         android:id="@+id/menu_dict"
         android:title="@string/dict" />
 

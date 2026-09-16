@@ -17,6 +17,7 @@ import android.view.ViewGroup
 import android.view.inputmethod.EditorInfo
 import android.webkit.SslErrorHandler
 import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Button
@@ -38,6 +39,7 @@ import com.google.android.material.bottomsheet.BottomSheetDialog
 import io.legado.app.R
 import io.legado.app.help.config.AppConfig
 import io.legado.app.help.webView.PooledWebView
+import io.legado.app.help.webView.VisibleWebMediaPolicy
 import io.legado.app.help.webView.WebViewPool
 import io.legado.app.lib.theme.accentColor
 import io.legado.app.lib.theme.backgroundColor
@@ -128,6 +130,7 @@ class ReadWebSearchPanel @JvmOverloads constructor(
 
     // WebView
     private var pooledWebView: PooledWebView? = null
+    private var visibleWebMediaPolicy: VisibleWebMediaPolicy? = null
     private val webView: WebView
         get() = pooledWebView!!.realWebView
 
@@ -189,6 +192,8 @@ class ReadWebSearchPanel @JvmOverloads constructor(
      * 销毁时释放 WebView
      */
     fun onDestroy() {
+        visibleWebMediaPolicy?.restore()
+        visibleWebMediaPolicy = null
         pooledWebView?.let(WebViewPool::release)
         pooledWebView = null
     }
@@ -285,15 +290,44 @@ class ReadWebSearchPanel @JvmOverloads constructor(
             return
         }
         pooledWebView = WebViewPool.acquire(context)
+        visibleWebMediaPolicy = VisibleWebMediaPolicy(webView).also { it.install() }
         webView.apply {
             webViewClient = object : WebViewClient() {
                 override fun onPageFinished(view: WebView?, url: String?) {
                     super.onPageFinished(view, url)
+                    visibleWebMediaPolicy?.injectMediaBlocker()
                     if (isSwitchingEngine) {
                         webView.clearHistory()
                         isSwitchingEngine = false
                     }
                 }
+
+                override fun shouldInterceptRequest(
+                    view: WebView?,
+                    request: WebResourceRequest
+                ): WebResourceResponse? {
+                    return if (!request.isForMainFrame && VisibleWebMediaPolicy.isMediaRequest(
+                            request.url.toString(), request.requestHeaders
+                        )
+                    ) {
+                        VisibleWebMediaPolicy.blockedResponse()
+                    } else {
+                        super.shouldInterceptRequest(view, request)
+                    }
+                }
+
+                @Suppress("DEPRECATION", "OVERRIDE_DEPRECATION", "KotlinRedundantDiagnosticSuppress")
+                override fun shouldInterceptRequest(
+                    view: WebView?,
+                    url: String?
+                ): WebResourceResponse? {
+                    return if (url != null && VisibleWebMediaPolicy.isMediaRequest(url)) {
+                        VisibleWebMediaPolicy.blockedResponse()
+                    } else {
+                        super.shouldInterceptRequest(view, url)
+                    }
+                }
+
                 override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
                     return shouldOverrideUrlLoading(request?.url)
                 }

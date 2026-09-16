@@ -22,7 +22,6 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Rect
-import android.media.MediaPlayer
 import android.util.AttributeSet
 import android.view.View
 import io.legado.app.utils.DebugLog
@@ -35,7 +34,6 @@ class ExplosionView @JvmOverloads constructor(context: Context, attrs: Attribute
     View(context, attrs) {
 
     private var customDuration = ExplosionAnimator.DEFAULT_DURATION
-    private var idPlayAnimationEffect = 0
     private var mZAnimatorListener: OnAnimatorListener? = null
     private var mOnClickListener: OnClickListener? = null
 
@@ -51,10 +49,6 @@ class ExplosionView @JvmOverloads constructor(context: Context, attrs: Attribute
         for (explosion in mExplosions) {
             explosion.draw(canvas)
         }
-    }
-
-    fun playSoundAnimationEffect(id: Int) {
-        this.idPlayAnimationEffect = id
     }
 
     fun setCustomDuration(customDuration: Long) {
@@ -115,8 +109,6 @@ class ExplosionView @JvmOverloads constructor(context: Context, attrs: Attribute
 
         animator.addListener(object : Animator.AnimatorListener {
             override fun onAnimationStart(animator: Animator) {
-                if (idPlayAnimationEffect != 0)
-                    MediaPlayer.create(context, idPlayAnimationEffect).start()
             }
 
             override fun onAnimationEnd(animator: Animator) {

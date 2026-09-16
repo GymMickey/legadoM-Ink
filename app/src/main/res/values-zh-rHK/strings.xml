@@ -134,7 +134,6 @@
     <string name="previous_chapter">上一章</string>
     <string name="pt_hide_status_bar">隱藏狀態欄</string>
     <string name="ps_hide_status_bar">閲讀介面隱藏狀態欄</string>
-    <string name="read_aloud">朗讀</string>
 <string name="audio_pause">播放暫停</string>
     <string name="text_return">返回</string>
     <string name="refresh">刷新</string>
@@ -160,7 +159,6 @@
     <string name="background">背景</string>
     <string name="author">作者</string>
     <string name="author_show">作者: %s</string>
-    <string name="aloud_stop">朗讀停止</string>
     <string name="clear_cache">清理緩存</string>
     <string name="clear_cache_success">成功清理緩存</string>
     <string name="action_save">保存</string>
@@ -290,8 +288,6 @@
     <string name="check_book_source">校驗書源</string>
     <string name="check_select_source">校驗所選</string>
     <string name="progress_show">%1$s      進度 %2$d/%3$d</string>
-    <string name="tts_fix">請安裝並選擇中文 TTS!</string>
-    <string name="tts_init_failed">TTS 初始化失敗!</string>
     <string name="jf_convert">簡繁轉換</string>
     <string name="jf_convert_o">關閉</string>
     <string name="jf_convert_f">簡轉繁</string>
@@ -585,7 +581,6 @@
     <string name="export">導出</string>
     <string name="load_toc">加載目錄</string>
     <string name="load_info">加載詳情頁</string>
-    <string name="tts">TTS</string>
     <string name="web_dav_pw">WebDav 密碼</string>
     <string name="web_dav_pw_s">輸入你的 WebDav 授權密碼</string>
     <string name="web_dav_url_s">輸入你的服務器地址</string>
@@ -771,7 +766,6 @@
     <string name="read_record">閲讀記錄</string>
     <string name="del_read_record">刪除閲讀記錄</string>
     <string name="read_record_summary">閱讀時間記錄</string>
-    <string name="local_tts">本地TTS</string>
     <string name="thread_count">線程數</string>
     <string name="all_read_time">總閲讀時間</string>
     <string name="un_select_all">全部唔要</string>
@@ -839,7 +833,6 @@
     <string name="crash_log">崩潰日誌</string>
     <string name="use_zh_layout">使用自訂中文分行</string>
     <string name="image_style">圖片樣式</string>
-    <string name="system_tts">系統TTS</string>
     <string name="export_type">導出格式</string>
     <string name="checkAuthor">校驗作者</string>
     <string name="search_src">搜尋源碼</string>
@@ -904,8 +897,6 @@
     <string name="cover_show_name_summary">封面上顯示書名</string>
     <string name="cover_show_author">顯示作者</string>
     <string name="cover_show_author_summary">封面上顯示作者</string>
-    <string name="read_aloud_prev_paragraph">朗讀上一段</string>
-    <string name="read_aloud_next_paragraph">朗讀下一段</string>
     <string name="wait_download">待下載</string>
     <string name="download_success">下載完成</string>
     <string name="download_error">下載失敗</string>
@@ -929,8 +920,6 @@
     <string name="login_header">登錄頭</string>
     <string name="font_scale">字體大小</string>
     <string name="font_scale_summary">當前字亂大小:%.1f</string>
-    <string name="tts_speech_reduce">語速减</string>
-    <string name="tts_speech_add">語速加</string>
     <string name="open_sys_dir_picker_error">打开系统文件夹选择器出错,自动打开应用文件夹选择器</string>
     <string name="open_sys_doc_picker_error">打开系统文件选择器出错,自动打开应用文件选择器</string>
     <string name="expand_text_menu">展开文本选择菜单</string>
@@ -983,9 +972,6 @@
     <string name="cover_rule">封面规则</string>
     <string name="cover_rule_summary">进入详情页时使用封面规则重新获取封面</string>
     <string name="scroll_to_dur_source">定位到当前书源</string>
-    <string name="sys_tts_config">系统tts设置</string>
-    <string name="sys_tts_config_summary">打开系统tts设置界面</string>
-    <string name="cannot_timed_non_playback">非播放状态无法定时</string>
     <string name="all_bookmark">所有书签</string>
     <string name="change_source_batch">批量换源</string>
     <string name="book_type_different">书籍类型不一样</string>
@@ -994,7 +980,6 @@
     <string name="verification_code">验证码</string>
     <string name="timeout_millisecond">超时毫秒数</string>
     <string name="file_not_supported">文件%1$s 不受支持，是否继续打开？</string>
-    <string name="import_tts">导入TTS</string>
     <string name="import_theme">导入主题</string>
     <string name="import_txt_toc_rule">导入txt目录规则</string>
     <string name="auto_save_cookie">CookieJar</string>
@@ -1203,7 +1188,6 @@
     <string name="hide_manga_title">隐藏漫画列表标题</string>
     <string name="refresh_explore">刷新发现</string>
     <string name="padding_display_cutouts">填充刘海区域</string>
-    <string name="read_aloud_pause_resume">朗讀暫停/繼續</string>
     <string name="manga_epaper">墨水屏</string>
     <string name="manga_epaper_stting">墨水屏设置</string>
     <string name="manga_epaper_value">阈值</string>

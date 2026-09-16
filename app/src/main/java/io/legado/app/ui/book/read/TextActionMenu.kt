@@ -25,7 +25,6 @@ import io.legado.app.constant.AppLog
 import io.legado.app.constant.PreferKey
 import io.legado.app.databinding.ItemTextBinding
 import io.legado.app.databinding.PopupActionMenuBinding
-import io.legado.app.help.config.AppConfig
 import io.legado.app.utils.getPrefBoolean
 import io.legado.app.utils.gone
 import io.legado.app.utils.isAbsUrl
@@ -39,7 +38,7 @@ import io.legado.app.utils.visible
  * 文本操作菜单
  * 
  * 功能说明：
- * 1. 长按文本后显示的弹出菜单，提供复制、分享、朗读、书签、替换、搜索等操作
+ * 1. 长按文本后显示的弹出菜单，提供复制、分享、书签、替换、搜索等操作
  * 2. 支持集成系统文本处理菜单（Android 6.0+），如翻译、搜索等第三方应用
  * 3. 支持展开/收起更多菜单项
  * 4. 继承自PopupWindow，以弹出窗口形式显示
@@ -278,17 +277,6 @@ class TextActionMenu(private val context: Context, private val callBack: CallBac
                 callBack.onMenuActionFinally()
             }
             
-            // 长按事件：切换朗读模式（朗读选中内容 vs 从选择位置开始朗读）
-            holder.itemView.setOnLongClickListener {
-                if (AppConfig.contentSelectSpeakMod == 0) {
-                    AppConfig.contentSelectSpeakMod = 1
-                    context.toastOnUi("切换为从选择的地方开始一直朗读")
-                } else {
-                    AppConfig.contentSelectSpeakMod = 0
-                    context.toastOnUi("切换为朗读选择内容")
-                }
-                true
-            }
         }
     }
 

@@ -3,7 +3,6 @@ package io.legado.app.model.analyzeRule
 import android.annotation.SuppressLint
 import android.util.Base64
 import androidx.annotation.Keep
-import androidx.media3.common.MediaItem
 import cn.hutool.core.codec.PercentCodec
 import cn.hutool.core.net.RFC3986
 import cn.hutool.core.util.HexUtil
@@ -21,7 +20,6 @@ import io.legado.app.data.repository.debug.FlowLogRecorder
 import io.legado.app.help.ConcurrentRateLimiter
 import io.legado.app.help.JsExtensions
 import io.legado.app.help.config.AppConfig
-import io.legado.app.help.exoplayer.ExoPlayerHelper
 import io.legado.app.help.glide.GlideHeaders
 import io.legado.app.help.http.BackstageWebView
 import io.legado.app.help.http.CookieManager
@@ -83,8 +81,6 @@ class AnalyzeUrl(
     private val mUrl: String,
     private val key: String? = null,
     private val page: Int? = null,
-    private val speakText: String? = null,
-    private val speakSpeed: Int? = null,
     private var baseUrl: String = "",
     private val source: BaseSource? = null,
     private val ruleData: RuleDataInterface? = null,
@@ -370,8 +366,6 @@ class AnalyzeUrl(
             bindings["cache"] = CacheManager
             bindings["page"] = page
             bindings["key"] = key
-            bindings["speakText"] = speakText
-            bindings["speakSpeed"] = speakSpeed
             bindings["book"] = ruleData as? Book
             bindings["source"] = source
             bindings["result"] = result
@@ -806,11 +800,6 @@ class AnalyzeUrl(
         private val queryEncoder =
             RFC3986.UNRESERVED.orNew(PercentCodec.of("!$%&()*+,/:;=?@[\\]^`{|}"))
         val customIp by lazy { ConcurrentHashMap<String, String>() }
-        fun AnalyzeUrl.getMediaItem(): MediaItem {
-            setCookie()
-            return ExoPlayerHelper.createMediaItem(url, headerMap)
-        }
-
     }
 
     @Keep

@@ -137,7 +137,6 @@
     <string name="previous_chapter">Chương trước</string>
     <string name="pt_hide_status_bar">Ẩn thanh trạng thái</string>
     <string name="ps_hide_status_bar">Ẩn thanh điều hướng hệ thống khi đọc</string>
-    <string name="read_aloud">Đọc thành tiếng</string>
 <string name="audio_pause">Tạm dừng</string>
     <string name="text_return">Quay lại</string>
     <string name="refresh">Làm mới</string>
@@ -160,7 +159,6 @@
     <string name="background">Nền</string>
     <string name="author">Tác giả</string>
     <string name="author_show">Tác giả: %s</string>
-    <string name="aloud_stop">Dừng đọc</string>
     <string name="clear_cache">Xóa bộ đệm</string>
     <string name="clear_cache_success">Đã xóa bộ đệm</string>
     <string name="action_save">Lưu</string>
@@ -289,8 +287,6 @@
     <string name="check_book_source">Kiểm tra nguồn sách</string>
     <string name="check_select_source">Kiểm tra nguồn đã chọn</string>
     <string name="progress_show">%1$s      Tiến độ %2$d/%3$d</string>
-    <string name="tts_fix">Vui lòng cài đặt và chọn TTS tiếng Trung!</string>
-    <string name="tts_init_failed">Khởi tạo TTS thất bại!</string>
     <string name="jf_convert">Chuyển đổi Giản thể</string>
     <string name="jf_convert_o">Tắt</string>
     <string name="jf_convert_f">Giản thể sang Phồn thể</string>
@@ -583,7 +579,6 @@
     <string name="export">Xuất</string>
     <string name="load_toc">Tải chương</string>
     <string name="load_info">Tải chi tiết sách</string>
-    <string name="tts">TTS</string>
     <string name="web_dav_pw">Mật khẩu WebDav</string>
     <string name="web_dav_pw_s">Nhập mật khẩu WebDav của bạn</string>
     <string name="web_dav_url_s">Nhập địa chỉ máy chủ của bạn</string>
@@ -764,7 +759,6 @@
     <string name="read_record">Lịch sử đọc</string>
     <string name="del_read_record">Xóa lịch sử đọc</string>
     <string name="read_record_summary">Tóm tắt lịch sử đọc</string>
-    <string name="local_tts">TTS cục bộ</string>
     <string name="thread_count">Số luồng</string>
     <string name="all_read_time">Tổng thời gian đọc</string>
     <string name="un_select_all">Bỏ chọn tất cả</string>
@@ -833,7 +827,6 @@
     <string name="crash_log">Nhật ký sự cố</string>
     <string name="use_zh_layout">Sử dụng ngắt dòng tiếng Trung tùy chỉnh</string>
     <string name="image_style">Kiểu hình ảnh</string>
-    <string name="system_tts">TTS hệ thống</string>
     <string name="export_type">Định dạng tệp xuất</string>
     <string name="checkAuthor">Kiểm tra theo tác giả</string>
     <string name="url_already">URL này đã được đăng ký</string>
@@ -894,8 +887,6 @@
     <string name="cover_show_name_summary">Tên sách hiển thị trên bìa</string>
     <string name="cover_show_author">hiển thị tác giả</string>
     <string name="cover_show_author_summary">Tác giả hiển thị trên bìa</string>
-    <string name="read_aloud_prev_paragraph">Đọc to đoạn trước</string>
-    <string name="read_aloud_next_paragraph">Đọc to đoạn sau</string>
     <string name="wait_download">đợi tải xuống</string>
     <string name="download_success">tải xuống thành công</string>
     <string name="download_error">tải xuống thất bại</string>
@@ -919,8 +910,6 @@
     <string name="font_scale_summary">tỷ lệ phông chữ hiện tại:%.1f</string>
     <string name="search_content_size">kết quả tìm kiếm</string>
     <string name="search_content_empty">Kết quả tìm kiếm trống, kiểm tra cài đặt chuyển đổi</string>
-    <string name="tts_speech_reduce">Giảm tốc độ đọc</string>
-    <string name="tts_speech_add">Tăng tốc độ đọc</string>
     <string name="open_sys_dir_picker_error">Lỗi khi mở bộ chọn thư mục hệ thống, tự động mở bộ chọn thư mục ứng dụng</string>
     <string name="open_sys_doc_picker_error">Lỗi khi mở bộ chọn tệp hệ thống, tự động mở bộ chọn tệp ứng dụng</string>
     <string name="expand_text_menu">Mở rộng menu chọn văn bản</string>
@@ -971,9 +960,6 @@
     <string name="cover_rule">Quy tắc bìa</string>
     <string name="cover_rule_summary">Sử dụng quy tắc bìa để lấy lại bìa khi vào trang chi tiết</string>
     <string name="scroll_to_dur_source">Định vị đến nguồn sách hiện tại</string>
-    <string name="sys_tts_config">Cài đặt TTS hệ thống</string>
-    <string name="sys_tts_config_summary">Mở giao diện cài đặt TTS hệ thống</string>
-    <string name="cannot_timed_non_playback">Không thể hẹn giờ ở trạng thái không phát</string>
     <string name="all_bookmark">Tất cả dấu trang</string>
     <string name="change_source_batch">Đổi nguồn hàng loạt</string>
     <string name="book_type_different">Loại sách khác nhau</string>
@@ -982,7 +968,6 @@
     <string name="verification_code">Mã xác minh</string>
     <string name="timeout_millisecond">Số mili giây hết hạn</string>
     <string name="file_not_supported">Tệp %1$s không được hỗ trợ, bạn có muốn tiếp tục mở không?</string>
-    <string name="import_tts">Nhập TTS</string>
     <string name="import_theme">Nhập chủ đề</string>
     <string name="import_txt_toc_rule">Nhập quy tắc thư mục txt</string>
     <string name="auto_save_cookie">CookieJar</string>

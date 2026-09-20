@@ -339,9 +339,6 @@ dependencies {
         exclude group: 'com.github.bumptech.glide', module: 'annotations'
         exclude group: 'com.github.bumptech.glide', module: 'glide'
     }
-    // 重新添加glide核心库以保持兼容
-    implementation(libs.glide.glide)
-    
     //webServer
     implementation(libs.nanohttpd.nanohttpd)
     implementation(libs.nanohttpd.websocket)

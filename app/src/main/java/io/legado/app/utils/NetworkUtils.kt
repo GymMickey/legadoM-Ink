@@ -14,7 +14,6 @@ import java.net.NetworkInterface
 import java.net.SocketException
 import java.net.URL
 import java.util.BitSet
-import java.util.Enumeration
 
 @Suppress("unused", "MemberVisibilityCanBePrivate")
 object NetworkUtils {
@@ -243,30 +242,107 @@ object NetworkUtils {
     }
 
     /**
-     * Get local Ip address.
+     * Returns the one stable IPv4 address used by all user-visible Web service links.
+     * Internet capability is intentionally not required: an isolated LAN is valid.
      */
-    fun getLocalIPAddress(): List<InetAddress> {
-        val enumeration: Enumeration<NetworkInterface>
-        try {
-            enumeration = NetworkInterface.getNetworkInterfaces()
-        } catch (e: SocketException) {
-            e.printOnDebug()
-            return emptyList()
+    fun getPreferredLocalIPv4(): String? {
+        val candidates = buildList {
+            addAll(getNetworkAddressCandidates())
+            addAll(getInterfaceAddressCandidates())
         }
+        return LanIpv4Selector.select(candidates)
+    }
 
-        val addressList = mutableListOf<InetAddress>()
+    @SuppressLint("MissingPermission", "ObsoleteSdkInt")
+    private fun getNetworkAddressCandidates(): List<LanIpv4Candidate> {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP) return emptyList()
 
-        while (enumeration.hasMoreElements()) {
-            val nif = enumeration.nextElement()
-            val addresses = nif.inetAddresses ?: continue
-            while (addresses.hasMoreElements()) {
-                val address = addresses.nextElement()
-                if (!address.isLoopbackAddress && isIPv4Address(address.hostAddress)) {
-                    addressList.add(address)
+        return try {
+            val activeNetwork = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                connectivityManager.activeNetwork
+            } else {
+                null
+            }
+            @Suppress("DEPRECATION")
+            val activeWifi = Build.VERSION.SDK_INT < Build.VERSION_CODES.M &&
+                connectivityManager.activeNetworkInfo?.type == ConnectivityManager.TYPE_WIFI
+
+            connectivityManager.allNetworks.flatMap { network ->
+                try {
+                    val capabilities = connectivityManager.getNetworkCapabilities(network)
+                        ?: return@flatMap emptyList()
+                    val linkProperties = connectivityManager.getLinkProperties(network)
+                        ?: return@flatMap emptyList()
+                    val source = when {
+                        capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) ->
+                            LanIpv4Source.WIFI
+                        capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) ->
+                            LanIpv4Source.ETHERNET
+                        capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) ->
+                            LanIpv4Source.CELLULAR
+                        capabilities.hasTransport(NetworkCapabilities.TRANSPORT_VPN) ->
+                            LanIpv4Source.VPN
+                        else -> LanIpv4Source.OTHER
+                    }
+                    val isActiveWifi = source == LanIpv4Source.WIFI &&
+                        (network == activeNetwork || activeWifi)
+                    linkProperties.linkAddresses.mapNotNull { linkAddress ->
+                        val address = linkAddress.address.hostAddress
+                            ?: return@mapNotNull null
+                        LanIpv4Candidate(
+                            address = address,
+                            source = source,
+                            active = isActiveWifi,
+                            interfaceName = linkProperties.interfaceName.orEmpty()
+                        )
+                    }
+                } catch (e: RuntimeException) {
+                    e.printOnDebug()
+                    emptyList()
                 }
             }
+        } catch (e: RuntimeException) {
+            e.printOnDebug()
+            emptyList()
         }
-        return addressList
+    }
+
+    private fun getInterfaceAddressCandidates(): List<LanIpv4Candidate> {
+        return try {
+            NetworkInterface.getNetworkInterfaces()?.toList().orEmpty().flatMap { networkInterface ->
+                val source = sourceForInterface(networkInterface.name)
+                networkInterface.inetAddresses?.toList().orEmpty().mapNotNull { address ->
+                    val hostAddress = address.hostAddress ?: return@mapNotNull null
+                    LanIpv4Candidate(
+                        address = hostAddress,
+                        source = source,
+                        interfaceName = networkInterface.name.orEmpty()
+                    )
+                }
+            }
+        } catch (e: SocketException) {
+            e.printOnDebug()
+            emptyList()
+        } catch (e: RuntimeException) {
+            e.printOnDebug()
+            emptyList()
+        }
+    }
+
+    private fun sourceForInterface(name: String?): LanIpv4Source {
+        val normalized = name.orEmpty().lowercase()
+        return when {
+            normalized.contains("tun") || normalized.contains("tap") ||
+                normalized.contains("ppp") || normalized.contains("vpn") ||
+                normalized.contains("wg") -> LanIpv4Source.VPN
+            normalized.contains("wlan") || normalized.contains("wifi") -> LanIpv4Source.WIFI
+            normalized.contains("eth") -> LanIpv4Source.ETHERNET
+            normalized.contains("softap") || normalized.contains("tether") ||
+                normalized.matches(Regex("ap\\d+")) -> LanIpv4Source.HOTSPOT
+            normalized.contains("rmnet") || normalized.contains("ccmni") ||
+                normalized.contains("wwan") || normalized.contains("cell") -> LanIpv4Source.CELLULAR
+            else -> LanIpv4Source.PRIVATE
+        }
     }
 
     /**

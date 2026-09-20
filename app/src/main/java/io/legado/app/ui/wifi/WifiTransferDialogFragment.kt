@@ -14,12 +14,12 @@ import io.legado.app.data.appDb
 import io.legado.app.help.config.AppConfig
 import io.legado.app.service.WebService
 import io.legado.app.utils.QRCodeUtils
+import io.legado.app.utils.NetworkUtils
 import io.legado.app.utils.sendToClip
 import io.legado.app.utils.toastOnUi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.net.NetworkInterface
 
 /**
  * WiFi 传书对话框
@@ -46,7 +46,7 @@ class WifiTransferDialogFragment : BaseDialogFragment(R.layout.dialog_wifi_trans
             WebService.start(requireContext())
         }
 
-        val ip = getLocalIpAddress()
+        val ip = NetworkUtils.getPreferredLocalIPv4()
         val port = AppConfig.webPort
         val url = if (ip != null) "http://$ip:$port/wifi/" else null
 
@@ -142,12 +142,4 @@ class WifiTransferDialogFragment : BaseDialogFragment(R.layout.dialog_wifi_trans
         }
     }
 
-    private fun getLocalIpAddress(): String? {
-        return try {
-            NetworkInterface.getNetworkInterfaces()?.asSequence()
-                ?.flatMap { it.inetAddresses.asSequence() }
-                ?.find { !it.isLoopbackAddress && it is java.net.Inet4Address }
-                ?.hostAddress
-        } catch (_: Exception) { null }
-    }
 }

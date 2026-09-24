@@ -614,11 +614,12 @@ object ReadBook : CoroutineScope by MainScope() {
     ) {
         loadContent(durChapterIndex, resetPageOffset = resetPageOffset, forceReload = forceReload) {
             success?.invoke()
+            prepareLocalNextChapter(resetPageOffset = false)
         }
-        if (AppConfig.preDownloadNum > 0) {
+        if (book?.isLocal != true && AppConfig.preDownloadNum > 0) {
             loadContent(durChapterIndex + 1, resetPageOffset = resetPageOffset, forceReload = forceReload)
         }
-        if (AppConfig.backwardPreDownloadNum > 0) {
+        if (book?.isLocal != true && AppConfig.backwardPreDownloadNum > 0) {
             loadContent(durChapterIndex - 1, resetPageOffset = resetPageOffset, forceReload = forceReload)
         }
     }
@@ -627,16 +628,37 @@ object ReadBook : CoroutineScope by MainScope() {
         if (curTextChapter == null) {
             loadContent(durChapterIndex) {
                 success?.invoke()
+                prepareLocalNextChapter(resetPageOffset = false)
             }
         } else {
             callBack?.upContent()
+            prepareLocalNextChapter(resetPageOffset = false)
         }
-        if (AppConfig.preDownloadNum > 0 && nextTextChapter == null) {
+        if (book?.isLocal != true && AppConfig.preDownloadNum > 0 && nextTextChapter == null) {
             loadContent(durChapterIndex + 1)
         }
-        if (AppConfig.backwardPreDownloadNum > 0 && prevTextChapter == null) {
+        if (book?.isLocal != true && AppConfig.backwardPreDownloadNum > 0 && prevTextChapter == null) {
             loadContent(durChapterIndex - 1)
         }
+    }
+
+    /**
+     * 本地书的相邻章节只在当前章节已经完成排版后准备，避免冷启动争抢首屏。
+     * 网络书仍由 preDownloadNum 控制，不在此处增加任何远程请求。
+     */
+    private fun prepareLocalNextChapter(resetPageOffset: Boolean) {
+        if (!AdjacentChapterLoadPolicy.shouldPrepareLocalNext(
+                isLocalBook = book?.isLocal == true,
+                nextChapterReady = nextTextChapter != null,
+                currentIndex = durChapterIndex,
+                chapterCount = simulatedChapterSize
+            )
+        ) return
+        loadContent(
+            index = durChapterIndex + 1,
+            upContent = false,
+            resetPageOffset = resetPageOffset
+        )
     }
 
     /**
@@ -879,7 +901,7 @@ object ReadBook : CoroutineScope by MainScope() {
         success: (() -> Unit)? = null
     ) {
         removeLoading(chapter.index)
-        if (canceled || chapter.index !in durChapterIndex - 1..durChapterIndex + 1) {
+        if (canceled || !AdjacentChapterLoadPolicy.isInCurrentWindow(chapter.index, durChapterIndex)) {
             return
         }
         chapterLoadingJobs[chapter.index]?.cancel()
@@ -969,7 +991,7 @@ object ReadBook : CoroutineScope by MainScope() {
         resetPageOffset: Boolean
     ) {
         removeLoading(chapter.index)
-        if (chapter.index !in durChapterIndex - 1..durChapterIndex + 1) {
+        if (!AdjacentChapterLoadPolicy.isInCurrentWindow(chapter.index, durChapterIndex)) {
             return
         }
         kotlin.runCatching {
@@ -1052,7 +1074,7 @@ object ReadBook : CoroutineScope by MainScope() {
         resetPageOffset: Boolean = true
     ) {
         removeLoading(chapter.index)
-        if (chapter.index !in durChapterIndex - 1..durChapterIndex + 1) {
+        if (!AdjacentChapterLoadPolicy.isInCurrentWindow(chapter.index, durChapterIndex)) {
             return
         }
         try {

@@ -1,6 +1,7 @@
 package io.legado.app.data.repository
 
 import io.legado.app.data.dao.BookReadTime
+import io.legado.app.data.dao.HomepageReadBookKey
 import io.legado.app.data.dao.ReadRecordDao
 import io.legado.app.data.entities.readRecord.ReadRecord
 import io.legado.app.data.entities.readRecord.ReadRecordDetail
@@ -502,6 +503,18 @@ class ReadRecordRepositoryTest {
         override fun observeAllReadBookKeys(): Flow<List<ReadRecordDao.ReadBookKey>> {
             return flowOf(
                 records.map { ReadRecordDao.ReadBookKey(it.bookName, it.bookAuthor) }
+            )
+        }
+
+        override fun observeHomepageReadBookKeys(limit: Int): Flow<List<HomepageReadBookKey>> {
+            return flowOf(
+                records
+                    .groupBy { it.bookName to it.bookAuthor }
+                    .map { (key, values) ->
+                        HomepageReadBookKey(key.first, key.second, values.maxOf { it.lastRead })
+                    }
+                    .sortedByDescending { it.lastRead }
+                    .take(limit)
             )
         }
 

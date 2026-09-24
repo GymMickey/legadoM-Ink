@@ -1241,6 +1241,7 @@
     <string name="ireader_page_h_direction_auto_short">Automatic</string>
     <string name="ireader_page_h_direction_reverse_short">Reverse</string>
     <string name="ireader_page_h_config_summary">%1$s · %2$s</string>
+    <string name="ireader_page_h_enabled_tip">The wave transition affects the entire page, including underlines, highlights, and background images. Disable underlines or use a simpler style if the page looks too busy.</string>
     <string name="ireader_page_h_unsupported">This device or firmware does not support iReader PAGE_H</string>
     <string name="ireader_page_h_requires_no_anim">Set page animation to None first</string>
     <string name="check_selected_interval">Select zones</string>
@@ -2051,6 +2052,8 @@
     <string name="homepage_layout_config">Layout Config (layoutConfig)</string>
     <string name="homepage_dashboard_empty_title">No reading records yet</string>
     <string name="homepage_dashboard_empty_desc">Start reading your first book</string>
+    <string name="homepage_recent_reading_loading">Reading recent books…</string>
+    <string name="homepage_recent_reading_empty">No recent reading</string>
     <string name="homepage_continue_reading">Continue Reading</string>
     <string name="homepage_read_progress">Read %1$d%% · %2$s</string>
     <string name="homepage_stats_books_count">Books read</string>

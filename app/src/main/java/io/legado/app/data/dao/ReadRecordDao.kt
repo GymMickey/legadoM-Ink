@@ -164,11 +164,29 @@ interface ReadRecordDao {
     @Query("SELECT DISTINCT bookName, bookAuthor FROM readRecord")
     fun observeAllReadBookKeys(): Flow<List<ReadBookKey>>
 
+    /** 首页只读取最近的有限候选，避免启动时加载全部阅读记录。 */
+    @Query(
+        """
+        SELECT bookName, bookAuthor, MAX(lastRead) AS lastRead
+        FROM readRecord
+        GROUP BY bookName, bookAuthor
+        ORDER BY lastRead DESC
+        LIMIT :limit
+        """
+    )
+    fun observeHomepageReadBookKeys(limit: Int): Flow<List<HomepageReadBookKey>>
+
     data class ReadBookKey(
         val bookName: String,
         val bookAuthor: String,
     )
 }
+
+data class HomepageReadBookKey(
+    val bookName: String,
+    val bookAuthor: String,
+    val lastRead: Long
+)
 
 data class BookReadTime(
     val bookName: String,

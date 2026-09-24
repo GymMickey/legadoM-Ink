@@ -4,6 +4,7 @@ import io.legado.app.utils.FileUtils
 import io.legado.app.utils.GSON
 import io.legado.app.utils.fromJsonObject
 import io.legado.app.data.repository.CoverGalleryRepository
+import io.legado.app.help.config.ReadBookConfig
 import io.legado.app.ui.widget.components.dialog.MultiSelectItem
 import io.legado.app.ui.widget.components.dialog.MultiSelectGroup
 import splitties.init.appCtx
@@ -24,7 +25,6 @@ object BackupSelectorConfig {
     val allItems = listOf(
         BackupItem("coverGallery", CoverGalleryRepository.backupDirName, "封面图集", "配置"),
         BackupItem("bookshelf", "bookshelf.json", "书架", "数据库"),
-        BackupItem("bookChapter", "bookChapter.json", "章节目录", "数据库"),
         BackupItem("bookmark", "bookmark.json", "书签", "数据库"),
         BackupItem("bookGroup", "bookGroup.json", "书籍分组", "数据库"),
         BackupItem("bookSource", "bookSource.json", "书源", "数据库"),
@@ -35,7 +35,6 @@ object BackupSelectorConfig {
         BackupItem("replaceRule", "replaceRule.json", "替换规则", "数据库"),
         BackupItem("highlightRule", "highlightRule.json", "高亮规则", "配置"),
         BackupItem("readRecord", "readRecord.json", "阅读记录", "数据库"),
-        BackupItem("readRecordDetail", "readRecordDetail.json", "阅读记录详情", "数据库"),
         BackupItem("bookReview", "bookReview.json", "书评", "数据库"),
         BackupItem("searchHistory", "searchHistory.json", "搜索历史", "数据库"),
         BackupItem("txtTocRule", "txtTocRule.json", "TXT目录规则", "数据库"),
@@ -44,7 +43,7 @@ object BackupSelectorConfig {
         BackupItem("servers", "servers.json", "服务器配置", "数据库"),
         BackupItem("runtimeSourceCache", "runtimeSourceCache.json", "书源运行数据", "数据库"),
         BackupItem("readConfig", "readConfig.json", "阅读样式配置", "配置"),
-        BackupItem("readShareConfig", "readShareConfig.json", "阅读分享配置", "配置"),
+        BackupItem("readShareConfig", ReadBookConfig.shareConfigFileName, "阅读分享配置", "配置"),
         BackupItem("themeConfig", "themeConfig.json", "主题配置", "配置"),
         BackupItem("coverRule", "coverRule.json", "封面规则", "配置"),
         BackupItem("directLinkRule", "directLinkRule.json", "直链规则", "配置"),
@@ -73,11 +72,22 @@ object BackupSelectorConfig {
     }
 
     fun isSelected(key: String): Boolean {
+        if (key == "readRecord") {
+            val selected = selectedMap[key]
+            val legacyDetailSelected = selectedMap["readRecordDetail"]
+            return selected != false || legacyDetailSelected == true
+        }
         return selectedMap[key] ?: true
     }
 
     fun setSelected(key: String, selected: Boolean) {
-        selectedMap[key] = selected
+        if (key == "readRecord" || key == "readRecordDetail") {
+            // 兼容旧版分别保存的记录/详情选择状态，但新界面始终作为一个逻辑项目处理。
+            selectedMap["readRecord"] = selected
+            selectedMap["readRecordDetail"] = selected
+        } else {
+            selectedMap[key] = selected
+        }
     }
 
     fun selectAll() {
@@ -89,8 +99,13 @@ object BackupSelectorConfig {
     }
 
     fun getSelectedFileNames(): List<String> {
-        return allItems.filter { isSelected(it.key) }.map { it.fileName }
+        val selected = allItems.filter { isSelected(it.key) }.map { it.fileName }.toMutableList()
+        if (isReadRecordSelected()) selected += "readRecord"
+        if (isSelected("bookCache")) selected += "bookCache"
+        return BackupFileMappingPolicy.expandLogicalSelection(selected).toList()
     }
+
+    private fun isReadRecordSelected(): Boolean = isSelected("readRecord")
 
     fun isAllSelected(): Boolean {
         return allItems.all { isSelected(it.key) }

@@ -19,6 +19,7 @@ import io.legado.app.help.book.BookMatcher
 import io.legado.app.help.config.LocalConfig
 import io.legado.app.help.storage.Backup
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Dispatchers.Default
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -35,6 +36,7 @@ class HomepageViewModel(application: Application) : BaseViewModel(application) {
 
     companion object {
         private const val CUSTOM_SET_URL_PREFIX = "custom://"
+        private const val HOMEPAGE_CANDIDATE_LIMIT = 32
 
         /** 判断 URL 是否为自定义集 */
         fun isCustomSetUrl(url: String) = url.startsWith(CUSTOM_SET_URL_PREFIX)
@@ -57,37 +59,56 @@ class HomepageViewModel(application: Application) : BaseViewModel(application) {
     private val _isBackingUp = MutableStateFlow(false)
     private val readRecordRepository = ReadRecordRepository(appDb.readRecordDao)
 
-    /**
-     * 仪表盘状态——组合书架数据与阅读统计。
-     */
-    @OptIn(ExperimentalCoroutinesApi::class)
-    val dashboardState: StateFlow<HomepageDashboardState> = combine(
-        appDb.bookDao.flowHomepageBooks(),
-        appDb.readRecordDao.observeAllReadBookKeys(),
-        readRecordRepository.getTotalReadTime(),
-        appDb.readRecordDao.observeCount(),
-        _isBackingUp
-    ) { summaries, readBookKeys, totalTime, readBooksCount, backingUp ->
-        val readKeySet = readBookKeys.map {
-            "${BookMatcher.normalize(it.bookName)}|${BookMatcher.normalize(it.bookAuthor)}"
-        }.toSet()
-        val readSummaries = summaries.filter {
-            "${BookMatcher.normalize(it.name)}|${BookMatcher.normalize(it.author)}" in readKeySet
+    private data class HomepageStats(
+        val totalBooksRead: Int = 0,
+        val totalReadTimeMs: Long = 0L
+    )
+
+    private data class HomepageBookSelectionState(
+        val lastReadBook: Book? = null,
+        val recentBooks: List<Book> = emptyList(),
+        val isLoaded: Boolean = false
+    )
+
+    private val homepageBooksState: StateFlow<HomepageBookSelectionState> = combine(
+        appDb.bookDao.flowHomepageBooks(HOMEPAGE_CANDIDATE_LIMIT),
+        appDb.readRecordDao.observeHomepageReadBookKeys(HOMEPAGE_CANDIDATE_LIMIT)
+    ) { summaries, readBookKeys ->
+        withContext(Default) {
+            val readKeySet = readBookKeys.map {
+                "${BookMatcher.normalize(it.bookName)}|${BookMatcher.normalize(it.bookAuthor)}"
+            }.toSet()
+            val selection = selectHomepageBooks(summaries, readKeySet)
+            HomepageBookSelectionState(
+                lastReadBook = selection.lastReadBook?.toBook(),
+                recentBooks = selection.recentBooks.map { it.toBook() },
+                isLoaded = true
+            )
         }
-        val lastRead = readSummaries.maxByOrNull { it.durChapterTime }?.toBook()
-        val recent = readSummaries
-            .sortedByDescending { it.durChapterTime }
-            .filter { it.bookUrl != lastRead?.bookUrl }
-            .take(10)
-            .map { it.toBook() }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), HomepageBookSelectionState())
+
+    private val homepageStatsState: StateFlow<HomepageStats> = combine(
+        readRecordRepository.getTotalReadTime(),
+        appDb.readRecordDao.observeCount()
+    ) { totalTime, readBooksCount ->
+        HomepageStats(totalBooksRead = readBooksCount, totalReadTimeMs = totalTime)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), HomepageStats())
+
+    /** Book cards are independent from the slower aggregate statistics query. */
+    val dashboardState: StateFlow<HomepageDashboardState> = combine(
+        homepageBooksState,
+        homepageStatsState,
+        _isBackingUp
+    ) { books, stats, backingUp ->
         HomepageDashboardState(
-            lastReadBook = lastRead,
-            totalBooksRead = readBooksCount,
-            totalReadTimeMs = totalTime,
-            recentBooks = recent,
+            lastReadBook = books.lastReadBook,
+            totalBooksRead = stats.totalBooksRead,
+            totalReadTimeMs = stats.totalReadTimeMs,
+            recentBooks = books.recentBooks,
             webDavConfigured = AppWebDav.isOk,
             isBackingUp = backingUp,
             lastBackupTime = LocalConfig.lastBackup,
+            isBooksLoaded = books.isLoaded
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), HomepageDashboardState())
 

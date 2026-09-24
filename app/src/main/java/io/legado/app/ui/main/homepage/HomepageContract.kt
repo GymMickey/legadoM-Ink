@@ -61,6 +61,7 @@ data class HomepageDashboardState(
     val webDavConfigured: Boolean = false,
     val isBackingUp: Boolean = false,
     val lastBackupTime: Long = 0L,
+    val isBooksLoaded: Boolean = false,
 )
 
 // ==================== 旧模块系统类型（Phase 3+ 清理移除） ====================

@@ -16,6 +16,7 @@ import io.legado.app.data.entities.Server
 import io.legado.app.data.entities.TxtTocRule
 import io.legado.app.data.entities.readRecord.ReadRecord
 import io.legado.app.data.entities.readRecord.ReadRecordDetail
+import io.legado.app.data.entities.readRecord.ReadRecordSession
 import io.legado.app.help.DirectLinkUpload
 import io.legado.app.model.BookCover
 import io.legado.app.ui.book.read.config.HighlightRuleStore
@@ -343,6 +344,7 @@ object BackupFileValidator {
                 "replaceRule.json" -> validateEntityStructure<ReplaceRule>(jsonText, listOf("name"))
                 "readRecord.json" -> validateEntityStructure<ReadRecord>(jsonText, listOf("bookName"))
                 "readRecordDetail.json" -> validateEntityStructure<ReadRecordDetail>(jsonText, listOf("bookName"))
+                "readRecordSession.json" -> validateEntityStructure<ReadRecordSession>(jsonText, listOf("bookName"))
                 "searchHistory.json" -> validateEntityStructure<SearchKeyword>(jsonText, listOf("word"))
                 "txtTocRule.json" -> validateEntityStructure<TxtTocRule>(jsonText, listOf("name"))
                 "httpTTS.json" -> validateEntityStructure<HttpTTS>(jsonText, listOf("name"))

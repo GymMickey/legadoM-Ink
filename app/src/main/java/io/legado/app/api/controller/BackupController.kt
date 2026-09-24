@@ -183,6 +183,7 @@ object BackupController {
                 .writeText(GSON.toJson(HighlightRuleStore.createBackupData(appCtx)))
             writeListToJson(appDb.readRecordDao.all, "readRecord.json", webBackupPath)
             writeListToJson(appDb.readRecordDao.getAllDetailsList(), "readRecordDetail.json", webBackupPath)
+            writeListToJson(appDb.readRecordDao.getAllSessionsList(), "readRecordSession.json", webBackupPath)
             writeListToJson(appDb.searchKeywordDao.all, "searchHistory.json", webBackupPath)
             writeListToJson(appDb.txtTocRuleDao.all, "txtTocRule.json", webBackupPath)
             writeListToJson(appDb.keyboardAssistsDao.all, "keyboardAssists.json", webBackupPath)
@@ -199,11 +200,14 @@ object BackupController {
             }
 
             // 导出阅读配置
-            GSON.toJson(ReadBookConfig.getBackupConfigList()).let {
+            val readBackgroundPlan = Backup.createReadBackgroundBackupPlan(
+                setOf(ReadBookConfig.configFileName, ReadBookConfig.shareConfigFileName)
+            )
+            GSON.toJson(ReadBookConfig.getBackupConfigList(readBackgroundPlan::backupName)).let {
                 FileUtils.createFileIfNotExist(webBackupPath + File.separator + ReadBookConfig.configFileName)
                     .writeText(it)
             }
-            GSON.toJson(ReadBookConfig.getBackupShareConfig()).let {
+            GSON.toJson(ReadBookConfig.getBackupShareConfig(readBackgroundPlan::backupName)).let {
                 FileUtils.createFileIfNotExist(webBackupPath + File.separator + ReadBookConfig.shareConfigFileName)
                     .writeText(it)
             }
@@ -248,7 +252,7 @@ object BackupController {
                 edit.commit()
             }
 
-            Backup.stageBackgroundImageFiles(webBackupPath)
+            Backup.stageBackgroundImageFiles(webBackupPath, readBackgroundPlan)
             Backup.stageHighlightRuleBackgroundFiles(webBackupPath)
             Backup.stageBookCache(webBackupPath)
             Backup.stageBookChapterForCache(webBackupPath)
@@ -316,11 +320,10 @@ object BackupController {
             BackupItemDef("replaceRule.json", "替换规则", "正文替换净化规则") {
                 appDb.replaceRuleDao.count
             },
-            BackupItemDef("readRecord.json", "阅读记录", "阅读时长统计记录") {
-                appDb.readRecordDao.count
-            },
-            BackupItemDef("readRecordDetail.json", "阅读详情", "每本书每天的阅读统计") {
-                appDb.readRecordDao.getDetailsCount()
+            BackupItemDef("readRecord.json", "阅读记录", "记录、详情和阅读时段") {
+                appDb.readRecordDao.count +
+                    appDb.readRecordDao.getDetailsCount() +
+                    appDb.readRecordDao.getSessionsCount()
             },
             BackupItemDef("searchHistory.json", "搜索历史", "搜索关键词历史") {
                 appDb.searchKeywordDao.count
@@ -375,27 +378,14 @@ object BackupController {
             }
             val indexEstimatedSize = selectedBooks.size * 300L
             val chapterEstimatedSize = chapterCount * 200L
-            totalSize += bookCacheSize + indexEstimatedSize + chapterEstimatedSize
+            val booksEstimatedSize = selectedBooks.size * 500L
+            totalSize += bookCacheSize + indexEstimatedSize + chapterEstimatedSize + booksEstimatedSize
             items.add(BackupItemInfo(
                 fileName = "book_cache",
                 displayName = "书籍缓存",
-                description = "已缓存的章节内容文件",
+                description = "缓存文件、索引、书籍信息和章节目录",
                 count = selectedBooks.size,
-                size = bookCacheSize
-            ))
-            items.add(BackupItemInfo(
-                fileName = "bookCacheIndex.json",
-                displayName = "书籍缓存索引",
-                description = "缓存文件的索引信息",
-                count = selectedBooks.size,
-                size = indexEstimatedSize
-            ))
-            items.add(BackupItemInfo(
-                fileName = "bookChapterCache.json",
-                displayName = "书籍章节目录",
-                description = "缓存书籍的章节目录数据",
-                count = chapterCount,
-                size = chapterEstimatedSize
+                size = bookCacheSize + indexEstimatedSize + chapterEstimatedSize + booksEstimatedSize
             ))
         }
 

@@ -32,6 +32,7 @@ import io.legado.app.utils.ChineseUtils
 import io.legado.app.utils.ColorUtils
 import io.legado.app.utils.dpToPx
 import io.legado.app.utils.getIndexById
+import io.legado.app.utils.longToast
 import io.legado.app.utils.postEvent
 import io.legado.app.utils.showDialogFragment
 import io.legado.app.utils.viewbindingdelegate.viewBinding
@@ -146,10 +147,6 @@ class ReadStyleDialog : BaseDialogFragment(R.layout.dialog_read_book_style),
             updatePageHRow()
         }
         layoutPageHInfo.setOnClickListener { showPageHOptions() }
-        switchPageH.setOnCheckedChangeListener { _, isChecked ->
-            AppConfig.iReaderPageHEnabled = isChecked
-            updatePageHRow()
-        }
         cbShareLayout.setOnCheckedChangeListener { _, isChecked ->
             ReadBookConfig.shareLayout = isChecked
             upView()
@@ -214,18 +211,26 @@ class ReadStyleDialog : BaseDialogFragment(R.layout.dialog_read_book_style),
             && ReadBook.pageAnim() == PageAnim.noAnim
             && IReaderPageH.isAvailable()
         layoutPageHRow.visibility = if (visible) View.VISIBLE else View.GONE
+        switchPageH.setOnCheckedChangeListener(null)
         if (!visible) return@run
         tvPageHSummary.text = getString(
             R.string.ireader_page_h_config_summary,
             pageHDirectionSummary(),
             pageHSpeedSummary()
         )
-        switchPageH.setOnCheckedChangeListener(null)
         switchPageH.isChecked = AppConfig.iReaderPageHEnabled
         switchPageH.setOnCheckedChangeListener { _, isChecked ->
-            AppConfig.iReaderPageHEnabled = isChecked
-            updatePageHRow()
+            onPageHSwitchChanged(isChecked)
         }
+    }
+
+    private fun onPageHSwitchChanged(isChecked: Boolean) {
+        val wasEnabled = AppConfig.iReaderPageHEnabled
+        AppConfig.iReaderPageHEnabled = isChecked
+        if (!wasEnabled && isChecked) {
+            longToast(R.string.ireader_page_h_enabled_tip)
+        }
+        updatePageHRow()
     }
 
     private fun pageHDirectionSummary(): String {

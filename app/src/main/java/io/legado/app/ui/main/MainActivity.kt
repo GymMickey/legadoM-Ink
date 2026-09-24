@@ -161,9 +161,6 @@ class MainActivity : VMBaseActivity<ActivityMainBinding, MainViewModel>(),
                     viewModel.upAllBookToc()
                 }
             }
-            binding.viewPagerMain.postDelayed(3000) {
-                viewModel.postLoad()
-            }
         }
     }
 
@@ -209,7 +206,7 @@ class MainActivity : VMBaseActivity<ActivityMainBinding, MainViewModel>(),
 
     private fun initView() = binding.run {
         viewPagerMain.setEdgeEffectColor(primaryColor)
-        viewPagerMain.offscreenPageLimit = 3
+        viewPagerMain.offscreenPageLimit = if (AppConfig.isEInkMode) 1 else 3
         viewPagerMain.adapter = adapter
         viewPagerMain.addOnPageChangeListener(PageChangeCallback())
         bottomNavigationView.setOnNavigationItemSelectedListener(this@MainActivity)

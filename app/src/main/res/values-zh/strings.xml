@@ -1236,6 +1236,7 @@
     <string name="ireader_page_h_direction_auto_short">自动方向</string>
     <string name="ireader_page_h_direction_reverse_short">反向</string>
     <string name="ireader_page_h_config_summary">%1$s · %2$s</string>
+    <string name="ireader_page_h_enabled_tip">水波纹会作用于整页，下划线、高亮和背景图也会一起翻动；画面过于繁复时，建议关闭下划线或使用简单样式。</string>
     <string name="ireader_page_h_unsupported">当前设备或固件不支持掌阅 PAGE_H</string>
     <string name="ireader_page_h_requires_no_anim">请先将翻页动画设置为无动画</string>
     <string name="example">示例</string>
@@ -2045,6 +2046,8 @@
     <string name="module_type_button_group">按钮组</string>
     <string name="homepage_dashboard_empty_title">暂无阅读记录</string>
     <string name="homepage_dashboard_empty_desc">开始阅读你的第一本书吧</string>
+    <string name="homepage_recent_reading_loading">正在读取最近阅读</string>
+    <string name="homepage_recent_reading_empty">暂无最近阅读</string>
     <string name="homepage_continue_reading">继续阅读</string>
     <string name="homepage_read_progress">已读 %1$d%% · %2$s</string>
     <string name="homepage_stats_books_count">累计阅读</string>

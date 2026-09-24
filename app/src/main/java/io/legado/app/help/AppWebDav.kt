@@ -11,6 +11,7 @@ import io.legado.app.exception.NoStackTraceException
 import io.legado.app.help.config.AppConfig
 import io.legado.app.help.storage.Backup
 import io.legado.app.help.storage.Restore
+import io.legado.app.help.storage.RestoreStageTimer
 import io.legado.app.lib.webdav.Authorization
 import io.legado.app.lib.webdav.WebDav
 import io.legado.app.lib.webdav.WebDavException
@@ -211,11 +212,24 @@ object AppWebDav {
      */
     @Throws(WebDavException::class)
     suspend fun downloadAndUnzipBackup(name: String) {
-        authorization?.let {
-            val webDav = appWebDav(rootWebDavUrl + name, it)
-            webDav.downloadTo(Backup.zipFilePath, true)
-            FileUtils.delete(Backup.backupPath)
-            ZipUtils.unZipToPath(File(Backup.zipFilePath), Backup.backupPath)
+        val timer = RestoreStageTimer()
+        try {
+            authorization?.let {
+                val webDav = appWebDav(rootWebDavUrl + name, it)
+                timer.measureSuspend("webdav_download") {
+                    webDav.downloadTo(Backup.zipFilePath, true)
+                }
+                FileUtils.delete(Backup.backupPath)
+                timer.measureSuspend("zip_unzip") {
+                    ZipUtils.unZipToPath(File(Backup.zipFilePath), Backup.backupPath)
+                }
+            }
+        } finally {
+            timer.snapshot().forEach { timing ->
+                val count = timing.itemCount?.let { ", count=$it" }.orEmpty()
+                AppLog.put("恢复阶段 ${timing.stage}: ${timing.elapsedMs}ms$count")
+            }
+            timer.clear()
         }
     }
 

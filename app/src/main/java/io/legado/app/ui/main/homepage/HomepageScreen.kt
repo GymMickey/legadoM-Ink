@@ -123,29 +123,7 @@ fun HomepageScreen(
     Scaffold(
         containerColor = Color.Transparent,
     ) { paddingValues ->
-        if (state.lastReadBook == null && state.recentBooks.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        text = stringResource(R.string.homepage_dashboard_empty_title),
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = pageSecondaryTextColor()
-                    )
-                    Text(
-                        text = stringResource(R.string.homepage_dashboard_empty_desc),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = pageSecondaryTextColor().copy(alpha = 0.6f),
-                        modifier = Modifier.padding(top = 4.dp)
-                    )
-                }
-            }
-        } else {
-            LazyColumn(
+        LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(paddingValues),
@@ -153,16 +131,20 @@ fun HomepageScreen(
                 verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically)
             ) {
                 // 1. 最近阅读卡片（elevated 层次）
-                state.lastReadBook?.let { book ->
-                    item(key = "last_read") {
+                item(key = "last_read") {
+                    state.lastReadBook?.let { book ->
                         LastReadCard(
                             book = book,
                             onClick = { onContinueReadClick(book.bookUrl) },
                             elevation = cardElevation,
                             border = cardBorder
                         )
+                    } ?: RecentReadingPlaceholderCard(
+                        isLoaded = state.isBooksLoaded,
+                        elevation = cardElevation,
+                        border = cardBorder
+                    )
                     }
-                }
 
                 // 2. 统计双卡
                 item(key = "stats") {
@@ -176,15 +158,23 @@ fun HomepageScreen(
                 }
 
                 // 3. 最近书籍横滑列表
-                if (state.recentBooks.isNotEmpty()) {
+                if (!state.isBooksLoaded || state.recentBooks.isNotEmpty()) {
                     item(key = "recent") {
-                        RecentBooksRow(
-                            books = state.recentBooks,
-                            onBookClick = { viewModel.onBookClick(it) },
-                            onViewAllClick = onBookshelfClick,
-                            elevation = cardElevation,
-                            border = cardBorder
-                        )
+                        if (state.recentBooks.isNotEmpty()) {
+                            RecentBooksRow(
+                                books = state.recentBooks,
+                                onBookClick = { viewModel.onBookClick(it) },
+                                onViewAllClick = onBookshelfClick,
+                                elevation = cardElevation,
+                                border = cardBorder
+                            )
+                        } else {
+                            RecentReadingPlaceholderCard(
+                                isLoaded = false,
+                                elevation = cardElevation,
+                                border = cardBorder
+                            )
+                        }
                     }
                 }
 
@@ -205,7 +195,6 @@ fun HomepageScreen(
 
                 item(key = "bottom") { Spacer(modifier = Modifier.height(8.dp)) }
             }
-        }
 
         // 恢复确认弹窗
         restoreDialogName?.let { name ->
@@ -228,6 +217,39 @@ fun HomepageScreen(
                         Text(stringResource(android.R.string.cancel))
                     }
                 }
+            )
+        }
+    }
+}
+
+@Composable
+private fun RecentReadingPlaceholderCard(
+    isLoaded: Boolean,
+    elevation: androidx.compose.ui.unit.Dp,
+    border: BorderStroke?
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .cardBorder(border),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = pageCardElevatedContainerColor()),
+        elevation = CardDefaults.cardElevation(defaultElevation = elevation)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(128.dp)
+                .padding(16.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = stringResource(
+                    if (isLoaded) R.string.homepage_recent_reading_empty
+                    else R.string.homepage_recent_reading_loading
+                ),
+                style = MaterialTheme.typography.bodyMedium,
+                color = pageSecondaryTextColor()
             )
         }
     }

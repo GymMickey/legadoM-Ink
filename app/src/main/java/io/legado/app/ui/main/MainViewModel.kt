@@ -316,9 +316,6 @@ class MainViewModel(application: Application) : BaseViewModel(application) {
         }
     }
 
-    fun postLoad() {
-    }
-
     fun restoreWebDav(name: String) {
         execute {
             AppWebDav.restoreWebDav(name)

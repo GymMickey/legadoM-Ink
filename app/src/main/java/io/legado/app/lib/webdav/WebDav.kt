@@ -17,6 +17,7 @@ import io.legado.app.utils.findNSPrefix
 import io.legado.app.utils.printOnDebug
 import io.legado.app.utils.toRequestBody
 import kotlinx.coroutines.Dispatchers.IO
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
@@ -34,6 +35,7 @@ import java.io.FileOutputStream
 import java.io.InputStream
 import java.net.MalformedURLException
 import java.net.URL
+import java.io.IOException
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.util.concurrent.TimeUnit
@@ -253,34 +255,56 @@ open class WebDav(
     /**
      * 文件是否存在
      */
-    suspend fun exists(): Boolean {
+    suspend fun exists(): Boolean = existsOrThrow()
+
+    /**
+     * 文件是否存在，同时保留认证、网络和服务器错误给状态层处理。
+     * 404 是正常的“不存在”，其他 HTTP 错误继续向上传递。
+     */
+    suspend fun existsOrThrow(): Boolean {
         val url = httpUrl ?: return false
-        return kotlin.runCatching {
-            return webDavClient.newCallResponse {
-                url(url)
-                addHeader("Depth", "0")
-                val requestBody = EXISTS.toRequestBody("application/xml".toMediaType())
-                method("PROPFIND", requestBody)
-            }.use { it.isSuccessful }
-        }.onFailure {
-            currentCoroutineContext().ensureActive()
-        }.getOrDefault(false)
+        return webDavClient.newCallResponse {
+            url(url)
+            addHeader("Depth", "0")
+            val requestBody = EXISTS.toRequestBody("application/xml".toMediaType())
+            method("PROPFIND", requestBody)
+        }.use { response ->
+            if (response.code == 404) {
+                false
+            } else {
+                checkResult(response)
+                true
+            }
+        }
     }
 
     /**
      * 检查用户名密码是否有效
      */
-    suspend fun check(): Boolean {
-        return kotlin.runCatching {
+    suspend fun check(): WebDavCheckResult = withContext(IO) {
+        try {
             webDavClient.newCallResponse {
                 url(url)
                 addHeader("Depth", "0")
                 val requestBody = EXISTS.toRequestBody("application/xml".toMediaType())
                 method("PROPFIND", requestBody)
-            }.use { it.code != 401 }
-        }.onFailure {
+            }.use { response ->
+                when {
+                    response.isSuccessful -> WebDavCheckResult.Available
+                    response.code == 401 || response.code == 403 ->
+                        WebDavCheckResult.AuthenticationFailed(response.code)
+
+                    else -> WebDavCheckResult.ServerError(response.code)
+                }
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: IOException) {
+            // OkHttp may report cancellation as an IOException after the call
+            // is cancelled; do not turn that into a normal network result.
             currentCoroutineContext().ensureActive()
-        }.getOrDefault(false)
+            WebDavCheckResult.NetworkError(e)
+        }
     }
 
     /**
@@ -288,21 +312,29 @@ open class WebDav(
      * @return 是否创建成功
      */
     suspend fun makeAsDir(): Boolean {
-        val url = httpUrl ?: return false
-        //防止报错
-        return kotlin.runCatching {
-            if (!exists()) {
-                webDavClient.newCallResponse {
-                    url(url)
-                    method("MKCOL", null)
-                }.use {
-                    checkResult(it)
-                }
+        return try {
+            makeAsDirOrThrow()
+            true
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            AppLog.put("WebDav创建目录失败\n${e.localizedMessage}", e)
+            false
+        }
+    }
+
+    /** Create the directory and preserve the original failure for callers that
+     * need to distinguish authentication, network, and server errors. */
+    suspend fun makeAsDirOrThrow() = withContext(IO) {
+        val url = httpUrl ?: throw WebDavException("url不能为空")
+        if (!existsOrThrow()) {
+            webDavClient.newCallResponse {
+                url(url)
+                method("MKCOL", null)
+            }.use {
+                checkResult(it)
             }
-        }.onFailure {
-            currentCoroutineContext().ensureActive()
-            AppLog.put("WebDav创建目录失败\n${it.localizedMessage}", it)
-        }.isSuccess
+        }
     }
 
     /**
@@ -343,7 +375,7 @@ open class WebDav(
 
     @Throws(WebDavException::class)
     suspend fun upload(file: File, contentType: String = DEFAULT_CONTENT_TYPE) {
-        kotlin.runCatching {
+        try {
             withContext(IO) {
                 if (!file.exists()) throw WebDavException("文件不存在")
                 // 务必注意RequestBody不要嵌套，不然上传时内容可能会被追加多余的文件信息
@@ -356,17 +388,19 @@ open class WebDav(
                     checkResult(it)
                 }
             }
-        }.onFailure {
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
             currentCoroutineContext().ensureActive()
-            AppLog.put("WebDav上传失败\n${it.localizedMessage}", it)
-            throw WebDavException("WebDav上传失败\n${it.localizedMessage}")
+            AppLog.put("WebDav上传失败", e)
+            throw e
         }
     }
 
     @Throws(WebDavException::class)
     suspend fun upload(byteArray: ByteArray, contentType: String = DEFAULT_CONTENT_TYPE) {
         // 务必注意RequestBody不要嵌套，不然上传时内容可能会被追加多余的文件信息
-        kotlin.runCatching {
+        try {
             withContext(IO) {
                 val fileBody = byteArray.toRequestBody(contentType.toMediaType())
                 val url = httpUrl ?: throw NoStackTraceException("url不能为空")
@@ -377,17 +411,19 @@ open class WebDav(
                     checkResult(it)
                 }
             }
-        }.onFailure {
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
             currentCoroutineContext().ensureActive()
-            AppLog.put("WebDav上传失败\n${it.localizedMessage}", it)
-            throw WebDavException("WebDav上传失败\n${it.localizedMessage}")
+            AppLog.put("WebDav上传失败", e)
+            throw e
         }
     }
 
     @Throws(WebDavException::class)
     suspend fun upload(uri: Uri, contentType: String = DEFAULT_CONTENT_TYPE) {
         // 务必注意RequestBody不要嵌套，不然上传时内容可能会被追加多余的文件信息
-        kotlin.runCatching {
+        try {
             withContext(IO) {
                 val fileBody = uri.toRequestBody(contentType.toMediaType())
                 val url = httpUrl ?: throw NoStackTraceException("url不能为空")
@@ -398,10 +434,12 @@ open class WebDav(
                     checkResult(it)
                 }
             }
-        }.onFailure {
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
             currentCoroutineContext().ensureActive()
-            AppLog.put("WebDav上传失败\n${it.localizedMessage}", it)
-            throw WebDavException("WebDav上传失败\n${it.localizedMessage}")
+            AppLog.put("WebDav上传失败", e)
+            throw e
         }
     }
 
@@ -452,7 +490,10 @@ open class WebDav(
             }
 
             if (response.message.isNotBlank() || body.isBlank()) {
-                throw WebDavException("${url}\n${response.code}:${response.message}")
+                throw WebDavHttpException(
+                    response.code,
+                    "${url}\n${response.code}:${response.message}"
+                )
             }
             val document = Jsoup.parse(body)
             val exception = document.getElementsByTag("s:exception").firstOrNull()?.text()
@@ -462,7 +503,10 @@ open class WebDav(
                     message ?: "$path doesn't exist. code:${response.code}"
                 )
             }
-            throw WebDavException(message ?: "未知错误 code:${response.code}")
+            throw WebDavHttpException(
+                response.code,
+                message ?: "未知错误 code:${response.code}"
+            )
         }
     }
 

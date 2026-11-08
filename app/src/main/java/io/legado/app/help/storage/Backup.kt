@@ -10,6 +10,8 @@ import io.legado.app.data.appDb
 import io.legado.app.exception.NoStackTraceException
 import io.legado.app.help.AppWebDav
 import io.legado.app.help.DirectLinkUpload
+import io.legado.app.help.WebDavUploadResult
+import io.legado.app.lib.webdav.WebDavStatus
 import io.legado.app.help.config.AppConfig
 import io.legado.app.help.config.LocalConfig
 import io.legado.app.help.config.ReadBookConfig
@@ -33,6 +35,7 @@ import io.legado.app.utils.openOutputStream
 import io.legado.app.utils.outputStream
 import io.legado.app.utils.writeToOutputStream
 import kotlinx.coroutines.Dispatchers.IO
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.sync.Mutex
@@ -487,8 +490,8 @@ object Backup {
         context: Context,
         path: String?,
         onProgress: ((String) -> Unit)? = null
-    ) {
-        mutex.withLock {
+    ): BackupResult {
+        return mutex.withLock {
             withContext(IO) {
                 backup(context, path, onProgress)
             }
@@ -514,11 +517,15 @@ object Backup {
         context: Context,
         path: String?,
         onProgress: ((String) -> Unit)? = null
-    ) {
-        LogUtils.d(TAG, "开始备份 path:$path")
-        LocalConfig.lastBackup = System.currentTimeMillis()
-        val aes = BackupAES()
-        FileUtils.delete(backupPath)
+    ): BackupResult {
+        var webDavResult: WebDavUploadResult = WebDavUploadResult.NotConfigured
+        var backgroundUploadFailure: WebDavStatus? = null
+        return try {
+            LogUtils.d(TAG, "开始备份 path:$path")
+            // Preserve the legacy meaning: this records the latest backup attempt.
+            LocalConfig.lastBackup = System.currentTimeMillis()
+            val aes = BackupAES()
+            FileUtils.delete(backupPath)
 
         val selectedFiles = BackupSelectorConfig.getSelectedFileNames()
         val readBackgroundPlan = if (
@@ -757,7 +764,10 @@ object Backup {
         }
 
         onProgress?.invoke(BackupInfoHelper.getDisplayName("zip"))
-        if (ZipUtils.zipFiles(paths, zipFilePath)) {
+        if (!ZipUtils.zipFiles(paths, zipFilePath)) {
+            throw NoStackTraceException("本地备份打包失败")
+        }
+        run {
             onProgress?.invoke(BackupInfoHelper.getDisplayName("copyBackup"))
             // 复制到目标目录
             when {
@@ -774,25 +784,77 @@ object Backup {
                 }
             }
 
-            // 上传到WebDav云端
-            try {
-                onProgress?.invoke(BackupInfoHelper.getDisplayName("webDavBackup"))
-                AppWebDav.backUpWebDav(zipFileName)
-            } catch (e: Exception) {
-                AppLog.put("上传备份至webdav失败\n$e", e)
-            }
+            // 上传到WebDav云端；远端失败由结构化结果传回调用方。
+            onProgress?.invoke(BackupInfoHelper.getDisplayName("webDavBackup"))
+            webDavResult = AppWebDav.backUpWebDav(zipFileName)
         }
-
-        // 清理临时文件
-        onProgress?.invoke(BackupInfoHelper.getDisplayName("clearBackupCache"))
-        FileUtils.delete(backupPath)
-        FileUtils.delete(zipFilePath)
 
         currentCoroutineContext().ensureActive()
 
         // 上传背景图片到WebDav
         onProgress?.invoke(BackupInfoHelper.getDisplayName("webDavBackgroundImages"))
-        AppWebDav.upBgs(getBackgroundImageFiles().toTypedArray())
+        try {
+            AppWebDav.upBgs(getBackgroundImageFiles().toTypedArray())
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            backgroundUploadFailure = AppWebDav.status.value
+            AppLog.put("WebDav背景图片上传失败", e)
+        }
+
+        // Keep lastBackup as the legacy local-backup timestamp.  The homepage
+        // uses the separate timestamp that is written only after upload success.
+        completeWebDavBackup(
+            webDavResult,
+            System.currentTimeMillis(),
+            backgroundUploadFailure
+        )
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        AppLog.put("备份失败", e)
+        BackupResult.Failed(e)
+    } finally {
+        // Temporary files must be removed even when export, upload, or the
+        // coroutine itself fails.
+        runCatching { FileUtils.delete(backupPath) }
+        runCatching { FileUtils.delete(zipFilePath) }
+        runCatching { FileUtils.delete(zipFilePath.replace("tmp_", "")) }
+        runCatching {
+            onProgress?.invoke(BackupInfoHelper.getDisplayName("clearBackupCache"))
+        }
+    }
+    }
+
+    /** Record only a confirmed ZIP upload and return the user-facing outcome. */
+    internal fun completeWebDavBackup(
+        webDavResult: WebDavUploadResult,
+        completedAt: Long,
+        backgroundUploadFailure: WebDavStatus? = null
+    ): BackupResult {
+        val result = when {
+            webDavResult is WebDavUploadResult.Uploaded && backgroundUploadFailure != null ->
+                BackupResult.PartialSuccess(WebDavUploadResult.Failed(backgroundUploadFailure))
+
+            webDavResult is WebDavUploadResult.Uploaded ->
+                BackupResult.Success(WebDavUploadResult.Uploaded)
+
+            webDavResult is WebDavUploadResult.NotConfigured ->
+                BackupResult.LocalOnly(WebDavUploadResult.NotConfigured)
+
+            webDavResult is WebDavUploadResult.NotVerified ->
+                BackupResult.PartialSuccess(WebDavUploadResult.NotVerified)
+
+            webDavResult is WebDavUploadResult.Failed ->
+                BackupResult.PartialSuccess(webDavResult)
+
+            else -> error("Unknown WebDAV upload result")
+        }
+        return result.also {
+            if (webDavResult is WebDavUploadResult.Uploaded) {
+                LocalConfig.lastWebDavBackupTime = completedAt
+            }
+        }
     }
 
     /**

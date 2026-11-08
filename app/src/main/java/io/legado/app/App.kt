@@ -123,6 +123,9 @@ class App : Application() {
             }
             //调整排序序号
             SourceHelp.adjustSortNumber()
+            // WebDAV 检查和目录创建必须在后台执行；不要在 AppWebDav 对象初始化时阻塞主线程。
+            AppWebDav.startMonitoring()
+            AppWebDav.upConfig()
             //同步阅读记录
             if (AppConfig.syncBookProgress) {
                 AppWebDav.downloadAllBookProgress()

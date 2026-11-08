@@ -1615,6 +1615,10 @@
     <string name="homepage_webdav_configured">已配置 · 資料安全</string>
     <string name="homepage_webdav_last_backup">已配置 · 上次備份 %1$s</string>
     <string name="homepage_webdav_not_configured">未配置 · 點擊設定</string>
+    <string name="homepage_webdav_checking">WebDAV 已設定，正在檢查連線</string>
+    <string name="homepage_webdav_offline">WebDAV 已設定，目前網路不可用</string>
+    <string name="homepage_webdav_authentication_failed">WebDAV 認證失敗，請檢查帳號或應用程式密碼</string>
+    <string name="homepage_webdav_server_error">WebDAV 伺服器暫時無法使用</string>
     <string name="homepage_webdav_backup">備份</string>
     <string name="homepage_webdav_backing_up">備份中…</string>
     <string name="homepage_webdav_restore">恢復</string>
@@ -1622,4 +1626,8 @@
     <string name="homepage_webdav_configure">設定 WebDAV 備份</string>
     <string name="homepage_backup_done">備份完成</string>
     <string name="homepage_backup_failed">備份失敗：%1$s</string>
+    <string name="homepage_backup_local_only">本地備份完成，尚未設定 WebDAV</string>
+    <string name="homepage_backup_partial">本地備份完成，但 WebDAV 上傳失敗</string>
+    <string name="backup_webdav_local_only">本地備份完成，尚未設定 WebDAV</string>
+    <string name="backup_webdav_partial">本地備份完成，但 WebDAV 上傳失敗</string>
 </resources>

@@ -2068,6 +2068,10 @@
     <string name="homepage_webdav_configured">Configured · Data is safe</string>
     <string name="homepage_webdav_last_backup">Configured · Last backup %1$s</string>
     <string name="homepage_webdav_not_configured">Not configured · Tap to set up</string>
+    <string name="homepage_webdav_checking">Configured · Checking connection…</string>
+    <string name="homepage_webdav_offline">Configured · Network unavailable</string>
+    <string name="homepage_webdav_authentication_failed">Configured · Authentication failed</string>
+    <string name="homepage_webdav_server_error">Configured · Server temporarily unavailable</string>
     <string name="homepage_webdav_backup">Backup</string>
     <string name="homepage_webdav_backing_up">Backing up…</string>
     <string name="homepage_webdav_restore">Restore</string>
@@ -2112,4 +2116,8 @@
     <string name="write_first_review">写下我的评价</string>
     <string name="view_edit">查看/编辑</string>
     <string name="search_book_review_hint">搜索书名、作者、正文</string>
+    <string name="homepage_backup_local_only">Local backup completed; WebDAV is not configured</string>
+    <string name="homepage_backup_partial">Local backup completed, WebDAV upload failed</string>
+    <string name="backup_webdav_local_only">Local backup completed; WebDAV is not configured</string>
+    <string name="backup_webdav_partial">Local backup completed, WebDAV upload failed</string>
 </resources>

@@ -1,6 +1,10 @@
 package io.legado.app.help
 
+import android.app.Activity
+import android.app.Application
 import android.net.Uri
+import android.os.Bundle
+import android.os.SystemClock
 import io.legado.app.R
 import io.legado.app.constant.AppLog
 import io.legado.app.constant.PreferKey
@@ -14,9 +18,13 @@ import io.legado.app.help.storage.Restore
 import io.legado.app.help.storage.RestoreStageTimer
 import io.legado.app.lib.webdav.Authorization
 import io.legado.app.lib.webdav.WebDav
+import io.legado.app.lib.webdav.WebDavCheckResult
 import io.legado.app.lib.webdav.WebDavException
 import io.legado.app.lib.webdav.WebDavFile
+import io.legado.app.lib.webdav.WebDavHttpException
+import io.legado.app.lib.webdav.WebDavStatus
 import io.legado.app.model.remote.RemoteBookWebDav
+import io.legado.app.receiver.NetworkChangedListener
 import io.legado.app.utils.AlphanumComparator
 import io.legado.app.utils.FileUtils
 import io.legado.app.utils.GSON
@@ -27,13 +35,33 @@ import io.legado.app.utils.fromJsonObject
 import io.legado.app.utils.getPrefString
 import io.legado.app.utils.isJson
 import io.legado.app.utils.normalizeFileName
-import io.legado.app.utils.removePref
 import io.legado.app.utils.toastOnUi
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.Dispatchers.IO
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import splitties.init.appCtx
 import java.io.File
+import java.io.IOException
+import java.net.URI
+import java.security.MessageDigest
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicLong
+import java.util.concurrent.atomic.AtomicReference
 
 /**webDav初始化会访问网络,不要放到主线程
  * WebDav云同步管理类
@@ -64,19 +92,13 @@ object AppWebDav {
     /** 默认WebDav服务器地址（坚果云） */
     private const val defaultWebDavUrl = "https://dav.jianguoyun.com/dav/"
 
-    /** 书籍进度同步URL */
-    private val bookProgressUrl get() = "${rootWebDavUrl}bookProgress/"
-
-    /** 书籍导出URL */
-    private val exportsWebDavUrl get() = "${rootWebDavUrl}books/"
-
-    /** 背景图片URL */
-    private val bgWebDavUrl get() = "${rootWebDavUrl}background/"
-
     private val allowInsecureWebDav get() = AppConfig.unsafeWebDav
 
-    private fun appWebDav(path: String, authorization: Authorization): WebDav {
-        val allowInsecure = allowInsecureWebDav
+    private fun appWebDav(
+        path: String,
+        authorization: Authorization,
+        allowInsecure: Boolean = allowInsecureWebDav
+    ): WebDav {
         return WebDav(
             path,
             authorization,
@@ -85,41 +107,279 @@ object AppWebDav {
         )
     }
 
+    /**
+     * URL and credentials are kept together.  A remote operation must capture
+     * one instance of this object and never combine fields from preferences
+     * with fields from an older successful check.
+     */
+    data class WebDavConfigSnapshot(
+        val rootUrl: String,
+        val authorization: Authorization,
+        val allowInsecure: Boolean,
+        val remoteBookWebDav: RemoteBookWebDav,
+        val version: Long,
+        val configIdentity: String
+    )
+
+    private data class WebDavPreferenceSnapshot(
+        val url: String?,
+        val account: String?,
+        val password: String?,
+        val directory: String?,
+        val allowInsecure: Boolean
+    ) {
+        val isConfigured: Boolean
+            get() = !account.isNullOrEmpty() && !password.isNullOrEmpty()
+    }
+
+    private val checkRequestId = AtomicLong(0)
+    private val configRequestLock = Any()
+    private val configCheckScope = CoroutineScope(SupervisorJob() + IO)
+    private val configJob = AtomicReference<Deferred<Unit>?>(null)
+    private val _activeConfig = MutableStateFlow<WebDavConfigSnapshot?>(null)
+
+    /** Last configuration whose endpoint and directories were verified together. */
+    val activeConfig: StateFlow<WebDavConfigSnapshot?> = _activeConfig.asStateFlow()
+
+    private val _status = MutableStateFlow(
+        if (!appCtx.getPrefString(PreferKey.webDavAccount).isNullOrEmpty()
+            && !appCtx.getPrefString(PreferKey.webDavPassword).isNullOrEmpty()
+        ) {
+            WebDavStatus.CHECKING
+        } else {
+            WebDavStatus.UNCONFIGURED
+        }
+    )
+
+    /** Observable connection state; configuration presence is not inferred from availability. */
+    val status: StateFlow<WebDavStatus> = _status.asStateFlow()
+
     /** WebDav授权信息 */
-    var authorization: Authorization? = null
-        private set
+    val authorization: Authorization?
+        get() = activeConfigForOperation()?.authorization
 
     /** 默认书籍WebDav客户端 */
-    var defaultBookWebDav: RemoteBookWebDav? = null
+    val defaultBookWebDav: RemoteBookWebDav?
+        get() = activeConfigForOperation()?.remoteBookWebDav
 
-    /** WebDav是否配置成功 */
-    val isOk get() = authorization != null
+    /** WebDav connection is currently available. Kept for existing callers. */
+    val isOk get() = status.value == WebDavStatus.AVAILABLE
+
+    /** Local credentials exist, even when the most recent check failed. */
+    val isConfigured get() = readConfig().isConfigured
 
     /** 是否为坚果云服务 */
-    val isJianGuoYun get() = rootWebDavUrl.startsWith(defaultWebDavUrl, true)
-
-    init {
-        runBlocking {
-            upConfig()
-        }
-    }
+    val isJianGuoYun
+        get() = (activeConfigForOperation()?.rootUrl ?: rootWebDavUrl(readConfig()))
+            .startsWith(defaultWebDavUrl, true)
 
     /**
      * WebDav根目录URL
      * 由配置URL和目录名拼接而成
      */
-    private val rootWebDavUrl: String
-        get() {
-            val configUrl = appCtx.getPrefString(PreferKey.webDavUrl)?.trim()
-            var url = if (configUrl.isNullOrEmpty()) defaultWebDavUrl else configUrl
-            if (!url.endsWith("/")) url = "${url}/"
-            AppConfig.webDavDir?.trim()?.let {
-                if (it.isNotEmpty()) {
-                    url = "${url}${it}/"
+    private fun readConfig() = WebDavPreferenceSnapshot(
+        url = appCtx.getPrefString(PreferKey.webDavUrl)?.trim(),
+        account = appCtx.getPrefString(PreferKey.webDavAccount),
+        password = appCtx.getPrefString(PreferKey.webDavPassword),
+        directory = AppConfig.webDavDir?.trim(),
+        allowInsecure = allowInsecureWebDav
+    )
+
+    private fun rootWebDavUrl(config: WebDavPreferenceSnapshot): String {
+        var url = if (config.url.isNullOrEmpty()) defaultWebDavUrl else config.url
+        if (!url.endsWith("/")) url = "${url}/"
+        config.directory?.takeIf { it.isNotEmpty() }?.let {
+            url = "${url}${it}/"
+        }
+        return url
+    }
+
+    private fun statusFor(error: Throwable): WebDavStatus = classifyWebDavError(error)
+
+    private fun normalizeRootUrl(rootUrl: String): String {
+        val normalized = runCatching { URI(rootUrl.trim()).normalize().toString() }
+            .getOrElse { rootUrl.trim() }
+        return normalized.trimEnd('/') + "/"
+    }
+
+    private fun sha256(value: String): String {
+        val digest = MessageDigest.getInstance("SHA-256").digest(value.toByteArray())
+        return digest.joinToString("") { "%02x".format(it) }
+    }
+
+    /**
+     * Opaque identity for the complete endpoint configuration. The password is only
+     * represented by an in-memory digest and is never included in logs or state text.
+     */
+    internal fun webDavConfigIdentity(
+        rootUrl: String,
+        username: String?,
+        password: String?,
+        allowInsecure: Boolean
+    ): String = sha256(
+        listOf(
+            normalizeRootUrl(rootUrl),
+            username.orEmpty(),
+            sha256(password.orEmpty()),
+            allowInsecure.toString()
+        ).joinToString("\u0000")
+    )
+
+    internal fun classifyWebDavError(error: Throwable): WebDavStatus = when (error) {
+        is WebDavHttpException -> {
+            if (error.code == 401 || error.code == 403) {
+                WebDavStatus.AUTHENTICATION_FAILED
+            } else {
+                WebDavStatus.SERVER_ERROR
+            }
+        }
+
+        is IOException -> WebDavStatus.OFFLINE
+        else -> WebDavStatus.SERVER_ERROR
+    }
+
+    private fun currentPreferenceIdentity(): String? {
+        val config = readConfig()
+        if (!config.isConfigured) return null
+        return webDavConfigIdentity(
+            rootUrl = rootWebDavUrl(config),
+            username = config.account,
+            password = config.password,
+            allowInsecure = config.allowInsecure
+        )
+    }
+
+    private fun isCurrent(snapshot: WebDavConfigSnapshot): Boolean {
+        return _activeConfig.value?.configIdentity == snapshot.configIdentity
+            && currentPreferenceIdentity() == snapshot.configIdentity
+    }
+
+    private fun activeConfigForOperation(): WebDavConfigSnapshot? {
+        val snapshot = _activeConfig.value ?: return null
+        return snapshot.takeIf(::isCurrent)
+    }
+
+    private fun updateOperationStatus(snapshot: WebDavConfigSnapshot, error: Throwable) {
+        if (isCurrent(snapshot)) {
+            _status.value = statusFor(error)
+        }
+    }
+
+    private fun markOperationAvailable(snapshot: WebDavConfigSnapshot) {
+        if (isCurrent(snapshot)) {
+            _status.value = WebDavStatus.AVAILABLE
+        }
+    }
+
+    private fun requireActiveConfig(): WebDavConfigSnapshot {
+        return activeConfigForOperation() ?: if (!readConfig().isConfigured) {
+            throw NoStackTraceException("webDav没有配置")
+        } else {
+            throw NoStackTraceException("webDav配置尚未验证")
+        }
+    }
+
+    private suspend fun <T> withActiveConfig(
+        operation: String,
+        block: suspend (WebDavConfigSnapshot) -> T
+    ): T {
+        val snapshot = requireActiveConfig()
+        return try {
+            block(snapshot).also { markOperationAvailable(snapshot) }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            updateOperationStatus(snapshot, e)
+            AppLog.put("WebDav${operation}失败", e)
+            throw e
+        }
+    }
+
+    /** Start process-wide network and foreground rechecks once. */
+    fun startMonitoring() {
+        if (!monitoringStarted.compareAndSet(false, true)) return
+        val listener = NetworkChangedListener(appCtx)
+        listener.onNetworkChanged = { scheduleRecheck(force = true) }
+        listener.register()
+        (appCtx.applicationContext as Application).registerActivityLifecycleCallbacks(
+            object : Application.ActivityLifecycleCallbacks {
+            override fun onActivityResumed(activity: Activity) {
+                scheduleRecheck(force = false)
+            }
+
+            override fun onActivityCreated(activity: Activity, state: Bundle?) = Unit
+            override fun onActivityStarted(activity: Activity) = Unit
+            override fun onActivityPaused(activity: Activity) = Unit
+            override fun onActivityStopped(activity: Activity) = Unit
+            override fun onActivitySaveInstanceState(activity: Activity, state: Bundle) = Unit
+            override fun onActivityDestroyed(activity: Activity) = Unit
+            }
+        )
+    }
+
+    private val monitoringStarted = AtomicBoolean(false)
+    private val monitoringScope = CoroutineScope(SupervisorJob() + IO)
+    private val recheckJob = AtomicReference<Job?>(null)
+    private val lastSuccessfulCheckAt = AtomicLong(0)
+
+    internal const val recheckDebounceMs = 750L
+    private const val minRecheckIntervalMs = 30_000L
+
+    private fun scheduleRecheck(force: Boolean) {
+        val config = readConfig()
+        if (!config.isConfigured) {
+            recheckJob.getAndSet(null)?.cancel()
+            return
+        }
+        val activeMatchesPreferences = activeConfigForOperation() != null
+        if (activeMatchesPreferences && !shouldScheduleWebDavCheck(
+                status.value,
+                lastSuccessfulCheckAt.get(),
+                SystemClock.elapsedRealtime(),
+                force
+            )
+        ) {
+            return
+        }
+        val job = monitoringScope.launch {
+            delay(recheckDebounceMs)
+            val latestConfig = readConfig()
+            val latestActiveMatches = activeConfigForOperation() != null
+            if (latestConfig.isConfigured) {
+                if (!NetworkUtils.isAvailable()) {
+                    _status.value = WebDavStatus.OFFLINE
+                } else if (!latestActiveMatches || shouldScheduleWebDavCheck(
+                        status.value,
+                        lastSuccessfulCheckAt.get(),
+                        SystemClock.elapsedRealtime(),
+                        force
+                    )
+                ) {
+                    upConfig()
                 }
             }
-            return url
         }
+        recheckJob.getAndSet(job)?.cancel()
+    }
+
+    internal fun shouldScheduleWebDavCheck(
+        status: WebDavStatus,
+        lastSuccessfulCheckAt: Long,
+        now: Long,
+        force: Boolean
+    ): Boolean {
+        if (force || status != WebDavStatus.AVAILABLE) return true
+        val age = now - lastSuccessfulCheckAt
+        return age !in 0 until minRecheckIntervalMs
+    }
+
+    private fun updateStatus(requestId: Long, value: WebDavStatus, identity: String? = null) {
+        if (requestId == checkRequestId.get()
+            && (identity == null || currentPreferenceIdentity() == identity)
+        ) {
+            _status.value = value
+        }
+    }
 
     /**
      * 更新WebDav配置
@@ -132,49 +392,153 @@ object AppWebDav {
      * - 背景图片目录
      */
     suspend fun upConfig() {
-        kotlin.runCatching {
-            authorization = null
-            defaultBookWebDav = null
-            val allowInsecure = allowInsecureWebDav
-            if (!allowInsecure && !rootWebDavUrl.startsWith("https://", true)) {
-                appCtx.toastOnUi(R.string.webdav_https_required)
-                return@runCatching
+        val (checkTask, previousTask) = synchronized(configRequestLock) {
+            val requestId = checkRequestId.incrementAndGet()
+            val previousStatus = _status.value
+            val newTask = configCheckScope.async(start = CoroutineStart.LAZY) {
+                runConfigCheck(requestId, previousStatus)
             }
-            val account = appCtx.getPrefString(PreferKey.webDavAccount)
-            val password = appCtx.getPrefString(PreferKey.webDavPassword)
-            if (!account.isNullOrEmpty() && !password.isNullOrEmpty()) {
-                if (allowInsecure) {
-                    appCtx.toastOnUi(R.string.webdav_insecure_warning)
+            newTask to configJob.getAndSet(newTask)
+        }
+
+        try {
+            previousTask?.takeUnless { it === checkTask }?.cancelAndJoin()
+            checkTask.start()
+            awaitLatestConfigCheck(checkTask)
+        } catch (e: CancellationException) {
+            if (currentCoroutineContext()[Job]?.isActive == false) {
+                withContext(NonCancellable) {
+                    checkTask.cancelAndJoin()
                 }
-                val mAuthorization = Authorization(account, password)
-                checkAuthorization(mAuthorization)
-                appWebDav(rootWebDavUrl, mAuthorization).makeAsDir()
-                appWebDav(bookProgressUrl, mAuthorization).makeAsDir()
-                appWebDav(exportsWebDavUrl, mAuthorization).makeAsDir()
-                appWebDav(bgWebDavUrl, mAuthorization).makeAsDir()
-                val rootBooksUrl = "${rootWebDavUrl}books/"
-                defaultBookWebDav = RemoteBookWebDav(
-                    rootBooksUrl,
-                    mAuthorization,
-                    allowInsecure = allowInsecure
-                )
-                authorization = mAuthorization
+            }
+            throw e
+        } finally {
+            configJob.compareAndSet(checkTask, null)
+        }
+    }
+
+    private suspend fun awaitLatestConfigCheck(initialTask: Deferred<Unit>) {
+        var task = initialTask
+        while (true) {
+            currentCoroutineContext().ensureActive()
+            try {
+                task.await()
+                return
+            } catch (_: CancellationException) {
+                // Cancellation of the caller is distinct from a task replaced by a newer check.
+                currentCoroutineContext().ensureActive()
+                val latestTask = synchronized(configRequestLock) { configJob.get() }
+                if (latestTask != null && latestTask !== task) {
+                    task = latestTask
+                    continue
+                }
+                // The deferred was cancelled while this caller remained active. That only
+                // happens when this check was superseded (or its owner cancelled it); never
+                // leak that internal cancellation to a caller that was not cancelled.
+                return
             }
         }
     }
 
-    /**
-     * 检查WebDav授权是否有效
-     * 
-     * @param authorization 授权信息
-     * @throws WebDavException 授权失败时抛出异常
-     */
-    @Throws(WebDavException::class)
-    private suspend fun checkAuthorization(authorization: Authorization) {
-        if (!appWebDav(rootWebDavUrl, authorization).check()) {
-            appCtx.removePref(PreferKey.webDavPassword)
-            appCtx.toastOnUi(R.string.webdav_application_authorization_error)
-            throw WebDavException(appCtx.getString(R.string.webdav_application_authorization_error))
+    private suspend fun runConfigCheck(requestId: Long, previousStatus: WebDavStatus) {
+        val config = readConfig()
+
+        if (!config.isConfigured) {
+            updateStatus(requestId, WebDavStatus.UNCONFIGURED)
+            if (requestId == checkRequestId.get()) {
+                // An empty credential is an explicit user configuration change.
+                _activeConfig.value = null
+            }
+            return
+        }
+
+        val rootUrl = rootWebDavUrl(config)
+        val candidateIdentity = webDavConfigIdentity(
+            rootUrl = rootUrl,
+            username = config.account,
+            password = config.password,
+            allowInsecure = config.allowInsecure
+        )
+        updateStatus(requestId, WebDavStatus.CHECKING, candidateIdentity)
+        if (!config.allowInsecure && !rootUrl.startsWith("https://", true)) {
+            appCtx.toastOnUi(R.string.webdav_https_required)
+            updateStatus(requestId, WebDavStatus.SERVER_ERROR, candidateIdentity)
+            return
+        }
+        if (config.allowInsecure) {
+            appCtx.toastOnUi(R.string.webdav_insecure_warning)
+        }
+
+        try {
+            val candidateAuthorization = Authorization(
+                config.account!!,
+                config.password!!
+            )
+            when (val checkResult = appWebDav(
+                rootUrl,
+                candidateAuthorization,
+                config.allowInsecure
+            ).check()) {
+                WebDavCheckResult.Available -> {
+                    val candidateBookWebDav = RemoteBookWebDav(
+                        "${rootUrl}books/",
+                        candidateAuthorization,
+                        allowInsecure = config.allowInsecure,
+                        onOperationResult = { error ->
+                            if (_activeConfig.value?.configIdentity == candidateIdentity
+                                && currentPreferenceIdentity() == candidateIdentity
+                            ) {
+                                _status.value = error?.let(::statusFor)
+                                    ?: WebDavStatus.AVAILABLE
+                            }
+                        }
+                    )
+                    appWebDav(rootUrl, candidateAuthorization, config.allowInsecure)
+                        .makeAsDirOrThrow()
+                    appWebDav("${rootUrl}bookProgress/", candidateAuthorization, config.allowInsecure)
+                        .makeAsDirOrThrow()
+                    candidateBookWebDav.ensureRootDirectory()
+                    appWebDav("${rootUrl}background/", candidateAuthorization, config.allowInsecure)
+                        .makeAsDirOrThrow()
+                    currentCoroutineContext().ensureActive()
+
+                    if (requestId == checkRequestId.get()
+                        && currentPreferenceIdentity() == candidateIdentity
+                    ) {
+                        _activeConfig.value = WebDavConfigSnapshot(
+                            rootUrl = rootUrl,
+                            authorization = candidateAuthorization,
+                            allowInsecure = config.allowInsecure,
+                            remoteBookWebDav = candidateBookWebDav,
+                            version = requestId,
+                            configIdentity = candidateIdentity
+                        )
+                        _status.value = WebDavStatus.AVAILABLE
+                        lastSuccessfulCheckAt.set(SystemClock.elapsedRealtime())
+                    }
+                }
+
+                is WebDavCheckResult.AuthenticationFailed -> {
+                    appCtx.toastOnUi(R.string.webdav_application_authorization_error)
+                    updateStatus(requestId, WebDavStatus.AUTHENTICATION_FAILED, candidateIdentity)
+                }
+
+                is WebDavCheckResult.NetworkError -> {
+                    updateStatus(requestId, WebDavStatus.OFFLINE, candidateIdentity)
+                }
+
+                is WebDavCheckResult.ServerError -> {
+                    updateStatus(requestId, WebDavStatus.SERVER_ERROR, candidateIdentity)
+                }
+            }
+        } catch (e: CancellationException) {
+            if (requestId == checkRequestId.get()) {
+                _status.value = previousStatus
+            }
+            throw e
+        } catch (e: Exception) {
+            updateStatus(requestId, statusFor(e), candidateIdentity)
+            AppLog.put("WebDav配置检查失败", e)
         }
     }
 
@@ -188,9 +552,10 @@ object AppWebDav {
      */
     @Throws(Exception::class)
     suspend fun getBackupNames(): ArrayList<String> {
-        val names = arrayListOf<String>()
-        authorization?.let {
-            var files = appWebDav(rootWebDavUrl, it).listFiles()
+        return withActiveConfig("备份列表") { snapshot ->
+            val names = arrayListOf<String>()
+            var files = appWebDav(snapshot.rootUrl, snapshot.authorization, snapshot.allowInsecure)
+                .listFiles()
             files = files.sortedWith { o1, o2 ->
                 AlphanumComparator.compare(o1.displayName, o2.displayName)
             }.reversed()
@@ -200,8 +565,8 @@ object AppWebDav {
                     names.add(name)
                 }
             }
-        } ?: throw NoStackTraceException("webDav没有配置")
-        return names
+            names
+        }
     }
 
     /**
@@ -214,15 +579,19 @@ object AppWebDav {
     suspend fun downloadAndUnzipBackup(name: String) {
         val timer = RestoreStageTimer()
         try {
-            authorization?.let {
-                val webDav = appWebDav(rootWebDavUrl + name, it)
+            withActiveConfig("备份下载") { snapshot ->
+                val webDav = appWebDav(
+                    snapshot.rootUrl + name,
+                    snapshot.authorization,
+                    snapshot.allowInsecure
+                )
                 timer.measureSuspend("webdav_download") {
                     webDav.downloadTo(Backup.zipFilePath, true)
                 }
-                FileUtils.delete(Backup.backupPath)
-                timer.measureSuspend("zip_unzip") {
-                    ZipUtils.unZipToPath(File(Backup.zipFilePath), Backup.backupPath)
-                }
+            }
+            FileUtils.delete(Backup.backupPath)
+            timer.measureSuspend("zip_unzip") {
+                ZipUtils.unZipToPath(File(Backup.zipFilePath), Backup.backupPath)
             }
         } finally {
             timer.snapshot().forEach { timing ->
@@ -247,7 +616,16 @@ object AppWebDav {
     @Throws(WebDavException::class)
     suspend fun restoreWebDav(name: String) {
         downloadAndUnzipBackup(name)
-        Restore.restoreLocked(Backup.backupPath)
+        val snapshot = requireActiveConfig()
+        try {
+            Restore.restoreLocked(Backup.backupPath)
+            markOperationAvailable(snapshot)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            updateOperationStatus(snapshot, e)
+            throw e
+        }
     }
 
     /**
@@ -257,11 +635,24 @@ object AppWebDav {
      * @return true表示存在，false表示不存在或WebDav未配置
      */
     suspend fun hasBackUp(backUpName: String): Boolean {
-        authorization?.let {
-            val url = "$rootWebDavUrl${backUpName}"
-            return appWebDav(url, it).exists()
+        val snapshot = activeConfigForOperation() ?: return false
+        if (!NetworkUtils.isAvailable()) {
+            updateOperationStatus(snapshot, IOException("network unavailable"))
+            return false
         }
-        return false
+        return try {
+            appWebDav(
+                "${snapshot.rootUrl}$backUpName",
+                snapshot.authorization,
+                snapshot.allowInsecure
+            ).existsOrThrow().also { markOperationAvailable(snapshot) }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            updateOperationStatus(snapshot, e)
+            AppLog.put("WebDav备份检查失败", e)
+            false
+        }
     }
 
     /**
@@ -270,10 +661,11 @@ object AppWebDav {
      * @return Result包装的最新备份文件信息，失败时返回异常
      */
     suspend fun lastBackUp(): Result<WebDavFile?> {
-        return kotlin.runCatching {
-            authorization?.let {
+        return try {
+            Result.success(withActiveConfig("备份查询") { snapshot ->
                 var lastBackupFile: WebDavFile? = null
-                appWebDav(rootWebDavUrl, it).listFiles().reversed().forEach { webDavFile ->
+                appWebDav(snapshot.rootUrl, snapshot.authorization, snapshot.allowInsecure)
+                    .listFiles().reversed().forEach { webDavFile ->
                     if (webDavFile.displayName.startsWith("backup")) {
                         if (lastBackupFile == null
                             || webDavFile.lastModify > lastBackupFile.lastModify
@@ -283,7 +675,11 @@ object AppWebDav {
                     }
                 }
                 lastBackupFile
-            }
+            })
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Result.failure(e)
         }
     }
 
@@ -291,14 +687,34 @@ object AppWebDav {
      * 上传备份文件到WebDav
      * 
      * @param fileName 备份文件名
-     * @throws Exception 上传失败时抛出异常
+     * @return 结构化的上传结果；取消仍然向上传递
      */
-    @Throws(Exception::class)
-    suspend fun backUpWebDav(fileName: String) {
-        if (!NetworkUtils.isAvailable()) return
-        authorization?.let {
-            val putUrl = "$rootWebDavUrl$fileName"
-            appWebDav(putUrl, it).upload(Backup.zipFilePath)
+    suspend fun backUpWebDav(fileName: String): WebDavUploadResult {
+        val snapshot = activeConfigForOperation()
+        if (snapshot == null) {
+            return if (!readConfig().isConfigured) {
+                WebDavUploadResult.NotConfigured
+            } else {
+                WebDavUploadResult.NotVerified
+            }
+        }
+        if (!NetworkUtils.isAvailable()) {
+            updateOperationStatus(snapshot, IOException("network unavailable"))
+            return WebDavUploadResult.Failed(WebDavStatus.OFFLINE)
+        }
+        return try {
+            val putUrl = "${snapshot.rootUrl}$fileName"
+            appWebDav(putUrl, snapshot.authorization, snapshot.allowInsecure)
+                .upload(Backup.zipFilePath)
+            markOperationAvailable(snapshot)
+            WebDavUploadResult.Uploaded
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            val status = statusFor(e)
+            updateOperationStatus(snapshot, e)
+            AppLog.put("WebDav备份上传失败", e)
+            WebDavUploadResult.Failed(status)
         }
     }
 
@@ -310,13 +726,19 @@ object AppWebDav {
      * @return Result包装的文件列表
      */
     private suspend fun getAllBgWebDavFiles(): Result<List<WebDavFile>> {
-        return kotlin.runCatching {
-            if (!NetworkUtils.isAvailable())
-                throw NoStackTraceException("网络未连接")
-            authorization.let {
-                it ?: throw NoStackTraceException("webDav未配置")
-                appWebDav(bgWebDavUrl, it).listFiles()
-            }
+        return try {
+            Result.success(withActiveConfig("背景列表") { snapshot ->
+                if (!NetworkUtils.isAvailable()) throw IOException("network unavailable")
+                appWebDav(
+                    "${snapshot.rootUrl}background/",
+                    snapshot.authorization,
+                    snapshot.allowInsecure
+                ).listFiles()
+            })
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Result.failure(e)
         }
     }
 
@@ -327,15 +749,29 @@ object AppWebDav {
      * @param files 本地背景图片文件数组
      */
     suspend fun upBgs(files: Array<File>) {
-        val authorization = authorization ?: return
-        if (!NetworkUtils.isAvailable()) return
+        val snapshot = activeConfigForOperation() ?: return
+        if (!NetworkUtils.isAvailable()) {
+            updateOperationStatus(snapshot, IOException("network unavailable"))
+            return
+        }
         val bgWebDavFiles = getAllBgWebDavFiles().getOrThrow()
             .map { it.displayName }
             .toSet()
         files.forEach {
             if (!bgWebDavFiles.contains(it.name) && it.exists()) {
-                appWebDav("$bgWebDavUrl${it.name}", authorization)
-                    .upload(it)
+                try {
+                    appWebDav(
+                        "${snapshot.rootUrl}background/${it.name}",
+                        snapshot.authorization,
+                        snapshot.allowInsecure
+                    ).upload(it)
+                    markOperationAvailable(snapshot)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    updateOperationStatus(snapshot, e)
+                    throw e
+                }
             }
         }
     }
@@ -345,8 +781,11 @@ object AppWebDav {
      * 目前未实现完整逻辑
      */
     suspend fun downBgs() {
-        val authorization = authorization ?: return
-        if (!NetworkUtils.isAvailable()) return
+        val snapshot = activeConfigForOperation() ?: return
+        if (!NetworkUtils.isAvailable()) {
+            updateOperationStatus(snapshot, IOException("network unavailable"))
+            return
+        }
         val bgWebDavFiles = getAllBgWebDavFiles().getOrThrow()
             .map { it.displayName }
             .toSet()
@@ -362,16 +801,21 @@ object AppWebDav {
      */
     @Suppress("unused")
     suspend fun exportWebDav(byteArray: ByteArray, fileName: String) {
-        if (!NetworkUtils.isAvailable()) return
+        val snapshot = activeConfigForOperation() ?: return
+        if (!NetworkUtils.isAvailable()) {
+            updateOperationStatus(snapshot, IOException("network unavailable"))
+            return
+        }
         try {
-            authorization?.let {
+            withActiveConfig("导出") { snapshot ->
                 // 如果导出的本地文件存在,开始上传
-                val putUrl = exportsWebDavUrl + fileName
-                appWebDav(putUrl, it).upload(byteArray, "text/plain")
+                val putUrl = "${snapshot.rootUrl}books/$fileName"
+                appWebDav(putUrl, snapshot.authorization, snapshot.allowInsecure)
+                    .upload(byteArray, "text/plain")
             }
         } catch (e: Exception) {
             currentCoroutineContext().ensureActive()
-            AppLog.put("WebDav导出失败\n${e.localizedMessage}", e, true)
+            AppLog.put("WebDav导出失败", e, true)
         }
     }
 
@@ -382,16 +826,21 @@ object AppWebDav {
      * @param fileName 导出文件名
      */
     suspend fun exportWebDav(uri: Uri, fileName: String) {
-        if (!NetworkUtils.isAvailable()) return
+        val snapshot = activeConfigForOperation() ?: return
+        if (!NetworkUtils.isAvailable()) {
+            updateOperationStatus(snapshot, IOException("network unavailable"))
+            return
+        }
         try {
-            authorization?.let {
+            withActiveConfig("导出") { snapshot ->
                 // 如果导出的本地文件存在,开始上传
-                val putUrl = exportsWebDavUrl + fileName
-                appWebDav(putUrl, it).upload(uri, "text/plain")
+                val putUrl = "${snapshot.rootUrl}books/$fileName"
+                appWebDav(putUrl, snapshot.authorization, snapshot.allowInsecure)
+                    .upload(uri, "text/plain")
             }
         } catch (e: Exception) {
             currentCoroutineContext().ensureActive()
-            AppLog.put("WebDav导出失败\n${e.localizedMessage}", e, true)
+            AppLog.put("WebDav导出失败", e, true)
         }
     }
 
@@ -409,14 +858,20 @@ object AppWebDav {
         toast: Boolean = false,
         onSuccess: (() -> Unit)? = null
     ) {
-        val authorization = authorization ?: return
         if (!AppConfig.syncBookProgress) return
-        if (!NetworkUtils.isAvailable()) return
+        val snapshot = activeConfigForOperation() ?: return
+        if (!NetworkUtils.isAvailable()) {
+            updateOperationStatus(snapshot, IOException("network unavailable"))
+            return
+        }
         try {
-            val bookProgress = BookProgress(book)
-            val json = GSON.toJson(bookProgress)
-            val url = getProgressUrl(book.name, book.author)
-            appWebDav(url, authorization).upload(json.toByteArray(), "application/json")
+            withActiveConfig("进度上传") { current ->
+                val bookProgress = BookProgress(book)
+                val json = GSON.toJson(bookProgress)
+                val url = getProgressUrl(current, book.name, book.author)
+                appWebDav(url, current.authorization, current.allowInsecure)
+                    .upload(json.toByteArray(), "application/json")
+            }
             book.syncTime = System.currentTimeMillis()
             onSuccess?.invoke()
         } catch (e: Exception) {
@@ -433,12 +888,18 @@ object AppWebDav {
      */
     suspend fun uploadBookProgress(bookProgress: BookProgress, onSuccess: (() -> Unit)? = null) {
         try {
-            val authorization = authorization ?: return
             if (!AppConfig.syncBookProgress) return
-            if (!NetworkUtils.isAvailable()) return
-            val json = GSON.toJson(bookProgress)
-            val url = getProgressUrl(bookProgress.name, bookProgress.author)
-            appWebDav(url, authorization).upload(json.toByteArray(), "application/json")
+            val snapshot = activeConfigForOperation() ?: return
+            if (!NetworkUtils.isAvailable()) {
+                updateOperationStatus(snapshot, IOException("network unavailable"))
+                return
+            }
+            withActiveConfig("进度上传") { current ->
+                val json = GSON.toJson(bookProgress)
+                val url = getProgressUrl(current, bookProgress.name, bookProgress.author)
+                appWebDav(url, current.authorization, current.allowInsecure)
+                    .upload(json.toByteArray(), "application/json")
+            }
             onSuccess?.invoke()
         } catch (e: Exception) {
             currentCoroutineContext().ensureActive()
@@ -453,8 +914,8 @@ object AppWebDav {
      * @param author 书籍作者
      * @return WebDav URL
      */
-    private fun getProgressUrl(name: String, author: String): String {
-        return bookProgressUrl + getProgressFileName(name, author)
+    private fun getProgressUrl(snapshot: WebDavConfigSnapshot, name: String, author: String): String {
+        return "${snapshot.rootUrl}bookProgress/" + getProgressFileName(name, author)
     }
 
     /**
@@ -476,18 +937,22 @@ object AppWebDav {
      * @return 书籍进度对象，失败返回null
      */
     suspend fun getBookProgress(book: Book): BookProgress? {
-        val url = getProgressUrl(book.name, book.author)
-        kotlin.runCatching {
-            val authorization = authorization ?: return null
-            appWebDav(url, authorization).download().let { byteArray ->
+        activeConfigForOperation() ?: return null
+        try {
+            withActiveConfig("进度下载") { current ->
+                val url = getProgressUrl(current, book.name, book.author)
+                appWebDav(url, current.authorization, current.allowInsecure).download()
+            }.let { byteArray ->
                 val json = String(byteArray)
                 if (json.isJson()) {
                     return GSON.fromJsonObject<BookProgress>(json).getOrNull()
                 }
             }
-        }.onFailure {
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
             currentCoroutineContext().ensureActive()
-            AppLog.put("获取书籍进度失败\n${it.localizedMessage}", it)
+            AppLog.put("获取书籍进度失败", e)
         }
         return null
     }
@@ -500,9 +965,18 @@ object AppWebDav {
      * - 只更新进度更靠后的记录
      */
     suspend fun downloadAllBookProgress() {
-        val authorization = authorization ?: return
-        if (!NetworkUtils.isAvailable()) return
-        val bookProgressFiles = appWebDav(bookProgressUrl, authorization).listFiles()
+        val snapshot = activeConfigForOperation() ?: return
+        if (!NetworkUtils.isAvailable()) {
+            updateOperationStatus(snapshot, IOException("network unavailable"))
+            return
+        }
+        val bookProgressFiles = withActiveConfig("进度列表") { current ->
+            appWebDav(
+                "${current.rootUrl}bookProgress/",
+                current.authorization,
+                current.allowInsecure
+            ).listFiles()
+        }
         val map = hashMapOf<String, WebDavFile>()
         bookProgressFiles.forEach {
             map[it.displayName] = it

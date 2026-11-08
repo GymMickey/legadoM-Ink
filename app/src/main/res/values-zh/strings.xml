@@ -2062,6 +2062,10 @@
     <string name="homepage_webdav_configured">已配置 · 数据安全</string>
     <string name="homepage_webdav_last_backup">已配置 · 上次备份 %1$s</string>
     <string name="homepage_webdav_not_configured">未配置 · 点击设置</string>
+    <string name="homepage_webdav_checking">WebDAV 已配置，正在检查连接</string>
+    <string name="homepage_webdav_offline">WebDAV 已配置，当前网络不可用</string>
+    <string name="homepage_webdav_authentication_failed">WebDAV 认证失败，请检查账号或应用密码</string>
+    <string name="homepage_webdav_server_error">WebDAV 服务器暂时不可用</string>
     <string name="homepage_webdav_backup">备份</string>
     <string name="homepage_webdav_backing_up">备份中…</string>
     <string name="homepage_webdav_restore">恢复</string>
@@ -2085,4 +2089,8 @@
     <string name="local_book_count_summary">%d 本</string>
     <string name="start_wifi_transfer">启动 WiFi 传书</string>
     <string name="start_wifi_transfer_summary">生成二维码，其他设备扫码传书</string>
+    <string name="homepage_backup_local_only">本地备份完成，尚未配置 WebDAV</string>
+    <string name="homepage_backup_partial">本地备份完成，但 WebDAV 上传失败</string>
+    <string name="backup_webdav_local_only">本地备份完成，尚未配置 WebDAV</string>
+    <string name="backup_webdav_partial">本地备份完成，但 WebDAV 上传失败</string>
 </resources>

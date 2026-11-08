@@ -19,7 +19,9 @@ data class Authorization(
         private set
 
     override fun toString(): String {
-        return "$username:$password"
+        // Never expose the password (or the Authorization header) in logs or
+        // diagnostics that may call toString().
+        return "Authorization(redacted)"
     }
 
     constructor(serverID: Long) : this(

@@ -2,6 +2,7 @@ package io.legado.app.ui.config
 
 import android.app.Application
 import android.content.Context
+import androidx.lifecycle.viewModelScope
 import io.legado.app.R
 import io.legado.app.base.BaseViewModel
 import io.legado.app.data.appDb
@@ -11,12 +12,18 @@ import io.legado.app.utils.FileUtils
 import io.legado.app.utils.restart
 import io.legado.app.utils.toastOnUi
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
 import splitties.init.appCtx
 
 class ConfigViewModel(application: Application) : BaseViewModel(application) {
 
+    private var webDavUpdateJob: Job? = null
+
     fun upWebDavConfig() {
-        execute {
+        webDavUpdateJob?.cancel()
+        webDavUpdateJob = viewModelScope.launch(Dispatchers.IO) {
             AppWebDav.upConfig()
         }
     }

@@ -1,0 +1,13 @@
+{
+  "protocol_version": "sync-v1",
+  "schema_version": "1.0.0",
+  "normalization_version": "normalization-v1",
+  "device_id": "22222222-2222-4222-8222-222222222222",
+  "event_id": "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+  "payload_sha256": "3c3d8d15b1a86bebedb7a84e497a81b4f63543fb4d7d6c985edce40d770412dd",
+  "status": "event_id_conflict",
+  "acknowledged_at": "2026-11-09T08:01:05Z",
+  "recovery_action": "stop_sync",
+  "reason_code": "event_id_conflict",
+  "receipt_payload_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+}

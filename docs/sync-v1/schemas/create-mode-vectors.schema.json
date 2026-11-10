@@ -1,0 +1,198 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://legadom-ink.invalid/sync-v1/schemas/create-mode-vectors.schema.json",
+  "title": "Sync v1 immutable create mode transport vectors",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "protocol_version",
+    "schema_version",
+    "normalization_version",
+    "vectors"
+  ],
+  "properties": {
+    "protocol_version": {
+      "const": "sync-v1"
+    },
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "normalization_version": {
+      "const": "normalization-v1"
+    },
+    "vectors": {
+      "type": "array",
+      "minItems": 12,
+      "maxItems": 40,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "case_id",
+          "scenario",
+          "target_kind",
+          "supported_create_modes",
+          "conditional_create_verified",
+          "create_mode",
+          "steps",
+          "expected_outcome",
+          "expected_put_attempts",
+          "reuses_intent_bytes"
+        ],
+        "properties": {
+          "case_id": {
+            "type": "string",
+            "pattern": "^[a-z0-9_-]{1,64}$"
+          },
+          "scenario": {
+            "enum": [
+              "first_upload",
+              "existing_identical",
+              "existing_different",
+              "put_unknown_get_same",
+              "put_unknown_get_404_retry",
+              "max_put_attempts",
+              "readback_mismatch",
+              "registration_recovered",
+              "device_state_bootstrap",
+              "android_selects_create_mode",
+              "conditional_create_first_upload",
+              "conditional_create_existing_identical",
+              "conditional_create_existing_different",
+              "conditional_create_http_409",
+              "event_id_conflict"
+            ]
+          },
+          "target_kind": {
+            "enum": [
+              "registration",
+              "event",
+              "ack",
+              "projection"
+            ]
+          },
+          "supported_create_modes": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 2,
+            "uniqueItems": true,
+            "items": {
+              "enum": [
+                "uuid_verified",
+                "conditional_create"
+              ]
+            }
+          },
+          "conditional_create_verified": {
+            "type": "boolean"
+          },
+          "create_mode": {
+            "enum": [
+              "uuid_verified",
+              "conditional_create"
+            ]
+          },
+          "steps": {
+            "type": "array",
+            "maxItems": 8,
+            "items": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "method",
+                    "response"
+                  ],
+                  "properties": {
+                    "method": {
+                      "const": "GET"
+                    },
+                    "response": {
+                      "enum": [
+                        "200_same",
+                        "200_different",
+                        "404",
+                        "error"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "method",
+                    "response",
+                    "payload_source"
+                  ],
+                  "properties": {
+                    "method": {
+                      "const": "PUT"
+                    },
+                    "response": {
+                      "enum": [
+                        "2xx",
+                        "409",
+                        "412",
+                        "timeout_unknown",
+                        "failure"
+                      ]
+                    },
+                    "payload_source": {
+                      "const": "persisted_intent_bytes"
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "expected_outcome": {
+            "enum": [
+              "success",
+              "conflict",
+              "retry_limit",
+              "readback_mismatch",
+              "registration_recovered",
+              "mode_selected",
+              "failure",
+              "event_id_conflict"
+            ]
+          },
+          "expected_put_attempts": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2
+          },
+          "reuses_intent_bytes": {
+            "const": true
+          }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "scenario": {
+                  "const": "conditional_create_http_409"
+                }
+              },
+              "required": [
+                "scenario"
+              ]
+            },
+            "then": {
+              "properties": {
+                "expected_outcome": {
+                  "enum": [
+                    "failure",
+                    "conflict"
+                  ]
+                }
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}

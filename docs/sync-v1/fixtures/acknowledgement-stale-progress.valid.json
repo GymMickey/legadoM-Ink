@@ -1,0 +1,14 @@
+{
+  "protocol_version": "sync-v1",
+  "schema_version": "1.0.0",
+  "normalization_version": "normalization-v1",
+  "device_id": "22222222-2222-4222-8222-222222222222",
+  "event_id": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+  "work_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+  "payload_sha256": "80c41dd7a410df1168c4548d71697c8240d6de11b70befee26dc122f154a3df9",
+  "status": "stale_progress",
+  "acknowledged_at": "2026-01-02T03:04:06Z",
+  "current_progress_revision": 12,
+  "recovery_action": "download_progress_state",
+  "reason_code": "stale_progress"
+}

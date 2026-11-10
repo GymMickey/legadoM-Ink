@@ -1,0 +1,154 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://legadom-ink.invalid/sync-v1/schemas/device-state.schema.json",
+  "title": "Sync v1 immutable Android device state",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "protocol_version",
+    "schema_version",
+    "normalization_version",
+    "device_id",
+    "state_revision",
+    "snapshot_id",
+    "status",
+    "registration_result",
+    "create_mode",
+    "locator_capability",
+    "registration_payload_sha256",
+    "generated_at"
+  ],
+  "properties": {
+    "protocol_version": {
+      "const": "sync-v1"
+    },
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "normalization_version": {
+      "const": "normalization-v1"
+    },
+    "device_id": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "state_revision": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "snapshot_id": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "status": {
+      "enum": [
+        "ready",
+        "rejected"
+      ]
+    },
+    "registration_result": {
+      "enum": [
+        "registration_verified",
+        "registration_recovered",
+        "device_id_conflict",
+        "registration_parent_missing",
+        "unsupported_mode",
+        "invalid_registration"
+      ]
+    },
+    "create_mode": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "enum": [
+        "uuid_verified",
+        "conditional_create",
+        null
+      ]
+    },
+    "locator_capability": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "enum": [
+        "chapter_only",
+        "character_exact",
+        null
+      ]
+    },
+    "registration_payload_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?Z$"
+    }
+  },
+  "oneOf": [
+    {
+      "properties": {
+        "status": {
+          "const": "ready"
+        },
+        "registration_result": {
+          "enum": [
+            "registration_verified",
+            "registration_recovered"
+          ]
+        },
+        "create_mode": {
+          "enum": [
+            "uuid_verified",
+            "conditional_create"
+          ]
+        },
+        "locator_capability": {
+          "enum": [
+            "chapter_only",
+            "character_exact"
+          ]
+        }
+      }
+    },
+    {
+      "properties": {
+        "status": {
+          "const": "rejected"
+        },
+        "registration_result": {
+          "enum": [
+            "device_id_conflict",
+            "registration_parent_missing",
+            "unsupported_mode"
+          ]
+        },
+        "create_mode": {
+          "type": "null"
+        }
+      }
+    },
+    {
+      "properties": {
+        "status": {
+          "const": "rejected"
+        },
+        "registration_result": {
+          "const": "invalid_registration"
+        },
+        "create_mode": {
+          "type": "null"
+        },
+        "locator_capability": {
+          "type": "null"
+        }
+      }
+    }
+  ]
+}

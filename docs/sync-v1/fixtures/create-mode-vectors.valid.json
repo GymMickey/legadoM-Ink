@@ -1,0 +1,405 @@
+{
+  "protocol_version": "sync-v1",
+  "schema_version": "1.0.0",
+  "normalization_version": "normalization-v1",
+  "vectors": [
+    {
+      "case_id": "uuid-first-upload",
+      "scenario": "first_upload",
+      "target_kind": "event",
+      "supported_create_modes": [
+        "uuid_verified",
+        "conditional_create"
+      ],
+      "conditional_create_verified": false,
+      "create_mode": "uuid_verified",
+      "steps": [
+        {
+          "method": "GET",
+          "response": "404"
+        },
+        {
+          "method": "PUT",
+          "response": "2xx",
+          "payload_source": "persisted_intent_bytes"
+        },
+        {
+          "method": "GET",
+          "response": "200_same"
+        }
+      ],
+      "expected_outcome": "success",
+      "expected_put_attempts": 1,
+      "reuses_intent_bytes": true
+    },
+    {
+      "case_id": "uuid-existing-identical",
+      "scenario": "existing_identical",
+      "target_kind": "event",
+      "supported_create_modes": [
+        "uuid_verified",
+        "conditional_create"
+      ],
+      "conditional_create_verified": false,
+      "create_mode": "uuid_verified",
+      "steps": [
+        {
+          "method": "GET",
+          "response": "200_same"
+        }
+      ],
+      "expected_outcome": "success",
+      "expected_put_attempts": 0,
+      "reuses_intent_bytes": true
+    },
+    {
+      "case_id": "uuid-existing-different",
+      "scenario": "existing_different",
+      "target_kind": "event",
+      "supported_create_modes": [
+        "uuid_verified",
+        "conditional_create"
+      ],
+      "conditional_create_verified": false,
+      "create_mode": "uuid_verified",
+      "steps": [
+        {
+          "method": "GET",
+          "response": "200_different"
+        }
+      ],
+      "expected_outcome": "conflict",
+      "expected_put_attempts": 0,
+      "reuses_intent_bytes": true
+    },
+    {
+      "case_id": "uuid-put-unknown-get-same",
+      "scenario": "put_unknown_get_same",
+      "target_kind": "event",
+      "supported_create_modes": [
+        "uuid_verified",
+        "conditional_create"
+      ],
+      "conditional_create_verified": false,
+      "create_mode": "uuid_verified",
+      "steps": [
+        {
+          "method": "GET",
+          "response": "404"
+        },
+        {
+          "method": "PUT",
+          "response": "timeout_unknown",
+          "payload_source": "persisted_intent_bytes"
+        },
+        {
+          "method": "GET",
+          "response": "200_same"
+        }
+      ],
+      "expected_outcome": "success",
+      "expected_put_attempts": 1,
+      "reuses_intent_bytes": true
+    },
+    {
+      "case_id": "uuid-put-unknown-get-404-retry",
+      "scenario": "put_unknown_get_404_retry",
+      "target_kind": "event",
+      "supported_create_modes": [
+        "uuid_verified",
+        "conditional_create"
+      ],
+      "conditional_create_verified": false,
+      "create_mode": "uuid_verified",
+      "steps": [
+        {
+          "method": "GET",
+          "response": "404"
+        },
+        {
+          "method": "PUT",
+          "response": "timeout_unknown",
+          "payload_source": "persisted_intent_bytes"
+        },
+        {
+          "method": "GET",
+          "response": "404"
+        },
+        {
+          "method": "PUT",
+          "response": "2xx",
+          "payload_source": "persisted_intent_bytes"
+        },
+        {
+          "method": "GET",
+          "response": "200_same"
+        }
+      ],
+      "expected_outcome": "success",
+      "expected_put_attempts": 2,
+      "reuses_intent_bytes": true
+    },
+    {
+      "case_id": "uuid-max-put-attempts",
+      "scenario": "max_put_attempts",
+      "target_kind": "event",
+      "supported_create_modes": [
+        "uuid_verified",
+        "conditional_create"
+      ],
+      "conditional_create_verified": false,
+      "create_mode": "uuid_verified",
+      "steps": [
+        {
+          "method": "GET",
+          "response": "404"
+        },
+        {
+          "method": "PUT",
+          "response": "timeout_unknown",
+          "payload_source": "persisted_intent_bytes"
+        },
+        {
+          "method": "GET",
+          "response": "404"
+        },
+        {
+          "method": "PUT",
+          "response": "timeout_unknown",
+          "payload_source": "persisted_intent_bytes"
+        },
+        {
+          "method": "GET",
+          "response": "404"
+        }
+      ],
+      "expected_outcome": "retry_limit",
+      "expected_put_attempts": 2,
+      "reuses_intent_bytes": true
+    },
+    {
+      "case_id": "uuid-readback-mismatch",
+      "scenario": "readback_mismatch",
+      "target_kind": "event",
+      "supported_create_modes": [
+        "uuid_verified",
+        "conditional_create"
+      ],
+      "conditional_create_verified": false,
+      "create_mode": "uuid_verified",
+      "steps": [
+        {
+          "method": "GET",
+          "response": "404"
+        },
+        {
+          "method": "PUT",
+          "response": "2xx",
+          "payload_source": "persisted_intent_bytes"
+        },
+        {
+          "method": "GET",
+          "response": "200_different"
+        }
+      ],
+      "expected_outcome": "readback_mismatch",
+      "expected_put_attempts": 1,
+      "reuses_intent_bytes": true
+    },
+    {
+      "case_id": "registration-recovered",
+      "scenario": "registration_recovered",
+      "target_kind": "registration",
+      "supported_create_modes": [
+        "uuid_verified",
+        "conditional_create"
+      ],
+      "conditional_create_verified": false,
+      "create_mode": "uuid_verified",
+      "steps": [
+        {
+          "method": "GET",
+          "response": "200_same"
+        }
+      ],
+      "expected_outcome": "registration_recovered",
+      "expected_put_attempts": 0,
+      "reuses_intent_bytes": true
+    },
+    {
+      "case_id": "android-selects-conditional",
+      "scenario": "android_selects_create_mode",
+      "target_kind": "registration",
+      "supported_create_modes": [
+        "uuid_verified",
+        "conditional_create"
+      ],
+      "conditional_create_verified": true,
+      "create_mode": "conditional_create",
+      "steps": [],
+      "expected_outcome": "mode_selected",
+      "expected_put_attempts": 0,
+      "reuses_intent_bytes": true
+    },
+    {
+      "case_id": "device-state-bootstrap-uses-uuid",
+      "scenario": "device_state_bootstrap",
+      "target_kind": "projection",
+      "supported_create_modes": [
+        "uuid_verified",
+        "conditional_create"
+      ],
+      "conditional_create_verified": true,
+      "create_mode": "uuid_verified",
+      "steps": [
+        {
+          "method": "GET",
+          "response": "404"
+        },
+        {
+          "method": "PUT",
+          "response": "2xx",
+          "payload_source": "persisted_intent_bytes"
+        },
+        {
+          "method": "GET",
+          "response": "200_same"
+        }
+      ],
+      "expected_outcome": "success",
+      "expected_put_attempts": 1,
+      "reuses_intent_bytes": true
+    },
+    {
+      "case_id": "android-selects-uuid-verified",
+      "scenario": "android_selects_create_mode",
+      "target_kind": "registration",
+      "supported_create_modes": [
+        "uuid_verified",
+        "conditional_create"
+      ],
+      "conditional_create_verified": false,
+      "create_mode": "uuid_verified",
+      "steps": [],
+      "expected_outcome": "mode_selected",
+      "expected_put_attempts": 0,
+      "reuses_intent_bytes": true
+    },
+    {
+      "case_id": "conditional-first-upload",
+      "scenario": "conditional_create_first_upload",
+      "target_kind": "event",
+      "supported_create_modes": [
+        "uuid_verified",
+        "conditional_create"
+      ],
+      "conditional_create_verified": true,
+      "create_mode": "conditional_create",
+      "steps": [
+        {
+          "method": "PUT",
+          "response": "2xx",
+          "payload_source": "persisted_intent_bytes"
+        },
+        {
+          "method": "GET",
+          "response": "200_same"
+        }
+      ],
+      "expected_outcome": "success",
+      "expected_put_attempts": 1,
+      "reuses_intent_bytes": true
+    },
+    {
+      "case_id": "conditional-existing-identical",
+      "scenario": "conditional_create_existing_identical",
+      "target_kind": "event",
+      "supported_create_modes": [
+        "uuid_verified",
+        "conditional_create"
+      ],
+      "conditional_create_verified": true,
+      "create_mode": "conditional_create",
+      "steps": [
+        {
+          "method": "PUT",
+          "response": "412",
+          "payload_source": "persisted_intent_bytes"
+        },
+        {
+          "method": "GET",
+          "response": "200_same"
+        }
+      ],
+      "expected_outcome": "success",
+      "expected_put_attempts": 1,
+      "reuses_intent_bytes": true
+    },
+    {
+      "case_id": "conditional-existing-different",
+      "scenario": "conditional_create_existing_different",
+      "target_kind": "event",
+      "supported_create_modes": [
+        "uuid_verified",
+        "conditional_create"
+      ],
+      "conditional_create_verified": true,
+      "create_mode": "conditional_create",
+      "steps": [
+        {
+          "method": "PUT",
+          "response": "412",
+          "payload_source": "persisted_intent_bytes"
+        },
+        {
+          "method": "GET",
+          "response": "200_different"
+        }
+      ],
+      "expected_outcome": "conflict",
+      "expected_put_attempts": 1,
+      "reuses_intent_bytes": true
+    },
+    {
+      "case_id": "conditional-http-409-fails",
+      "scenario": "conditional_create_http_409",
+      "target_kind": "event",
+      "supported_create_modes": [
+        "uuid_verified",
+        "conditional_create"
+      ],
+      "conditional_create_verified": true,
+      "create_mode": "conditional_create",
+      "steps": [
+        {
+          "method": "PUT",
+          "response": "409",
+          "payload_source": "persisted_intent_bytes"
+        }
+      ],
+      "expected_outcome": "failure",
+      "expected_put_attempts": 1,
+      "reuses_intent_bytes": true
+    },
+    {
+      "case_id": "event-id-conflict",
+      "scenario": "event_id_conflict",
+      "target_kind": "ack",
+      "supported_create_modes": [
+        "uuid_verified",
+        "conditional_create"
+      ],
+      "conditional_create_verified": false,
+      "create_mode": "uuid_verified",
+      "steps": [
+        {
+          "method": "GET",
+          "response": "200_different"
+        }
+      ],
+      "expected_outcome": "event_id_conflict",
+      "expected_put_attempts": 0,
+      "reuses_intent_bytes": true
+    }
+  ]
+}

@@ -1,0 +1,210 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://legadom-ink.invalid/sync-v1/schemas/progress-event.schema.json",
+  "title": "Sync v1 immutable progress event",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "protocol_version",
+    "schema_version",
+    "normalization_version",
+    "event_type",
+    "event_id",
+    "device_id",
+    "counter_epoch",
+    "session_id",
+    "sequence",
+    "created_at",
+    "work_id",
+    "based_on_toc_revision",
+    "based_on_progress_revision",
+    "chapter_title",
+    "local_toc_index",
+    "visible_char_offset",
+    "visible_char_count",
+    "chapter_fraction",
+    "chapter_fraction_is_estimated",
+    "chapter_text_fingerprint",
+    "reported_locator_confidence"
+  ],
+  "properties": {
+    "protocol_version": {
+      "const": "sync-v1"
+    },
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "normalization_version": {
+      "const": "normalization-v1"
+    },
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "device_id": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "counter_epoch": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "session_id": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "sequence": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?Z$"
+    },
+    "work_id": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "based_on_toc_revision": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "based_on_progress_revision": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "chapter_title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512
+    },
+    "local_toc_index": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "visible_char_offset": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "visible_char_count": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "chapter_fraction": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0,
+      "maximum": 1
+    },
+    "chapter_fraction_is_estimated": {
+      "const": true
+    },
+    "chapter_text_fingerprint": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "event_type": {
+      "const": "progress"
+    },
+    "previous_chapter_title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512
+    },
+    "next_chapter_title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512
+    },
+    "reported_locator_confidence": {
+      "enum": [
+        "high",
+        "estimated",
+        "chapter"
+      ]
+    }
+  },
+  "oneOf": [
+    {
+      "properties": {
+        "visible_char_offset": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "visible_char_count": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "chapter_text_fingerprint": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "reported_locator_confidence": {
+          "const": "high"
+        }
+      }
+    },
+    {
+      "properties": {
+        "visible_char_offset": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "visible_char_count": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "chapter_text_fingerprint": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "reported_locator_confidence": {
+          "const": "estimated"
+        }
+      }
+    },
+    {
+      "properties": {
+        "visible_char_offset": {
+          "type": "null"
+        },
+        "visible_char_count": {
+          "type": "null"
+        },
+        "chapter_text_fingerprint": {
+          "type": "null"
+        },
+        "reported_locator_confidence": {
+          "const": "chapter"
+        }
+      }
+    }
+  ]
+}

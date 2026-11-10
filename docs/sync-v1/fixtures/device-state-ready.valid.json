@@ -1,0 +1,14 @@
+{
+  "protocol_version": "sync-v1",
+  "schema_version": "1.0.0",
+  "normalization_version": "normalization-v1",
+  "device_id": "55555555-5555-4555-8555-555555555555",
+  "state_revision": 1,
+  "snapshot_id": "99999999-9999-4999-8999-999999999991",
+  "status": "ready",
+  "registration_result": "registration_verified",
+  "create_mode": "uuid_verified",
+  "locator_capability": "chapter_only",
+  "registration_payload_sha256": "3dcde8628ce8c6a3db7ab385adb3fc4e55bfd1bc4733493a83cbdb28e658bb5b",
+  "generated_at": "2026-11-10T08:00:02Z"
+}

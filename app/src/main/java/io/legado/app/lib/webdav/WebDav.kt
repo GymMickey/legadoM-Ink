@@ -6,6 +6,7 @@ import cn.hutool.core.net.URLDecoder
 import io.legado.app.constant.AppLog
 import io.legado.app.exception.NoStackTraceException
 import io.legado.app.help.http.newCallResponse
+import io.legado.app.help.http.await
 import io.legado.app.help.http.getWebDavClient
 import io.legado.app.help.http.okHttpClient
 import io.legado.app.help.http.text
@@ -24,6 +25,7 @@ import kotlinx.coroutines.withContext
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Interceptor
 import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.Request
 import okhttp3.RequestBody.Companion.asRequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
@@ -33,7 +35,11 @@ import org.jsoup.parser.Parser
 import java.io.File
 import java.io.FileOutputStream
 import java.io.InputStream
+import java.io.ByteArrayOutputStream
+import java.nio.charset.StandardCharsets
+import java.security.MessageDigest
 import java.net.MalformedURLException
+import java.net.URI
 import java.net.URL
 import java.io.IOException
 import java.time.ZonedDateTime
@@ -121,6 +127,14 @@ open class WebDav(
             build()
         }
     }
+    /** A1 requests never follow redirects, so Authorization cannot be replayed to another host. */
+    private val syncV1Client by lazy {
+        webDavClient.newBuilder()
+            .followRedirects(false)
+            .followSslRedirects(false)
+            .retryOnConnectionFailure(false)
+            .build()
+    }
     private val host: String?
         get() = url.host?.let {
             if (it.startsWith("[")) {
@@ -152,6 +166,179 @@ open class WebDav(
             }
         }
         return emptyList()
+    }
+
+    /** A bounded, status-preserving GET for immutable Sync-v1 objects. */
+    suspend fun getRawResponse(maxBytes: Int, computeFullSha256: Boolean = false): WebDavRawResponse {
+        require(maxBytes in 0 until Int.MAX_VALUE)
+        return requestSyncV1("GET", maxBytes = maxBytes, computeFullSha256 = computeFullSha256)
+    }
+
+    /** A status-preserving PUT that does not log response bodies or request URLs. */
+    suspend fun putRawResponse(bytes: ByteArray): WebDavRawResponse =
+        requestSyncV1("PUT", requestBytes = bytes, maxBytes = 0)
+
+    /** Bounded direct-child PROPFIND for Sync-v1 registration/state listings. */
+    suspend fun listFilesBounded(maxBytes: Int): List<WebDavFile> {
+        require(maxBytes >= 0)
+        val response = propFindRawResponse(depth = 1, maxBytes = maxBytes)
+        if (response.statusCode != 207) {
+            throw WebDavHttpException(response.statusCode, "WebDAV HTTP ${response.statusCode}")
+        }
+        if (response.bodyTooLarge) throw WebDavResponseTooLargeException()
+        return parseBody(String(response.body, StandardCharsets.UTF_8)).filter { it.path != path }
+    }
+
+    /** Bounded direct-child metadata without constructing URLs or logging remote hrefs. */
+    suspend fun listDirectChildEntriesBounded(maxBytes: Int): List<WebDavListEntry> {
+        require(maxBytes >= 0)
+        val response = propFindRawResponse(depth = 1, maxBytes = maxBytes)
+        if (response.statusCode != 207) {
+            throw WebDavHttpException(response.statusCode, "WebDAV HTTP ${response.statusCode}")
+        }
+        if (response.bodyTooLarge) throw WebDavResponseTooLargeException()
+        val document = Jsoup.parse(String(response.body, StandardCharsets.UTF_8), Parser.xmlParser())
+        val ns = document.findNSPrefix("DAV:")
+        val basePath = decodedUriPath(httpUrl ?: return emptyList())?.trimEnd('/')?.plus('/')
+            ?: return emptyList()
+        return document.findNS("response", ns).mapNotNull { element ->
+            val href = element.findNS("href", ns).firstOrNull()?.text() ?: return@mapNotNull null
+            val hrefPath = decodedUriPath(href) ?: return@mapNotNull null
+            if (!hrefPath.startsWith(basePath)) return@mapNotNull null
+            val nameWithSlash = hrefPath.removePrefix(basePath)
+            val name = nameWithSlash.removeSuffix("/")
+            if (name.isBlank() || '/' in name || name == "." || name == "..") return@mapNotNull null
+            val resourceType = element.findNS("resourcetype", ns).firstOrNull()
+            WebDavListEntry(
+                name = name,
+                isDirectory = resourceType?.findNS("collection", ns)?.isNotEmpty() == true
+            )
+        }
+    }
+
+    /**
+     * Ensure that this path is a collection. A 405/409 from MKCOL is accepted only if
+     * a follow-up Depth:0 PROPFIND proves the target is a collection.
+     */
+    suspend fun ensureSyncV1Directory(maxPropFindBytes: Int = 64 * 1024) {
+        require(maxPropFindBytes > 0)
+        val existing = propFindRawResponse(depth = 0, maxBytes = maxPropFindBytes)
+        if (existing.bodyTooLarge) throw WebDavResponseTooLargeException()
+        if (existing.statusCode == 207 || existing.statusCode == 200) {
+            if (hasCollection(existing.body)) return
+            throw WebDavHttpException(409, "WebDAV target is not a collection")
+        }
+        if (existing.statusCode != 404) {
+            throw WebDavHttpException(existing.statusCode, "WebDAV HTTP ${existing.statusCode}")
+        }
+
+        val mkcol = requestSyncV1("MKCOL", maxBytes = 0)
+        if (mkcol.statusCode in 200..299) {
+            val verified = propFindRawResponse(depth = 0, maxBytes = maxPropFindBytes)
+            if ((verified.statusCode == 207 || verified.statusCode == 200)
+                && !verified.bodyTooLarge && hasCollection(verified.body)
+            ) return
+            if (verified.bodyTooLarge) throw WebDavResponseTooLargeException()
+            throw WebDavHttpException(verified.statusCode, "WebDAV directory verification failed")
+        }
+        if (mkcol.statusCode == 405 || mkcol.statusCode == 409) {
+            val verified = propFindRawResponse(depth = 0, maxBytes = maxPropFindBytes)
+            if ((verified.statusCode == 207 || verified.statusCode == 200)
+                && !verified.bodyTooLarge && hasCollection(verified.body)
+            ) return
+            if (verified.bodyTooLarge) throw WebDavResponseTooLargeException()
+        }
+        throw WebDavHttpException(mkcol.statusCode, "WebDAV HTTP ${mkcol.statusCode}")
+    }
+
+    private suspend fun propFindRawResponse(depth: Int, maxBytes: Int): WebDavRawResponse =
+        requestSyncV1(
+            method = "PROPFIND",
+            requestBytes = DIR.replace("%s", "").toByteArray(StandardCharsets.UTF_8),
+            depth = depth,
+            requestContentType = "application/xml; charset=UTF-8",
+            maxBytes = maxBytes,
+            readSuccessfulBody = true
+        )
+
+    private suspend fun requestSyncV1(
+        method: String,
+        requestBytes: ByteArray? = null,
+        depth: Int? = null,
+        requestContentType: String = DEFAULT_CONTENT_TYPE,
+        maxBytes: Int,
+        readSuccessfulBody: Boolean = method == "GET",
+        computeFullSha256: Boolean = false
+    ): WebDavRawResponse = withContext(IO) {
+        val targetUrl = httpUrl ?: throw WebDavException("Invalid WebDAV URL")
+        val requestBody = requestBytes?.toRequestBody(requestContentType.toMediaType())
+        val request = Request.Builder()
+            .url(targetUrl)
+            .apply {
+                depth?.let { addHeader("Depth", it.toString()) }
+                when (method) {
+                    "GET" -> get()
+                    "PUT" -> put(requestBody ?: ByteArray(0).toRequestBody())
+                    "MKCOL" -> this.method("MKCOL", null)
+                    else -> this.method(method, requestBody)
+                }
+            }
+            .build()
+        syncV1Client.newCall(request).await().use { response ->
+            if (!readSuccessfulBody || !response.isSuccessful) {
+                WebDavRawResponse(response.code)
+            } else {
+                val body = response.body
+                if (!computeFullSha256 && body.contentLength() > maxBytes.toLong()) {
+                    WebDavRawResponse(response.code, bodyTooLarge = true)
+                } else {
+                    val (bytes, tooLarge, sha256) = body.byteStream().use {
+                        it.readBoundedAndHashed(maxBytes, computeFullSha256)
+                    }
+                    WebDavRawResponse(response.code, bytes, tooLarge, sha256)
+                }
+            }
+        }
+    }
+
+    private fun hasCollection(bytes: ByteArray): Boolean {
+        val document = Jsoup.parse(String(bytes, StandardCharsets.UTF_8), Parser.xmlParser())
+        val ns = document.findNSPrefix("DAV:")
+        val targetPath = decodedUriPath(httpUrl ?: return false)?.trimEnd('/') ?: return false
+        return document.findNS("response", ns).any { response ->
+            val href = response.findNS("href", ns).firstOrNull()?.text() ?: return@any false
+            if (decodedUriPath(href)?.trimEnd('/') != targetPath) return@any false
+            response.findNS("resourcetype", ns).firstOrNull()
+                ?.findNS("collection", ns)?.isNotEmpty() == true
+        }
+    }
+
+    private fun decodedUriPath(value: String): String? {
+        val rawPath = runCatching { URI(value).rawPath }.getOrNull() ?: return null
+        return runCatching { URLDecoder.decodeForPath(rawPath, StandardCharsets.UTF_8) }.getOrNull()
+    }
+
+    private fun InputStream.readBoundedAndHashed(
+        maxBytes: Int,
+        computeFullSha256: Boolean
+    ): Triple<ByteArray, Boolean, String?> {
+        val maxStoredBytes = maxBytes + 1
+        val output = ByteArrayOutputStream(maxStoredBytes.coerceAtMost(64 * 1024))
+        val buffer = ByteArray(8 * 1024)
+        val digest = if (computeFullSha256) MessageDigest.getInstance("SHA-256") else null
+        var totalBytes = 0L
+        while (true) {
+            val count = read(buffer)
+            if (count < 0) break
+            digest?.update(buffer, 0, count)
+            val remaining = maxStoredBytes - output.size()
+            if (remaining > 0) output.write(buffer, 0, minOf(count, remaining))
+            totalBytes += count
+            if (!computeFullSha256 && output.size() == maxStoredBytes) break
+        }
+        val bytes = output.toByteArray()
+        val sha256 = digest?.digest()?.joinToString("") { byte -> "%02x".format(byte) }
+        return Triple(bytes, totalBytes > maxBytes, sha256)
     }
 
     /**
@@ -511,3 +698,17 @@ open class WebDav(
     }
 
 }
+
+data class WebDavRawResponse(
+    val statusCode: Int,
+    val body: ByteArray = byteArrayOf(),
+    val bodyTooLarge: Boolean = false,
+    val rawSha256: String? = null
+) {
+    override fun toString(): String =
+        "WebDavRawResponse(statusCode=$statusCode, bodyBytes=${body.size}, bodyTooLarge=$bodyTooLarge)"
+}
+
+class WebDavResponseTooLargeException : WebDavException("WebDAV response exceeded the configured byte limit")
+
+data class WebDavListEntry(val name: String, val isDirectory: Boolean)

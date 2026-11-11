@@ -50,6 +50,22 @@
             app:allowDividerBelow="false"
             app:iconSpaceReserved="false" />
 
+        <io.legado.app.lib.prefs.Preference
+            android:key="sync_v1_process_registration"
+            android:summary="@string/sync_v1_process_registration_summary"
+            android:title="@string/sync_v1_process_registration"
+            app:allowDividerAbove="false"
+            app:allowDividerBelow="false"
+            app:iconSpaceReserved="false" />
+
+        <io.legado.app.lib.prefs.Preference
+            android:key="sync_v1_device_state"
+            android:summary="@string/sync_v1_no_devices"
+            android:title="@string/sync_v1_device_state_title"
+            app:allowDividerAbove="false"
+            app:allowDividerBelow="false"
+            app:iconSpaceReserved="false" />
+
         <io.legado.app.lib.prefs.SwitchPreference
             android:defaultValue="true"
             android:key="syncBookProgress"

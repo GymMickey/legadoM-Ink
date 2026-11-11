@@ -19,6 +19,8 @@ import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.core.view.MenuProvider
 import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.preference.EditTextPreference
 import androidx.preference.ListPreference
 import androidx.preference.Preference
@@ -74,6 +76,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.withContext
 import splitties.init.appCtx
 
@@ -181,6 +184,11 @@ class BackupConfigFragment : PreferenceFragment(),
         preferenceManager.sharedPreferences?.registerOnSharedPreferenceChangeListener(this)
         listView.setEdgeEffectColor(primaryColor)
         activity?.addMenuProvider(this, viewLifecycleOwner)
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.syncV1UiState.collect(::renderSyncV1State)
+            }
+        }
         if (!LocalConfig.backupHelpVersionIsLast) {
             showHelp("webDavHelp")
         }
@@ -274,12 +282,61 @@ class BackupConfigFragment : PreferenceFragment(),
             "book_cache_selector" -> showBookCacheSelector()
             "web_dav_backup" -> backup()
             "web_dav_restore" -> restore()
+            "sync_v1_process_registration" -> {
+                viewModel.processSyncV1Registration()
+                return true
+            }
             "import_old" -> restoreOld.launch()
             "viewBackupInfo" -> showBackupInfo()
             "viewRestoreInfo" -> showRestoreInfo()
         }
         return super.onPreferenceTreeClick(preference)
     }
+
+    private fun renderSyncV1State(state: io.legado.app.help.syncv1.SyncV1UiState) {
+        val action = findPreference<Preference>("sync_v1_process_registration") ?: return
+        val status = findPreference<Preference>("sync_v1_device_state") ?: return
+        action.isEnabled = !state.isRunning
+        action.title = getString(
+            if (state.isRunning) R.string.sync_v1_processing_registration
+            else R.string.sync_v1_process_registration
+        )
+        val lines = state.outcomes.map { outcome ->
+            if (outcome.deviceId == null) {
+                val code = outcome.errorCode?.name?.lowercase() ?: ""
+                if (code.isNotEmpty()) getString(R.string.sync_v1_global_error, code)
+                else getString(R.string.sync_v1_phase_scanning)
+            } else {
+                getString(
+                    R.string.sync_v1_device_summary,
+                    outcome.deviceId,
+                    syncV1PhaseLabel(outcome.phase),
+                    outcome.remoteStatus ?: "—",
+                    outcome.createMode ?: "—",
+                    outcome.stateRevision?.toString() ?: "—",
+                    outcome.errorCode?.name?.lowercase() ?: "—"
+                )
+            }
+        }
+        status.summary = when {
+            lines.isNotEmpty() -> lines.joinToString("\n")
+            state.isRunning -> getString(R.string.sync_v1_phase_scanning)
+            else -> getString(R.string.sync_v1_no_devices)
+        }
+    }
+
+    private fun syncV1PhaseLabel(phase: io.legado.app.help.syncv1.SyncV1UiPhase): String =
+        getString(
+            when (phase) {
+                io.legado.app.help.syncv1.SyncV1UiPhase.IDLE -> R.string.sync_v1_phase_idle
+                io.legado.app.help.syncv1.SyncV1UiPhase.SCANNING -> R.string.sync_v1_phase_scanning
+                io.legado.app.help.syncv1.SyncV1UiPhase.VALIDATING -> R.string.sync_v1_phase_validating
+                io.legado.app.help.syncv1.SyncV1UiPhase.PUBLISHING -> R.string.sync_v1_phase_publishing
+                io.legado.app.help.syncv1.SyncV1UiPhase.READY -> R.string.sync_v1_phase_ready
+                io.legado.app.help.syncv1.SyncV1UiPhase.REJECTED -> R.string.sync_v1_phase_rejected
+                io.legado.app.help.syncv1.SyncV1UiPhase.FAILED -> R.string.sync_v1_phase_failed
+            }
+        )
 
     /**
      * 备份忽略设置

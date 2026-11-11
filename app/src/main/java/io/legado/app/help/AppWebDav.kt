@@ -259,6 +259,27 @@ object AppWebDav {
         return snapshot.takeIf(::isCurrent)
     }
 
+    /** Return only a previously verified snapshot; callers must keep its fields together. */
+    internal fun currentSyncV1ConfigSnapshot(): WebDavConfigSnapshot? = activeConfigForOperation()
+
+    internal fun isSyncV1ConfigCurrent(snapshot: WebDavConfigSnapshot): Boolean = isCurrent(snapshot)
+
+    /** Create a client under the same verified URL/auth/TLS snapshot, never from preferences. */
+    internal fun syncV1WebDav(
+        snapshot: WebDavConfigSnapshot,
+        relativePath: String
+    ): WebDav? {
+        if (!isCurrent(snapshot)) return null
+        if (relativePath.startsWith('/') || '\\' in relativePath
+            || relativePath.split('/').any { it == ".." }
+        ) return null
+        return appWebDav(
+            path = snapshot.rootUrl + relativePath,
+            authorization = snapshot.authorization,
+            allowInsecure = snapshot.allowInsecure
+        )
+    }
+
     private fun updateOperationStatus(snapshot: WebDavConfigSnapshot, error: Throwable) {
         if (isCurrent(snapshot)) {
             _status.value = statusFor(error)

@@ -8,7 +8,13 @@ import io.legado.app.base.BaseViewModel
 import io.legado.app.data.appDb
 import io.legado.app.help.AppWebDav
 import io.legado.app.help.book.BookHelp
+import io.legado.app.help.book.isNotShelf
 import io.legado.app.help.syncv1.AppWebDavSyncV1SessionFactory
+import io.legado.app.help.syncv1.SyncV1CatalogBook
+import io.legado.app.help.syncv1.SyncV1CatalogOutcome
+import io.legado.app.help.syncv1.SyncV1CatalogPhase
+import io.legado.app.help.syncv1.SyncV1CatalogRepository
+import io.legado.app.help.syncv1.SyncV1CatalogUiState
 import io.legado.app.help.syncv1.SyncV1DeviceOutcome
 import io.legado.app.help.syncv1.SyncV1ErrorCode
 import io.legado.app.help.syncv1.SyncV1RegistrationRepository
@@ -37,9 +43,18 @@ class ConfigViewModel(application: Application) : BaseViewModel(application) {
             sessionProvider = AppWebDavSyncV1SessionFactory()::create
         )
     }
+    private val syncV1CatalogRepository by lazy {
+        SyncV1CatalogRepository(
+            store = SyncV1SQLiteStore(context),
+            sessionProvider = AppWebDavSyncV1SessionFactory()::create
+        )
+    }
     private val _syncV1UiState = MutableStateFlow(SyncV1UiState())
     val syncV1UiState = _syncV1UiState.asStateFlow()
     private var syncV1Job: Job? = null
+    private val _syncV1CatalogUiState = MutableStateFlow(SyncV1CatalogUiState())
+    val syncV1CatalogUiState = _syncV1CatalogUiState.asStateFlow()
+    private var syncV1CatalogJob: Job? = null
 
     fun upWebDavConfig() {
         webDavUpdateJob?.cancel()
@@ -83,6 +98,32 @@ class ConfigViewModel(application: Application) : BaseViewModel(application) {
                 }
             } finally {
                 _syncV1UiState.update { it.copy(isRunning = false) }
+            }
+        }
+    }
+
+    fun publishSyncV1Catalog() {
+        if (syncV1CatalogJob?.isActive == true) return
+        _syncV1CatalogUiState.value = SyncV1CatalogUiState(isRunning = true)
+        syncV1CatalogJob = viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val books = appDb.bookDao.all.asSequence()
+                    .filterNot { it.isNotShelf }
+                    .map { SyncV1CatalogBook(it.bookUrl, it.name, it.author) }
+                    .toList()
+                val outcome = syncV1CatalogRepository.publish(books)
+                _syncV1CatalogUiState.value = SyncV1CatalogUiState(outcome = outcome)
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                _syncV1CatalogUiState.value = SyncV1CatalogUiState(
+                    outcome = SyncV1CatalogOutcome(
+                        phase = SyncV1CatalogPhase.FAILED,
+                        errorCode = io.legado.app.help.syncv1.SyncV1ErrorCode.NETWORK_UNKNOWN
+                    )
+                )
+            } finally {
+                _syncV1CatalogUiState.update { it.copy(isRunning = false) }
             }
         }
     }

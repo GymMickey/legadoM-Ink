@@ -1296,6 +1296,15 @@
     <string name="sync_v1_phase_ready">Published</string>
     <string name="sync_v1_phase_rejected">Rejected</string>
     <string name="sync_v1_phase_failed">Failed</string>
+    <string name="sync_v1_publish_catalog">Publish Sync-v1 bookshelf catalog</string>
+    <string name="sync_v1_publish_catalog_summary">Publish an immutable catalog snapshot to the configured WebDAV</string>
+    <string name="sync_v1_publishing_catalog">Publishing Sync-v1 catalog…</string>
+    <string name="sync_v1_catalog_state_title">Sync-v1 catalog status</string>
+    <string name="sync_v1_catalog_not_published">No catalog has been published</string>
+    <string name="sync_v1_catalog_running">Publishing bookshelf catalog…</string>
+    <string name="sync_v1_catalog_published">Published %1$d works · revision %2$d</string>
+    <string name="sync_v1_catalog_unchanged">Unchanged · %1$d works · revision %2$d</string>
+    <string name="sync_v1_catalog_error">Catalog failed · %1$d works · revision %2$s · error %3$s</string>
     <string name="web_service_wake_lock">WebService Wake up Lock</string>
     <string name="web_service_wake_lock_summary">The wake-up lock is enabled when the web service is enabled, and some phones will be killed when the wake-up lock is enabled.</string>
     <string name="unsafe_ssl_title">Skip SSL Verification</string>

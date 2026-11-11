@@ -19,6 +19,8 @@ import java.time.format.DateTimeParseException
 import java.util.UUID
 
 internal const val SYNC_V1_MAX_OBJECT_BYTES = 64 * 1024
+internal const val SYNC_V1_MAX_CATALOG_BYTES = 1024 * 1024
+internal const val SYNC_V1_MAX_CATALOG_WORKS = 2500
 internal const val SYNC_V1_MAX_SAFE_INTEGER = 9_007_199_254_740_991L
 internal const val SYNC_V1_CREATE_MODE = "uuid_verified"
 
@@ -40,6 +42,24 @@ internal data class ParsedDeviceState(
     val locatorCapability: String?,
     val registrationPayloadSha256: String,
     val generatedAt: String
+)
+
+internal data class ParsedCatalogWork(
+    val workId: String,
+    val title: String,
+    val authors: List<String>,
+    val bookUrlAliases: List<String>,
+    val tocRevision: Long,
+    val progressRevision: Long,
+    val updatedAt: String
+)
+
+internal data class ParsedCatalog(
+    val deviceId: String,
+    val catalogRevision: Long,
+    val snapshotId: String,
+    val generatedAt: String,
+    val works: List<ParsedCatalogWork>
 )
 
 internal sealed interface RegistrationValidation {
@@ -95,6 +115,25 @@ internal object SyncV1Protocol {
         "locator_capability",
         "registration_payload_sha256",
         "generated_at"
+    )
+    private val catalogKeys = setOf(
+        "protocol_version",
+        "schema_version",
+        "normalization_version",
+        "device_id",
+        "catalog_revision",
+        "snapshot_id",
+        "generated_at",
+        "works"
+    )
+    private val catalogWorkKeys = setOf(
+        "work_id",
+        "title",
+        "authors",
+        "book_url_aliases",
+        "toc_revision",
+        "progress_revision",
+        "updated_at"
     )
     private val registrationResults = setOf(
         "registration_verified",
@@ -245,6 +284,49 @@ internal object SyncV1Protocol {
             registrationHash,
             generatedAt
         )
+    }
+
+    fun parseCatalog(rawBytes: ByteArray): ParsedCatalog? {
+        if (rawBytes.size > SYNC_V1_MAX_CATALOG_BYTES) return null
+        val root = try {
+            parseStrictJson(rawBytes) as? JsonObject ?: return null
+        } catch (_: Exception) {
+            return null
+        }
+        if (root.keySet() != catalogKeys
+            || root.string("protocol_version") != "sync-v1"
+            || root.string("schema_version") != "1.0.0"
+            || root.string("normalization_version") != "normalization-v1"
+        ) return null
+        val deviceId = root.string("device_id")?.takeIf(::isUuidV4) ?: return null
+        val revision = root.safeLong("catalog_revision") ?: return null
+        val snapshotId = root.string("snapshot_id")?.takeIf(::isUuidV4) ?: return null
+        val generatedAt = root.string("generated_at")?.takeIf(::isUtcDateTime) ?: return null
+        val worksJson = root.get("works")?.takeIf { it.isJsonArray }?.asJsonArray ?: return null
+        if (worksJson.size() > SYNC_V1_MAX_CATALOG_WORKS) return null
+        val workIds = HashSet<String>(worksJson.size())
+        val works = ArrayList<ParsedCatalogWork>(worksJson.size())
+        for (element in worksJson) {
+            val obj = element.takeIf { it.isJsonObject }?.asJsonObject ?: return null
+            if (obj.keySet() != catalogWorkKeys) return null
+            val workId = obj.string("work_id")?.takeIf(::isUuidV4) ?: return null
+            if (!workIds.add(workId)) return null
+            val title = obj.string("title") ?: return null
+            if (title.codePointCount(0, title.length) !in 1..512) return null
+            val authors = obj.stringArray("authors") ?: return null
+            if (authors.size > 10 || authors.any { it.codePointCount(0, it.length) > 256 }) return null
+            val aliases = obj.stringArray("book_url_aliases") ?: return null
+            if (aliases.size > 64 || aliases.distinct().size != aliases.size
+                || aliases.any { !sha256Pattern.matches(it) }
+            ) return null
+            val tocRevision = obj.safeLong("toc_revision") ?: return null
+            val progressRevision = obj.safeLong("progress_revision") ?: return null
+            val updatedAt = obj.string("updated_at")?.takeIf(::isUtcDateTime) ?: return null
+            works += ParsedCatalogWork(
+                workId, title, authors, aliases, tocRevision, progressRevision, updatedAt
+            )
+        }
+        return ParsedCatalog(deviceId, revision, snapshotId, generatedAt, works)
     }
 
     private fun invalid(

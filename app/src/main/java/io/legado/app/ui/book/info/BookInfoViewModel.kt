@@ -378,7 +378,7 @@ class BookInfoViewModel(application: Application) : BaseViewModel(application) {
             )
     }
 
-    private fun saveShelfBook(
+    private suspend fun saveShelfBook(
         oldBook: Book,
         book: Book,
         removeUpdateError: Boolean = false
@@ -391,6 +391,7 @@ class BookInfoViewModel(application: Application) : BaseViewModel(application) {
             appDb.bookDao.update(book)
         } else {
             appDb.bookDao.replace(oldBook, book)
+            io.legado.app.help.syncv1.recordSyncV1SourceChange(oldBook.bookUrl, book.bookUrl)
             BookHelp.updateCacheFolder(oldBook, book)
         }
     }

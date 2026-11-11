@@ -25,7 +25,12 @@ enum class SyncV1ErrorCode {
     REMOTE_CONTENT_CONFLICT,
     READBACK_MISMATCH,
     RETRY_LIMIT,
-    NO_REGISTRATIONS
+    NO_REGISTRATIONS,
+    IDENTITY_CONFLICT,
+    CATALOG_TOO_LARGE,
+    CATALOG_WORK_LIMIT,
+    CATALOG_INVALID,
+    NO_READY_DEVICE
 }
 
 class SyncV1Failure(
@@ -69,6 +74,11 @@ data class SyncV1UiState(
     val currentPhase: SyncV1UiPhase = SyncV1UiPhase.IDLE,
     val outcomes: List<SyncV1DeviceOutcome> = emptyList(),
     val globalErrorCode: SyncV1ErrorCode? = null
+)
+
+data class SyncV1CatalogUiState(
+    val isRunning: Boolean = false,
+    val outcome: SyncV1CatalogOutcome? = null
 )
 
 data class SyncV1HttpResponse(
@@ -168,4 +178,88 @@ interface SyncV1Store {
         createMode: String? = null
     )
     suspend fun readState(deviceId: String): SyncV1StoredState?
+}
+
+data class SyncV1WorkIdentity(
+    val workId: String,
+    val tocRevision: Long = 0,
+    val progressRevision: Long = 0,
+    val catalogFieldsSha256: String? = null,
+    /** Unix milliseconds, owned by the independent sync database. */
+    val updatedAt: Long = 0
+)
+
+/** Raw book URLs are only persisted in the independent sync database; never expose them in UI/logs. */
+class SyncV1WorkAlias(val bookUrl: String, val workId: String) {
+    override fun toString(): String = "SyncV1WorkAlias(workId=$workId, bookUrl=[redacted])"
+}
+
+sealed interface SyncV1WorkIdentityResolution {
+    data class Resolved(val identity: SyncV1WorkIdentity) : SyncV1WorkIdentityResolution
+    data object IdentityConflict : SyncV1WorkIdentityResolution
+}
+
+class SyncV1CatalogPublicationIntent(
+    val catalogRevision: Long,
+    val snapshotId: UUID,
+    val remotePath: String,
+    rawJsonBytes: ByteArray,
+    val rawSha256: String,
+    val semanticSha256: String,
+    val putAttemptCount: Int,
+    val configIdentity: String,
+    val serviceIdentity: String,
+    val rootIdentity: String,
+    val publicationStatus: String,
+    val createdAt: Long,
+    val updatedAt: Long
+) {
+    val rawJsonBytes: ByteArray = rawJsonBytes.copyOf()
+
+    override fun toString(): String =
+        "SyncV1CatalogPublicationIntent(catalogRevision=$catalogRevision, snapshotId=$snapshotId, " +
+            "remotePath=$remotePath, rawBytes=${rawJsonBytes.size}, rawSha256=$rawSha256, " +
+            "putAttemptCount=$putAttemptCount, publicationStatus=$publicationStatus)"
+}
+
+data class SyncV1CatalogPublicationState(
+    val catalogRevision: Long,
+    val snapshotId: UUID,
+    val remotePath: String,
+    val semanticSha256: String,
+    val rawSha256: String,
+    val serviceIdentity: String,
+    val rootIdentity: String,
+    val publishedAt: Long
+)
+
+/** A2 storage contract kept separate so the A1 registration API and its test doubles remain stable. */
+interface SyncV1CatalogStore {
+    suspend fun androidPublisherDeviceId(uuidProvider: () -> UUID = UUID::randomUUID): String
+    suspend fun workAliases(): List<SyncV1WorkAlias>
+    suspend fun resolveWorkIdentity(
+        bookUrl: String,
+        matchingRemoteWorkIds: Set<String>,
+        uuidProvider: () -> UUID = UUID::randomUUID
+    ): SyncV1WorkIdentityResolution
+    suspend fun updateWorkCatalogFields(
+        identity: SyncV1WorkIdentity,
+        catalogFieldsSha256: String,
+        now: Long,
+        initialUpdatedAt: Long? = null
+    ): SyncV1WorkIdentity
+    suspend fun linkExplicitWorkAlias(
+        oldBookUrl: String,
+        newBookUrl: String,
+        uuidProvider: () -> UUID = UUID::randomUUID
+    ): SyncV1WorkIdentity
+    suspend fun hasReadyDevice(): Boolean
+    suspend fun pendingCatalogIntent(serviceIdentity: String, rootIdentity: String): SyncV1CatalogPublicationIntent?
+    suspend fun latestPublishedCatalogIntent(serviceIdentity: String, rootIdentity: String): SyncV1CatalogPublicationIntent?
+    suspend fun catalogPublicationState(serviceIdentity: String, rootIdentity: String): SyncV1CatalogPublicationState?
+    suspend fun createCatalogIntentIfNoPending(
+        intent: SyncV1CatalogPublicationIntent
+    ): SyncV1CatalogPublicationIntent
+    suspend fun incrementCatalogPutAttempt(intent: SyncV1CatalogPublicationIntent, now: Long): Int
+    suspend fun markCatalogIntentPublished(intent: SyncV1CatalogPublicationIntent)
 }

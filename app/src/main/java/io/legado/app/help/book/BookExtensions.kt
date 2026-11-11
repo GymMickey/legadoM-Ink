@@ -17,6 +17,7 @@ import io.legado.app.data.entities.BookSource
 import io.legado.app.exception.NoStackTraceException
 import io.legado.app.help.RuleBigDataHelp
 import io.legado.app.help.config.AppConfig
+import io.legado.app.help.syncv1.persistLocalBookUrlMigration
 import io.legado.app.model.localBook.LocalBook
 import io.legado.app.utils.FileDoc
 import io.legado.app.utils.GSON
@@ -141,10 +142,20 @@ fun Book.getLocalUri(): Uri {
         } else {
             val fileDoc = treeFileDoc.find(originName, 5, 100)
             if (fileDoc != null) {
-                localUriCache[bookUrl] = fileDoc.uri
-                //更新bookUrl 重启不用再找一遍
-                bookUrl = fileDoc.toString()
-                save()
+                val oldBookUrl = bookUrl
+                val newBookUrl = fileDoc.toString()
+                localUriCache[oldBookUrl] = fileDoc.uri
+                persistLocalBookUrlMigration(
+                    oldBookUrl = oldBookUrl,
+                    newBookUrl = newBookUrl,
+                    persistBookUpdate = {
+                        // 更新 bookUrl，重启不用再查找文件。
+                        bookUrl = newBookUrl
+                        save()
+                    },
+                    restoreBookUrl = { bookUrl = oldBookUrl }
+                )
+                localUriCache[newBookUrl] = fileDoc.uri
                 return fileDoc.uri
             }
         }
@@ -160,9 +171,19 @@ fun Book.getLocalUri(): Uri {
         val treeFileDoc = FileDoc.fromUri(treeUri, true)
         val fileDoc = treeFileDoc.find(originName, 5, 100)
         if (fileDoc != null) {
-            localUriCache[bookUrl] = fileDoc.uri
-            bookUrl = fileDoc.toString()
-            save()
+            val oldBookUrl = bookUrl
+            val newBookUrl = fileDoc.toString()
+            localUriCache[oldBookUrl] = fileDoc.uri
+            persistLocalBookUrlMigration(
+                oldBookUrl = oldBookUrl,
+                newBookUrl = newBookUrl,
+                persistBookUpdate = {
+                    bookUrl = newBookUrl
+                    save()
+                },
+                restoreBookUrl = { bookUrl = oldBookUrl }
+            )
+            localUriCache[newBookUrl] = fileDoc.uri
             return fileDoc.uri
         }
     }

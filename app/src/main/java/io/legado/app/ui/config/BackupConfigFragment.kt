@@ -189,6 +189,11 @@ class BackupConfigFragment : PreferenceFragment(),
                 viewModel.syncV1UiState.collect(::renderSyncV1State)
             }
         }
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.syncV1CatalogUiState.collect(::renderSyncV1CatalogState)
+            }
+        }
         if (!LocalConfig.backupHelpVersionIsLast) {
             showHelp("webDavHelp")
         }
@@ -286,11 +291,46 @@ class BackupConfigFragment : PreferenceFragment(),
                 viewModel.processSyncV1Registration()
                 return true
             }
+            "sync_v1_publish_catalog" -> {
+                viewModel.publishSyncV1Catalog()
+                return true
+            }
             "import_old" -> restoreOld.launch()
             "viewBackupInfo" -> showBackupInfo()
             "viewRestoreInfo" -> showRestoreInfo()
         }
         return super.onPreferenceTreeClick(preference)
+    }
+
+    private fun renderSyncV1CatalogState(state: io.legado.app.help.syncv1.SyncV1CatalogUiState) {
+        val action = findPreference<Preference>("sync_v1_publish_catalog") ?: return
+        val status = findPreference<Preference>("sync_v1_catalog_state") ?: return
+        action.isEnabled = !state.isRunning
+        action.title = getString(
+            if (state.isRunning) R.string.sync_v1_publishing_catalog
+            else R.string.sync_v1_publish_catalog
+        )
+        val outcome = state.outcome
+        status.summary = when {
+            outcome == null && state.isRunning -> getString(R.string.sync_v1_catalog_running)
+            outcome == null -> getString(R.string.sync_v1_catalog_not_published)
+            outcome.errorCode != null -> getString(
+                R.string.sync_v1_catalog_error,
+                outcome.workCount,
+                outcome.catalogRevision?.toString() ?: "—",
+                outcome.errorCode.name.lowercase()
+            )
+            outcome.phase == io.legado.app.help.syncv1.SyncV1CatalogPhase.UNCHANGED -> getString(
+                R.string.sync_v1_catalog_unchanged,
+                outcome.workCount,
+                outcome.catalogRevision ?: 0L
+            )
+            else -> getString(
+                R.string.sync_v1_catalog_published,
+                outcome.workCount,
+                outcome.catalogRevision ?: 0L
+            )
+        }
     }
 
     private fun renderSyncV1State(state: io.legado.app.help.syncv1.SyncV1UiState) {

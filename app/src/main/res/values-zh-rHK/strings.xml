@@ -1062,6 +1062,15 @@
     <string name="sync_v1_phase_ready">已發佈</string>
     <string name="sync_v1_phase_rejected">已拒絕</string>
     <string name="sync_v1_phase_failed">失敗</string>
+    <string name="sync_v1_publish_catalog">發佈 Sync-v1 書架目錄</string>
+    <string name="sync_v1_publish_catalog_summary">向目前 WebDAV 發佈不可變的書架目錄快照</string>
+    <string name="sync_v1_publishing_catalog">正在發佈 Sync-v1 目錄…</string>
+    <string name="sync_v1_catalog_state_title">Sync-v1 目錄狀態</string>
+    <string name="sync_v1_catalog_not_published">尚未發佈目錄</string>
+    <string name="sync_v1_catalog_running">正在發佈書架目錄…</string>
+    <string name="sync_v1_catalog_published">已發佈 %1$d 部作品 · 版本 %2$d</string>
+    <string name="sync_v1_catalog_unchanged">內容未變更 · %1$d 部作品 · 版本 %2$d</string>
+    <string name="sync_v1_catalog_error">目錄發佈失敗 · %1$d 部作品 · 版本 %2$s · 錯誤 %3$s</string>
     <string name="web_service_wake_lock">WebService唤醒锁</string>
     <string name="web_service_wake_lock_summary">开启web服务的时候启用唤醒锁,有些手机开启唤醒锁会被杀后台</string>
 <string name="change_search_scope">切换搜索範圍</string>

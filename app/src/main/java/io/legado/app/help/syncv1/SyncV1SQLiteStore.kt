@@ -10,8 +10,341 @@ import kotlinx.coroutines.withContext
 import java.util.UUID
 
 /** Independent, lazily opened storage. It is not part of AppDatabase or backup/restore. */
-class SyncV1SQLiteStore(context: Context) : SyncV1Store {
+class SyncV1SQLiteStore(context: Context) : SyncV1Store, SyncV1CatalogStore {
     private val helper = SyncV1DatabaseHelper(context.applicationContext)
+
+    override suspend fun androidPublisherDeviceId(uuidProvider: () -> UUID): String = withContext(IO) {
+        val db = helper.writableDatabase
+        db.beginTransaction()
+        try {
+            val existing = db.rawQuery(
+                "SELECT metadata_value FROM sync_v1_metadata WHERE metadata_key = 'android_publisher_device_id'",
+                null
+            ).use { cursor -> if (cursor.moveToFirst()) cursor.getString(0) else null }
+            val result = existing ?: uuidProvider().toString().also { generated ->
+                if (!SyncV1Protocol.isUuidV4(generated)) {
+                    throw SyncV1Failure(SyncV1ErrorCode.INVALID_DEVICE_ID)
+                }
+                db.insertOrThrow(
+                    "sync_v1_metadata",
+                    null,
+                    ContentValues().apply {
+                        put("metadata_key", "android_publisher_device_id")
+                        put("metadata_value", generated)
+                    }
+                )
+            }
+            if (!SyncV1Protocol.isUuidV4(result)) {
+                throw SyncV1Failure(SyncV1ErrorCode.INVALID_DEVICE_ID)
+            }
+            db.setTransactionSuccessful()
+            result
+        } finally {
+            db.endTransaction()
+        }
+    }
+
+    override suspend fun workAliases(): List<SyncV1WorkAlias> = withContext(IO) {
+        helper.readableDatabase.rawQuery(
+            "SELECT book_url, work_id FROM work_alias ORDER BY work_id, book_url",
+            null
+        ).use { cursor ->
+            buildList {
+                while (cursor.moveToNext()) {
+                    add(SyncV1WorkAlias(cursor.getString(0), cursor.getString(1)))
+                }
+            }
+        }
+    }
+
+    override suspend fun resolveWorkIdentity(
+        bookUrl: String,
+        matchingRemoteWorkIds: Set<String>,
+        uuidProvider: () -> UUID
+    ): SyncV1WorkIdentityResolution = withContext(IO) {
+        require(bookUrl.isNotBlank())
+        if (matchingRemoteWorkIds.size > 1 || matchingRemoteWorkIds.any { !SyncV1Protocol.isUuidV4(it) }) {
+            return@withContext SyncV1WorkIdentityResolution.IdentityConflict
+        }
+        val db = helper.writableDatabase
+        db.beginTransaction()
+        try {
+            val existing = db.rawQuery(
+                "SELECT work_id FROM work_alias WHERE book_url = ?",
+                arrayOf(bookUrl)
+            ).use { cursor -> if (cursor.moveToFirst()) cursor.getString(0) else null }
+            if (existing != null) {
+                val identity = db.readOrCreateWorkIdentity(existing)
+                db.setTransactionSuccessful()
+                return@withContext SyncV1WorkIdentityResolution.Resolved(identity)
+            }
+            val workId = matchingRemoteWorkIds.singleOrNull() ?: uuidProvider().toString()
+            if (!SyncV1Protocol.isUuidV4(workId)) {
+                throw SyncV1Failure(SyncV1ErrorCode.INVALID_DEVICE_ID)
+            }
+            val identity = db.readOrCreateWorkIdentity(workId)
+            db.insertOrThrow(
+                "work_alias",
+                null,
+                ContentValues().apply {
+                    put("book_url", bookUrl)
+                    put("work_id", workId)
+                }
+            )
+            db.setTransactionSuccessful()
+            SyncV1WorkIdentityResolution.Resolved(identity)
+        } finally {
+            db.endTransaction()
+        }
+    }
+
+    override suspend fun updateWorkCatalogFields(
+        identity: SyncV1WorkIdentity,
+        catalogFieldsSha256: String,
+        now: Long,
+        initialUpdatedAt: Long?
+    ): SyncV1WorkIdentity = withContext(IO) {
+        if (!catalogFieldsSha256.matches(Regex("[a-f0-9]{64}"))) {
+            throw SyncV1Failure(SyncV1ErrorCode.CATALOG_INVALID)
+        }
+        val db = helper.writableDatabase
+        db.beginTransaction()
+        try {
+            val current = db.rawQuery(
+                "SELECT catalog_fields_sha256, updated_at FROM work_identity WHERE work_id = ?",
+                arrayOf(identity.workId)
+            ).use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val hashIndex = cursor.getColumnIndexOrThrow("catalog_fields_sha256")
+                    (if (cursor.isNull(hashIndex)) null else cursor.getString(hashIndex)) to
+                        cursor.getLong(cursor.getColumnIndexOrThrow("updated_at"))
+                } else null
+            } ?: throw SyncV1Failure(SyncV1ErrorCode.INVALID_REGISTRATION)
+            val timestamp = when {
+                current.first == catalogFieldsSha256 -> current.second
+                current.first == null && initialUpdatedAt != null -> initialUpdatedAt
+                else -> now
+            }
+            if (current.first != catalogFieldsSha256) {
+                db.update(
+                    "work_identity",
+                    ContentValues().apply {
+                        put("catalog_fields_sha256", catalogFieldsSha256)
+                        put("updated_at", timestamp)
+                    },
+                    "work_id = ?",
+                    arrayOf(identity.workId)
+                )
+            }
+            val updated = identity.copy(catalogFieldsSha256 = catalogFieldsSha256, updatedAt = timestamp)
+            db.setTransactionSuccessful()
+            updated
+        } finally {
+            db.endTransaction()
+        }
+    }
+
+    override suspend fun linkExplicitWorkAlias(
+        oldBookUrl: String,
+        newBookUrl: String,
+        uuidProvider: () -> UUID
+    ): SyncV1WorkIdentity = withContext(IO) {
+        linkExplicitWorkAliasNow(oldBookUrl, newBookUrl, uuidProvider)
+    }
+
+    /** Synchronous variant for legacy Book URL migration paths that are not suspend functions. */
+    internal fun linkExplicitWorkAliasNow(
+        oldBookUrl: String,
+        newBookUrl: String,
+        uuidProvider: () -> UUID = UUID::randomUUID
+    ): SyncV1WorkIdentity {
+        require(oldBookUrl.isNotBlank() && newBookUrl.isNotBlank())
+        val db = helper.writableDatabase
+        db.beginTransaction()
+        return try {
+            val oldWorkId = db.rawQuery(
+                "SELECT work_id FROM work_alias WHERE book_url = ?",
+                arrayOf(oldBookUrl)
+            ).use { cursor -> if (cursor.moveToFirst()) cursor.getString(0) else null }
+            val workId = oldWorkId ?: uuidProvider().toString().also { generated ->
+                if (!SyncV1Protocol.isUuidV4(generated)) {
+                    throw SyncV1Failure(SyncV1ErrorCode.INVALID_DEVICE_ID)
+                }
+                db.readOrCreateWorkIdentity(generated)
+                db.insertOrThrow(
+                    "work_alias",
+                    null,
+                    ContentValues().apply {
+                        put("book_url", oldBookUrl)
+                        put("work_id", generated)
+                    }
+                )
+            }
+            if (oldWorkId != null) db.readOrCreateWorkIdentity(workId)
+            if (newBookUrl != oldBookUrl) {
+                val aliasValues = ContentValues().apply { put("work_id", workId) }
+                val updated = db.update("work_alias", aliasValues, "book_url = ?", arrayOf(newBookUrl))
+                if (updated == 0) {
+                    db.insertOrThrow(
+                        "work_alias",
+                        null,
+                        ContentValues().apply {
+                            put("book_url", newBookUrl)
+                            put("work_id", workId)
+                        }
+                    )
+                }
+            }
+            val identity = db.readOrCreateWorkIdentity(workId)
+            db.setTransactionSuccessful()
+            identity
+        } finally {
+            db.endTransaction()
+        }
+    }
+
+    override suspend fun hasReadyDevice(): Boolean = withContext(IO) {
+        helper.readableDatabase.rawQuery(
+            "SELECT 1 FROM sync_state WHERE processing_status = 'ready' AND remote_status = 'ready' AND create_mode IS NOT NULL LIMIT 1",
+            null
+        ).use { it.moveToFirst() }
+    }
+
+    override suspend fun pendingCatalogIntent(
+        serviceIdentity: String,
+        rootIdentity: String
+    ): SyncV1CatalogPublicationIntent? = withContext(IO) {
+        helper.readableDatabase.rawQuery(
+            "SELECT * FROM catalog_publication_intent WHERE publication_status = 'pending' AND service_identity = ? AND root_identity = ? ORDER BY created_at LIMIT 1",
+            arrayOf(serviceIdentity, rootIdentity)
+        ).use { cursor -> if (cursor.moveToFirst()) cursor.toCatalogIntent() else null }
+    }
+
+    override suspend fun latestPublishedCatalogIntent(
+        serviceIdentity: String,
+        rootIdentity: String
+    ): SyncV1CatalogPublicationIntent? = withContext(IO) {
+        helper.readableDatabase.rawQuery(
+            "SELECT * FROM catalog_publication_intent WHERE publication_status = 'published' AND service_identity = ? AND root_identity = ? ORDER BY catalog_revision DESC LIMIT 1",
+            arrayOf(serviceIdentity, rootIdentity)
+        ).use { cursor -> if (cursor.moveToFirst()) cursor.toCatalogIntent() else null }
+    }
+
+    override suspend fun catalogPublicationState(
+        serviceIdentity: String,
+        rootIdentity: String
+    ): SyncV1CatalogPublicationState? = withContext(IO) {
+        helper.readableDatabase.rawQuery(
+            "SELECT * FROM catalog_publication_state WHERE service_identity = ? AND root_identity = ?",
+            arrayOf(serviceIdentity, rootIdentity)
+        ).use { cursor -> if (cursor.moveToFirst()) cursor.toCatalogState() else null }
+    }
+
+    override suspend fun createCatalogIntentIfNoPending(
+        intent: SyncV1CatalogPublicationIntent
+    ): SyncV1CatalogPublicationIntent = withContext(IO) {
+        val db = helper.writableDatabase
+        db.beginTransaction()
+        try {
+            val existing = db.rawQuery(
+                "SELECT * FROM catalog_publication_intent WHERE publication_status = 'pending' AND service_identity = ? AND root_identity = ? ORDER BY created_at LIMIT 1",
+                arrayOf(intent.serviceIdentity, intent.rootIdentity)
+            ).use { cursor -> if (cursor.moveToFirst()) cursor.toCatalogIntent() else null }
+            if (existing != null) {
+                db.setTransactionSuccessful()
+                return@withContext existing
+            }
+            db.insertOrThrow(
+                "catalog_publication_intent",
+                null,
+                ContentValues().apply {
+                    put("catalog_revision", intent.catalogRevision)
+                    put("snapshot_id", intent.snapshotId.toString())
+                    put("remote_path", intent.remotePath)
+                    put("raw_json_bytes", intent.rawJsonBytes)
+                    put("raw_sha256", intent.rawSha256)
+                    put("semantic_sha256", intent.semanticSha256)
+                    put("put_attempt_count", intent.putAttemptCount)
+                    put("config_identity", intent.configIdentity)
+                    put("service_identity", intent.serviceIdentity)
+                    put("root_identity", intent.rootIdentity)
+                    put("publication_status", "pending")
+                    put("created_at", intent.createdAt)
+                    put("updated_at", intent.updatedAt)
+                }
+            )
+            db.setTransactionSuccessful()
+            intent
+        } finally {
+            db.endTransaction()
+        }
+    }
+
+    override suspend fun incrementCatalogPutAttempt(
+        intent: SyncV1CatalogPublicationIntent,
+        now: Long
+    ): Int = withContext(IO) {
+        val db = helper.writableDatabase
+        db.beginTransaction()
+        try {
+            val count = db.rawQuery(
+                "SELECT put_attempt_count FROM catalog_publication_intent WHERE remote_path = ? AND service_identity = ? AND root_identity = ? AND publication_status = 'pending'",
+                arrayOf(intent.remotePath, intent.serviceIdentity, intent.rootIdentity)
+            ).use { cursor ->
+                if (!cursor.moveToFirst()) throw SyncV1Failure(SyncV1ErrorCode.RETRY_LIMIT)
+                cursor.getInt(0)
+            }
+            if (count >= 2) throw SyncV1Failure(SyncV1ErrorCode.RETRY_LIMIT)
+            db.update(
+                "catalog_publication_intent",
+                ContentValues().apply {
+                    put("put_attempt_count", count + 1)
+                    put("updated_at", now)
+                },
+                "remote_path = ? AND service_identity = ? AND root_identity = ? AND publication_status = 'pending'",
+                arrayOf(intent.remotePath, intent.serviceIdentity, intent.rootIdentity)
+            )
+            db.setTransactionSuccessful()
+            count + 1
+        } finally {
+            db.endTransaction()
+        }
+    }
+
+    override suspend fun markCatalogIntentPublished(intent: SyncV1CatalogPublicationIntent) = withContext(IO) {
+        val db = helper.writableDatabase
+        db.beginTransaction()
+        try {
+            val updatedRows = db.update(
+                "catalog_publication_intent",
+                ContentValues().apply {
+                    put("publication_status", "published")
+                    put("updated_at", System.currentTimeMillis())
+                },
+                "remote_path = ? AND raw_sha256 = ? AND service_identity = ? AND root_identity = ? AND publication_status = 'pending'",
+                arrayOf(intent.remotePath, intent.rawSha256, intent.serviceIdentity, intent.rootIdentity)
+            )
+            if (updatedRows != 1) throw SyncV1Failure(SyncV1ErrorCode.CATALOG_INVALID)
+            db.insertWithOnConflict(
+                "catalog_publication_state",
+                null,
+                ContentValues().apply {
+                    put("catalog_revision", intent.catalogRevision)
+                    put("snapshot_id", intent.snapshotId.toString())
+                    put("remote_path", intent.remotePath)
+                    put("semantic_sha256", intent.semanticSha256)
+                    put("raw_sha256", intent.rawSha256)
+                    put("service_identity", intent.serviceIdentity)
+                    put("root_identity", intent.rootIdentity)
+                    put("published_at", System.currentTimeMillis())
+                },
+                SQLiteDatabase.CONFLICT_REPLACE
+            )
+            db.setTransactionSuccessful()
+        } finally {
+            db.endTransaction()
+        }
+    }
 
     override suspend fun saveRegistration(record: DeviceRegistrationRecord): Boolean = withContext(IO) {
         val db = helper.writableDatabase
@@ -254,6 +587,65 @@ class SyncV1SQLiteStore(context: Context) : SyncV1Store {
         updatedAt = getLong(getColumnIndexOrThrow("updated_at"))
     )
 
+    private fun Cursor.toCatalogIntent(): SyncV1CatalogPublicationIntent = SyncV1CatalogPublicationIntent(
+        catalogRevision = getLong(getColumnIndexOrThrow("catalog_revision")),
+        snapshotId = UUID.fromString(getString(getColumnIndexOrThrow("snapshot_id"))),
+        remotePath = getString(getColumnIndexOrThrow("remote_path")),
+        rawJsonBytes = getBlob(getColumnIndexOrThrow("raw_json_bytes")),
+        rawSha256 = getString(getColumnIndexOrThrow("raw_sha256")),
+        semanticSha256 = getString(getColumnIndexOrThrow("semantic_sha256")),
+        putAttemptCount = getInt(getColumnIndexOrThrow("put_attempt_count")),
+        configIdentity = getString(getColumnIndexOrThrow("config_identity")),
+        serviceIdentity = getString(getColumnIndexOrThrow("service_identity")),
+        rootIdentity = getString(getColumnIndexOrThrow("root_identity")),
+        publicationStatus = getString(getColumnIndexOrThrow("publication_status")),
+        createdAt = getLong(getColumnIndexOrThrow("created_at")),
+        updatedAt = getLong(getColumnIndexOrThrow("updated_at"))
+    )
+
+    private fun Cursor.toCatalogState(): SyncV1CatalogPublicationState = SyncV1CatalogPublicationState(
+        catalogRevision = getLong(getColumnIndexOrThrow("catalog_revision")),
+        snapshotId = UUID.fromString(getString(getColumnIndexOrThrow("snapshot_id"))),
+        remotePath = getString(getColumnIndexOrThrow("remote_path")),
+        semanticSha256 = getString(getColumnIndexOrThrow("semantic_sha256")),
+        rawSha256 = getString(getColumnIndexOrThrow("raw_sha256")),
+        serviceIdentity = getString(getColumnIndexOrThrow("service_identity")),
+        rootIdentity = getString(getColumnIndexOrThrow("root_identity")),
+        publishedAt = getLong(getColumnIndexOrThrow("published_at"))
+    )
+
+    private fun Cursor.toWorkIdentity() = SyncV1WorkIdentity(
+        workId = getString(getColumnIndexOrThrow("work_id")),
+        tocRevision = getLong(getColumnIndexOrThrow("toc_revision")),
+        progressRevision = getLong(getColumnIndexOrThrow("progress_revision")),
+        catalogFieldsSha256 = nullableString("catalog_fields_sha256"),
+        updatedAt = getLong(getColumnIndexOrThrow("updated_at"))
+    )
+
+    private fun SQLiteDatabase.readOrCreateWorkIdentity(workId: String): SyncV1WorkIdentity {
+        val existing = rawQuery(
+            "SELECT work_id, toc_revision, progress_revision, catalog_fields_sha256, updated_at FROM work_identity WHERE work_id = ?",
+            arrayOf(workId)
+        ).use { cursor -> if (cursor.moveToFirst()) cursor.toWorkIdentity() else null }
+        if (existing != null) return existing
+        insertOrThrow(
+            "work_identity",
+            null,
+            ContentValues().apply {
+                put("work_id", workId)
+                put("toc_revision", 0L)
+                put("progress_revision", 0L)
+                put("created_at", System.currentTimeMillis())
+                put("updated_at", System.currentTimeMillis())
+            }
+        )
+        return SyncV1WorkIdentity(workId)
+    }
+
+    private fun SyncV1WorkIdentityResolution.resolvedOrThrow(): SyncV1WorkIdentity =
+        (this as? SyncV1WorkIdentityResolution.Resolved)?.identity
+            ?: throw SyncV1Failure(SyncV1ErrorCode.IDENTITY_CONFLICT)
+
     private fun Cursor.toStoredState(): SyncV1StoredState = SyncV1StoredState(
         deviceId = getString(getColumnIndexOrThrow("device_id")),
         highestConfirmedStateRevision = getLong(getColumnIndexOrThrow("highest_confirmed_state_revision")),
@@ -282,6 +674,11 @@ private class SyncV1DatabaseHelper(context: Context) :
     }
 
     override fun onCreate(db: SQLiteDatabase) {
+        createVersionOneSchema(db)
+        createVersionTwoSchema(db)
+    }
+
+    private fun createVersionOneSchema(db: SQLiteDatabase) {
         db.execSQL(
             """CREATE TABLE device_registration_record (
                 device_id TEXT PRIMARY KEY NOT NULL,
@@ -328,10 +725,73 @@ private class SyncV1DatabaseHelper(context: Context) :
         )
     }
 
-    override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) = Unit
+    private fun createVersionTwoSchema(db: SQLiteDatabase) {
+        db.execSQL(
+            """CREATE TABLE sync_v1_metadata (
+                metadata_key TEXT PRIMARY KEY NOT NULL,
+                metadata_value TEXT NOT NULL
+            )""".trimIndent()
+        )
+        db.execSQL(
+            """CREATE TABLE work_identity (
+                work_id TEXT PRIMARY KEY NOT NULL,
+                toc_revision INTEGER NOT NULL CHECK (toc_revision >= 0),
+                progress_revision INTEGER NOT NULL CHECK (progress_revision >= 0),
+                catalog_fields_sha256 TEXT,
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL
+            )""".trimIndent()
+        )
+        db.execSQL(
+            """CREATE TABLE work_alias (
+                book_url TEXT PRIMARY KEY NOT NULL,
+                work_id TEXT NOT NULL REFERENCES work_identity(work_id) ON DELETE RESTRICT
+            )""".trimIndent()
+        )
+        db.execSQL("CREATE INDEX sync_v1_work_alias_work_id ON work_alias(work_id)")
+        db.execSQL(
+            """CREATE TABLE catalog_publication_intent (
+                remote_path TEXT NOT NULL,
+                catalog_revision INTEGER NOT NULL,
+                snapshot_id TEXT NOT NULL,
+                raw_json_bytes BLOB NOT NULL,
+                raw_sha256 TEXT NOT NULL,
+                semantic_sha256 TEXT NOT NULL,
+                put_attempt_count INTEGER NOT NULL,
+                config_identity TEXT NOT NULL,
+                service_identity TEXT NOT NULL,
+                root_identity TEXT NOT NULL,
+                publication_status TEXT NOT NULL,
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL,
+                PRIMARY KEY(service_identity, root_identity, remote_path)
+            )""".trimIndent()
+        )
+        db.execSQL(
+            "CREATE INDEX sync_v1_pending_catalog ON catalog_publication_intent(publication_status, created_at)"
+        )
+        db.execSQL(
+            """CREATE TABLE catalog_publication_state (
+                service_identity TEXT NOT NULL,
+                root_identity TEXT NOT NULL,
+                catalog_revision INTEGER NOT NULL,
+                snapshot_id TEXT NOT NULL,
+                remote_path TEXT NOT NULL,
+                semantic_sha256 TEXT NOT NULL,
+                raw_sha256 TEXT NOT NULL,
+                published_at INTEGER NOT NULL,
+                PRIMARY KEY(service_identity, root_identity)
+            )""".trimIndent()
+        )
+    }
+
+    override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
+        if (oldVersion < 1) createVersionOneSchema(db)
+        if (oldVersion < 2) createVersionTwoSchema(db)
+    }
 
     private companion object {
         const val DATABASE_NAME = "legadoM_ink_sync.db"
-        const val DATABASE_VERSION = 1
+        const val DATABASE_VERSION = 2
     }
 }

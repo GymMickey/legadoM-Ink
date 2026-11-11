@@ -237,6 +237,7 @@ class MainViewModel(application: Application) : BaseViewModel(application) {
                     appDb.bookDao.update(book)
                 } else {
                     appDb.bookDao.replace(oldBook, book)
+                    io.legado.app.help.syncv1.recordSyncV1SourceChange(oldBook.bookUrl, book.bookUrl)
                     BookHelp.updateCacheFolder(oldBook, book)
                 }
                 appDb.bookChapterDao.delByBook(bookUrl)

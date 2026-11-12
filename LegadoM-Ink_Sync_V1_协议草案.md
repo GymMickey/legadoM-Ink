@@ -1,6 +1,6 @@
 # LegadoM-Ink Sync v1 协议草案
 
-> 状态：评审草案，尚未冻结实现。本文只定义协议、JSON Schema 和固定样例，不包含同步业务代码、Room 实体或数据库迁移。
+> 状态：整体仍为评审草案；A3 章节目录规则与 chapters Schema 已冻结。本文只定义协议、JSON Schema 和固定样例，不包含同步业务代码、Room 实体或数据库迁移。
 
 ## 1. 目标与非目标
 
@@ -17,7 +17,7 @@ Sync v1 在现有 WebDAV 能力上增加轻量目录、不可变事件、确认�
 - `WorkAlias` 在 Android 本地把一个或多个 `bookUrl` 映射到同一 `work_id`。换源只增加/更新别名，不新建作品身份。同步目录只发布 `book_url_sha256`，不发布原始 `bookUrl`。
 - 若独立同步库丢失或用户恢复旧版备份，Android 只读既有 Book 的 `bookUrl`，计算可发布的别名摘要并与 catalog 匹配，以恢复 `WorkAlias/work_id`；未匹配项才按需分配新 `work_id`。不得要求改 Book 表、`bookshelf.json` 或旧备份。含凭据 URL 的摘要不发布，因此这类别名跨库丢失后的自动恢复规则仍待双方确认。
 - 所有路径 ID（`work_id`、`device_id`、`event_id`、`snapshot_id`）使用小写 UUID；Schema 同时校验 UUID 格式和固定字符模式，因此不能含 `/`、`\\`、点段或路径穿越字符。
-- 不导出正文、EPUB、TXT、图片缓存、`bookChapterCache.json` 或其他缓存。章节文件只包含目录元数据和可选的规范化文本指纹/字符数。
+- 不导出正文、EPUB、TXT、图片缓存、bookChapterCache.json 或其他缓存。A3 chapters projection 只包含章节目录结构字段 chapter_key、title、local_toc_index；正文加载状态、字符数及正文指纹留给未来独立 projection/revision，本轮不定义其路径或 Schema。
 - 任何协议对象都不得含 WebDAV 密码、Authorization、Cookie、访问令牌、私钥或其他凭据。不得把它们放入 URL、日志、事件或样例。
 - `book_url_sha256` 是原始 `bookUrl` UTF-8 字节的 SHA-256，仅用于别名匹配；它不是正文指纹，也不是密码存储形式。含凭据的 `bookUrl` 不得发布其哈希；该别名只保留本地，直至实现方定义安全的脱敏 canonical form。
 
@@ -60,7 +60,7 @@ legadom_ink_sync/v1/
 | `devices/<device_id>.json` | Kindle | Android、对应 Kindle | 不可覆盖 | 注册对象包含支持的创建模式与定位能力。上传并回读后 Kindle 本地保持 `uploaded`，等待 Android 状态；注册流程见 4.2。 |
 | `android/device-state/<device_id>/<state_revision>-<snapshot_id>.json` | Android | Android、对应 Kindle | 不可覆盖 | 第一份 device-state 固定按 `uuid_verified` 发布，用它告知协商结果；Kindle 验证 `ready` 后，后续 device-state 与其他对象才按已选模式创建。每次决策先持久化 revision、snapshot、路径、原始字节及摘要。 |
 | `android/catalog/<catalog_revision>-<snapshot_id>.json` | Android | Android、Kindle | 不可覆盖 | catalog 是带 revision 的不可变投影。路径 revision 与文件 `catalog_revision`、`snapshot_id` 必须相同。 |
-| `android/chapters/<work_id>/<toc_revision>-<snapshot_id>.json` | Android | Android、Kindle | 不可覆盖 | 每作品 TOC 是不可变投影；路径中的 work ID、TOC revision 和 snapshot ID 必须与文件内容一致。 |
+| `android/chapters/<work_id>/<toc_revision>-<snapshot_id>.json` | Android | Android、Kindle | 不可覆盖 | 每作品 TOC 是不可变投影；revision 和语义内容规则见 4.5。路径中的 work ID、revision 和 snapshot ID 必须与文件内容一致。 |
 | `android/progress/<work_id>/<progress_revision>-<snapshot_id>.json` | Android | Android、Kindle | 不可覆盖 | progress revision 只在 Android 成功应用新事件后递增；路径字段必须与绝对状态内容一致。 |
 | `events/<device_id>/<event_id>.json` | 事件来源设备 | Android、来源设备 | 不可覆盖 | 创建方式由已选 `create_mode` 决定。`create_mode` 不写入事件 payload。 |
 | `acks/<device_id>/<event_id>.json` | Android | Android、对应来源设备 | 不可覆盖 | Android 事务提交后才创建。ack 的创建方式由已选模式决定；`create_mode` 不写入 ack。 |
@@ -110,6 +110,18 @@ Kindle 开发版曾创建旧格式注册文件。协议仅允许预发布开发�
 - Android 只能自行分配 `work_id`，或从 Android catalog 唯一恢复已有 `work_id`。结果通过 ack 返回：`bound` 携带最终 `work_id`；`ambiguous` 携带有限候选；`not_found` 要求下载 catalog 或人工绑定；非法、超限或非法选择请求返回 `rejected`。
 - Kindle 可在本地保存 `content_id → work_id`，但 `content_id` 不是远端主身份。不确定时不得静默合并。含凭据的 `bookUrl` 不得上传原文或可离线猜测的简单摘要。同步库丢失后优先由 Android catalog 恢复；仍不唯一时要求用户确认，不修改旧 Book 表或旧备份。
 
+### 4.5 章节目录与 toc_revision（A3 冻结）
+
+- catalog 中作品的 toc_revision 为 0 表示尚无任何有效章节快照。首次成功读取权威目录并发布时使用 revision 1；明确读取成功的空目录也是有效快照，发布空 chapters 并使用 revision 1。
+- A3 chapters projection 仅描述目录结构。每章对象只包含 chapter_key、title 和 local_toc_index。toc_revision 只由按序排列的这些字段及数组排列顺序决定。新增/删除章节、顺序或索引变化、原始 title 变化都会改变目录语义。正文是否加载、字符数和正文指纹不属于本 projection，不得改变 toc_revision；这些元数据以后使用独立 projection/revision，本轮不设计其路径或 Schema。
+- 目录来源状态必须区分 AVAILABLE、KNOWN_EMPTY、UNAVAILABLE、FAILED。AVAILABLE 表示已取得完整、权威且当前可用的扁平章节目录；KNOWN_EMPTY 表示成功确认权威目录为空；UNAVAILABLE 表示当前无法取得目录；FAILED 表示目录读取、解析或校验过程失败。只有 AVAILABLE 和 KNOWN_EMPTY 可以发布。导出不得主动联网刷新书源、加载正文或触发目录抓取；UNAVAILABLE/FAILED 不得按空目录处理，也不得覆盖快照或增加 revision。
+- 目录结构完全相同时必须复用原 revision、snapshot_id 和原始字节；generated_at、重复检查、App 重启、换源但完整目录结构相同及 WebDAV 重试都不增加 revision。只有目录结构语义变化才递增一次。revision 缺号允许；选择最高有效章节 revision。同一 revision 出现多个 snapshot_id 或候选对象原始字节/摘要冲突，必须报告 revision_conflict，不得任选或回退。catalog 中该作品 toc_revision 必须等于最高有效章节快照 revision；尚无快照时为 0。
+- local_toc_index 是 Android/Legado 当前扁平章节目录中的真实索引。chapters 数组必须按 local_toc_index 严格递增，同一快照内唯一；不要求连续，禁止为填补缺号重新编号。Kindle 只能在对应 toc_revision 内解释索引，不得跨 revision 直接复用。
+- chapter_key 是当前 toc_revision 内确定且不含隐私的章节键。输入字符串严格为：chapter-key-v1 + U+001F + work_id + U+001F + local_toc_index 的无前导零十进制文本 + U+001F + 序列化前 Kotlin 原始 title 字符串。title 使用 JSON 实际发布的同一 Unicode 标量序列，按 UTF-8 编码；不包含 JSON 引号或转义字符，不做 trim、替换、规范化、大小写/空白转换或占位。title 必须非空、没有孤立 surrogate，且最多 512 个 Unicode code point；任一标题不符合要求时拒绝整本目录。对完整输入字符串的 UTF-8 字节计算 SHA-256，输出 ck1- 加 64 位小写十六进制摘要。不得使用 chapterUrl、正文 URL、文件/缓存路径、凭据或其摘要。相同 work_id、index 和原始 title 必须生成相同 key；重复标题由不同 index 区分。key 只在当前 toc_revision 内使用，不保证跨 revision 稳定。Android producer 按算法生成并校验；Kindle consumer 只检查格式和同一快照内唯一性，将 key 作为透明标识保存，不重算算法。
+- 单作品 chapters 文件 toc_revision 必须大于 0，路径固定为 android/chapters/<work_id>/<toc_revision>-<snapshot_id>.json；路径中的 work_id、revision、snapshot_id 必须与内容一致。完整 JSON 序列化后，以最终 UTF-8 原始字节数检查 2 MiB 硬上限；不得使用 Kotlin String.length，不得截断，超限拒绝整个对象。chapters Schema 的 maxItems 固定为 6000；超过上限拒绝整本对象并返回 chapters_limit_exceeded。10000 章延后为 v1.1 可选扩展，不属于 v1；本轮不等待 10000 章 K0 测试。
+- 批量发布按作品独立执行：先创建/复用该作品的不可变 chapters intent，按协商模式上传并回读逐字节及摘要验证；只有验证成功后才持久化该 work 的已确认 revision、snapshot_id、原始字节摘要，并标记 catalog dirty。失败作品保留其旧 toc_revision。全部作品处理完后，最多发布一个汇总 catalog。catalog 只能引用当前同一 serviceIdentity + rootIdentity 下已远端确认存在的 chapters；失败作品只有在旧快照也已在当前根目录确认存在时才能保留在该 catalog 中，否则从该次 catalog 中省略。可返回 partial_success；失败不得伪报全量成功。
+- A3 持久状态按 serviceIdentity + rootIdentity + work_id 隔离，保存已确认的 toc_revision、snapshot_id、原始字节摘要、catalog dirty，以及未完成的 chapters/catalog intent；catalog intent 必须保存原始字节。进程重启后优先续传原 intent，路径、revision、snapshot_id 和字节完全复用，不重新序列化、不重复增加 revision。切换 WebDAV 服务或根目录后，不得直接复用旧根目录发布状态；必须先在新根目录发布或验证 chapters，再允许 catalog 引用。任何时刻最多一个 A3 发布任务；重复启动必须加入/返回现有任务或被合并，不能并发分配 revision 或 snapshot。
+
 ## 5. 事件幂等、事务与恢复
 
 - `event_id` UUID 是唯一幂等键。`device_id`、`counter_epoch`、`session_id`、`sequence` 只描述来源、排序和诊断，不得用它们替代去重键。事件通过 `event_type` 区分 `binding_request`、`progress` 和 `reading_time`。
@@ -153,7 +165,7 @@ EPUB/KOReader 候选位置按 CREngine 的 XPointer 区间计算：
 
 ## 8. normalization-v1
 
-所有章节指纹以及可见字符偏移使用同一个冻结的 `normalization-v1`：
+normalization-v1 保留给未来正文指纹和可见字符偏移协议使用。A3 chapters projection 的 chapter_key 直接使用原始 title，不依赖 normalization-v1。后续需要规范化正文时，仍使用以下冻结规则：
 
 1. 输入必须是有效 Unicode 标量序列；孤立 surrogate 拒绝处理。
 2. 将 CRLF 和单独 CR 统一为 LF (`U+000A`)。
@@ -189,7 +201,7 @@ Schema 使用 JSON Schema Draft 2020-12。核心对象和嵌套对象默认 `add
 
 所有线上 JSON 整数（revision、sequence、索引、偏移、计数及毫秒时长）必须在 `0..9007199254740991`，即 IEEE-754 `Number.MAX_SAFE_INTEGER` 范围内；超限必须拒绝，避免 Lua/JSON 数字舍入。Kotlin 可用 `Long` 存储，但线上仍遵守此上限。所有 SHA-256 使用小写 64 位十六进制。`payload_sha256` 摘要对象是 WebDAV 实际收到的完整事件文件原始字节，必须在 JSON 解析前计算；禁止解析后重新序列化再计算。所有实现必须在解析前检查原始文件字节数，超限拒绝，不能截断后继续处理。
 
-所有文件上限都按解析前收到的 UTF-8 原始字节计算，必须先检查大小再解析；超限直接拒绝，禁止截断。设备注册和设备状态的硬上限均为 64 KiB。事件与 ack 的硬上限均为 256 KiB，正常事件建议不超过 16 KiB，正常 ack 建议不超过 64 KiB。catalog 的硬上限正式冻结为 1 MiB，单作品 chapters 的硬上限正式冻结为 2 MiB；目标 Kindle 已分别完成 1.00 MiB/2371 项和 2.00 MiB/6188 项真机解析。峰值内存尚未量化仅作为实现警告，不再阻塞 exporter/importer；Kindle 必须在后台解析，异步任务向 UI/调用方只返回摘要、状态或错误，不得返回完整解析树。Schema 同时限制 catalog 最多 2500 个作品、chapters 最多 10000 项、绑定 TOC 候选最多 20 项、ack 候选最多 20 项，核心标题/作者/content_id 均有 `maxLength`。Draft 2020-12 Schema 无法检查原始字节数、catalog 的 `work_id` 唯一性、chapters 的 `chapter_key`/`local_toc_index` 唯一性、绑定候选索引唯一性、`visible_char_offset <= visible_char_count` 或两个冲突摘要必须不同，这些都属于实现必须执行的语义校验。
+所有文件上限都按解析前收到的 UTF-8 原始字节计算，必须先检查大小再解析；超限直接拒绝，禁止截断。设备注册和设备状态的硬上限均为 64 KiB。事件与 ack 的硬上限均为 256 KiB，正常事件建议不超过 16 KiB，正常 ack 建议不超过 64 KiB。catalog 硬上限为 1 MiB，单作品 chapters 原始 UTF-8 硬上限保持 2 MiB 不变；目标 Kindle 已真机完成约 2 MiB/6188 项解析。chapters Schema 固定最多 6000 项，超过时整个对象拒绝并返回 `chapters_limit_exceeded`，不得截断或重新编号。10000 章测试是 v1.1 可选性能扩展，不阻塞 v1 协议冻结或 Android A3 实现。Kindle 必须在后台解析，只向 UI/调用方返回摘要、状态或错误。Schema 限制 catalog 最多 2500 个作品、chapters 最多 6000 项、绑定 TOC 候选和 ack 候选各最多 20 项，并限制核心文本字段长度。Draft 2020-12 Schema 无法验证原始字节上限、catalog work_id 唯一性、chapters chapter_key/local_toc_index 唯一性、chapters 顺序、title Unicode 标量有效性、chapter_key 重算、路径字段与文件内容一致、同 revision 路径冲突、visible_char_offset 不超过 visible_char_count、两个冲突摘要不同等语义；这些都是实现层强制校验。
 
 - `schemas/catalog.schema.json` — Android 轻量作品目录。
 - `schemas/chapters.schema.json` — 每个作品的章节目录。
@@ -211,12 +223,11 @@ Schema 使用 JSON Schema Draft 2020-12。核心对象和嵌套对象默认 `add
 
 ## 11. 尚待 Android / Kindle 双方确认
 
-1. `work_id` 的首次分配与已有书籍去重规则，以及跨设备如何识别两个不同 `bookUrl` 是同一作品。
-2. `bookUrl` canonicalization/脱敏后 alias hash 方案；当前明确不发布含凭据 URL 的任何派生值。
-3. `toc_revision` 的内容定义、章节 key 生成方式、目录替换/增删时的 revision 规则。
-4. stale_progress 后的用户重新基线 UI；自动合并绝不使用设备时间。
-5. 其他 WebDAV 服务的 `conditional_create` 能力仍需按同一向量逐服务验证；当前目标服务已确认只能使用 `uuid_verified`。
-6. 快照生成频率和保留策略；Kindle v1 不要求读取 snapshot，snapshot 不能作为增量事件导入，且 v1 禁止删除原始事件。
-7. Android 是否能使用明确报告 Unicode `15.1.0` 的 NFC 实现；目标 Kindle 已确认 Unicode `17.0.0`、10/10 向量通过并按协议固定为 `chapter_only`。
+1. work_id 的首次分配与已有书籍去重规则，以及跨设备如何识别两个不同 bookUrl 是同一作品。
+2. bookUrl canonicalization/脱敏后 alias hash 方案；当前明确不发布含凭据 URL 的任何派生值。
+3. stale_progress 后的用户重新基线 UI；自动合并绝不使用设备时间。
+4. 其他 WebDAV 服务的 conditional_create 能力仍需按同一向量逐服务验证；当前目标服务已确认只能使用 uuid_verified。
+5. 快照生成频率和保留策略；Kindle v1 不要求读取 snapshot，snapshot 不能作为增量事件导入，且 v1 禁止删除原始事件。
+6. Android 与 Kindle 的 normalization-v1 实现能否满足未来正文指纹和字符偏移所需的 Unicode 15.1.0 数据版本；此要求不适用于 A3 chapter_key，chapter_key 使用原始 title 字节。
 
-在双方确认这些语义并评审 Schema 前，不应把草案解释为已上线协议或实现承诺。
+A3 的 toc_revision、章节语义变更规则、local_toc_index 和 chapter_key 已冻结；本节只保留其他尚未共同确定的事项。在双方确认剩余语义并评审其 Schema 前，不应把其余草案条款解释为已上线协议或实现承诺。

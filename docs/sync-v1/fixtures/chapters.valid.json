@@ -1,27 +1,20 @@
 {
   "protocol_version": "sync-v1",
   "schema_version": "1.0.0",
-  "normalization_version": "normalization-v1",
   "device_id": "11111111-1111-4111-8111-111111111111",
   "work_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
   "toc_revision": 7,
-  "generated_at": "2026-01-02T03:04:05Z",
+  "generated_at": "2026-02-03T04:05:06Z",
   "chapters": [
     {
-      "chapter_key": "chapter-1",
+      "chapter_key": "ck1-4dcd670f8a39bd6837ec8e6add71c439ddea48e7121369ae4e366a25f9bfe15d",
       "title": "第一章",
-      "local_toc_index": 0,
-      "loaded": true,
-      "normalized_char_count": 6,
-      "chapter_text_fingerprint": "68b7792d389672f0dc7262fc5b9db6333e4a85c08817d600910d87e9f49c4ec4"
+      "local_toc_index": 0
     },
     {
-      "chapter_key": "chapter-2",
+      "chapter_key": "ck1-6e9986e7454ce05a4669d4fc7a2de6fb9462a495aa3db1019f8e40c725672e6c",
       "title": "第二章",
-      "local_toc_index": 1,
-      "loaded": false,
-      "normalized_char_count": null,
-      "chapter_text_fingerprint": null
+      "local_toc_index": 1
     }
   ],
   "snapshot_id": "88888888-8888-4888-8888-888888888882"

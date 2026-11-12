@@ -7,7 +7,6 @@
   "required": [
     "protocol_version",
     "schema_version",
-    "normalization_version",
     "device_id",
     "work_id",
     "toc_revision",
@@ -22,9 +21,6 @@
     "schema_version": {
       "const": "1.0.0"
     },
-    "normalization_version": {
-      "const": "normalization-v1"
-    },
     "device_id": {
       "type": "string",
       "format": "uuid",
@@ -37,7 +33,7 @@
     },
     "toc_revision": {
       "type": "integer",
-      "minimum": 0,
+      "minimum": 1,
       "maximum": 9007199254740991
     },
     "generated_at": {
@@ -53,16 +49,14 @@
         "required": [
           "chapter_key",
           "title",
-          "local_toc_index",
-          "loaded",
-          "normalized_char_count",
-          "chapter_text_fingerprint"
+          "local_toc_index"
         ],
         "properties": {
           "chapter_key": {
             "type": "string",
-            "minLength": 1,
-            "maxLength": 200
+            "minLength": 68,
+            "maxLength": 68,
+            "pattern": "^ck1-[a-f0-9]{64}$"
           },
           "title": {
             "type": "string",
@@ -73,28 +67,10 @@
             "type": "integer",
             "minimum": 0,
             "maximum": 9007199254740991
-          },
-          "loaded": {
-            "type": "boolean"
-          },
-          "normalized_char_count": {
-            "type": [
-              "integer",
-              "null"
-            ],
-            "minimum": 0,
-            "maximum": 9007199254740991
-          },
-          "chapter_text_fingerprint": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "pattern": "^[a-f0-9]{64}$"
           }
         }
       },
-      "maxItems": 10000
+      "maxItems": 6000
     },
     "snapshot_id": {
       "type": "string",

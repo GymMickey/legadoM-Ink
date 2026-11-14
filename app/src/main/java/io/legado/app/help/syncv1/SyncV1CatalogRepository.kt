@@ -44,8 +44,7 @@ internal class SyncV1CatalogRepository(
     suspend fun publish(
         books: List<SyncV1CatalogBook>,
         confirmedTocRevisions: Map<String, Long>? = null,
-        sessionOverride: SyncV1Session? = null,
-        includedWorkIds: Set<String>? = null
+        sessionOverride: SyncV1Session? = null
     ): SyncV1CatalogOutcome = operationMutex.withLock {
         try {
             if (!store.hasReadyDevice()) {
@@ -84,7 +83,7 @@ internal class SyncV1CatalogRepository(
             val rootScopedTocRevisions = confirmedTocRevisions ?: (store as? SyncV1ChaptersStore)
                 ?.confirmedChapterRevisions(session.serviceIdentity, session.rootIdentity)
             val semanticWorks = resolveAndBuildWorks(
-                books, aliasOwners, latestRemote?.catalog, rootScopedTocRevisions, includedWorkIds
+                books, aliasOwners, latestRemote?.catalog, rootScopedTocRevisions
             )
             val semanticSha = catalogSemanticSha256(publisherDeviceId, semanticWorks)
             val persisted = store.catalogPublicationState(session.serviceIdentity, session.rootIdentity)
@@ -242,8 +241,7 @@ internal class SyncV1CatalogRepository(
         books: List<SyncV1CatalogBook>,
         aliasOwners: Map<String, Set<String>>,
         remoteCatalog: ParsedCatalog?,
-        confirmedTocRevisions: Map<String, Long>?,
-        includedWorkIds: Set<String>?
+        confirmedTocRevisions: Map<String, Long>?
     ): List<CatalogWork> {
         val uniqueBooks = books.distinctBy { it.bookUrl }
         val identityRepository = SyncV1WorkIdentityRepository(store, uuidProvider)
@@ -266,7 +264,6 @@ internal class SyncV1CatalogRepository(
         val remoteWorks = remoteCatalog?.works?.associateBy { it.workId }.orEmpty()
         val output = ArrayList<CatalogWork>(byWork.size)
         for ((workId, book) in byWork.toSortedMap()) {
-            if (includedWorkIds != null && workId !in includedWorkIds) continue
             val title = book.title
             val authors = book.author.takeIf { it.isNotBlank() }?.let(::listOf).orEmpty()
             if (title.codePointCount(0, title.length) !in 1..512
@@ -277,8 +274,9 @@ internal class SyncV1CatalogRepository(
             val identity = store.resolveWorkIdentity(book.bookUrl, emptySet(), uuidProvider)
                 .let { (it as? SyncV1WorkIdentityResolution.Resolved)?.identity }
                 ?: throw SyncV1Failure(SyncV1ErrorCode.IDENTITY_CONFLICT)
-            val tocRevision = confirmedTocRevisions?.get(workId) ?:
-                if (confirmedTocRevisions == null) identity.tocRevision else 0L
+            // A catalog is the current bookshelf identity directory. Only the current
+            // WebDAV root's confirmed chapters state may contribute a positive revision.
+            val tocRevision = confirmedTocRevisions?.get(workId) ?: 0L
             val progressRevision = identity.progressRevision
             val fieldsHash = workFieldsSha256(workId, title, authors, aliases, tocRevision, progressRevision)
             val matchingRemote = remoteWorks[workId]?.takeIf {

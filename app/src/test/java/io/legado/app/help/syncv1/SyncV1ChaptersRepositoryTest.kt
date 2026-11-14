@@ -129,7 +129,7 @@ class SyncV1ChaptersRepositoryTest {
         )
         val result = repository(store, transport).publish(listOf(input(bad)))
         assertEquals(SyncV1ErrorCode.CHAPTER_TITLE_INVALID, result.workOutcomes.single().errorCode)
-        assertTrue(transport.putBodies.isEmpty())
+        assertTrue(transport.putPaths.none { "/chapters/" in it })
     }
 
     @Test
@@ -179,7 +179,7 @@ class SyncV1ChaptersRepositoryTest {
         )
         val result = repository(store, transport).publish(listOf(input(tooMany)))
         assertEquals(SyncV1ErrorCode.CHAPTERS_LIMIT_EXCEEDED, result.workOutcomes.single().errorCode)
-        assertTrue(transport.putBodies.isEmpty())
+        assertTrue(transport.putPaths.none { "/chapters/" in it })
     }
 
     @Test
@@ -334,7 +334,7 @@ class SyncV1ChaptersRepositoryTest {
         val transport = FakeTransport().apply { failEnsure = true }
         val result = repository(store, transport).publish(listOf(input(chapters("title"))))
         assertEquals(SyncV1ErrorCode.CHAPTER_DIRECTORY_UNAVAILABLE, result.workOutcomes.single().errorCode)
-        assertTrue(transport.putBodies.isEmpty())
+        assertTrue(transport.putPaths.none { "/chapters/" in it })
     }
 
     @Test
@@ -389,20 +389,112 @@ class SyncV1ChaptersRepositoryTest {
     }
 
     @Test
-    fun partialBatchCatalogOnlyReferencesConfirmedChapters() = runBlocking {
+    fun partialBatchCatalogIncludesCurrentWorksWithZeroForUnconfirmedChapters() = runBlocking {
         val store = MemoryStore()
         val transport = FakeTransport()
+        val publishedUrl = "https://books.example/one"
+        val unavailableUrl = "https://books.example/two"
         val result = repository(store, transport).publish(
             listOf(
-                input(chapters("published"), url = "https://books.example/one"),
-                input(SyncV1ChapterSourceResult(SyncV1ChapterSourceState.UNAVAILABLE), url = "https://books.example/two")
+                input(chapters("published"), url = publishedUrl),
+                input(SyncV1ChapterSourceResult(SyncV1ChapterSourceState.UNAVAILABLE), url = unavailableUrl)
             )
         )
         assertEquals(SyncV1ChaptersPhase.PARTIAL_SUCCESS, result.phase)
         assertEquals(1, transport.putPaths.count { "/catalog/" in it })
         val catalog = requireNotNull(SyncV1Protocol.parseCatalog(transport.remote.entries.first { "/catalog/" in it.key }.value))
+        assertEquals(2, catalog.works.size)
+        assertEquals(1L, catalog.works.single { it.workId == store.aliases.getValue(publishedUrl) }.tocRevision)
+        assertEquals(0L, catalog.works.single { it.workId == store.aliases.getValue(unavailableUrl) }.tocRevision)
+        assertEquals(2, catalog.works.map { it.workId }.distinct().size)
+        assertEquals(1, transport.remote.keys.count { "/chapters/" in it })
+    }
+
+    @Test
+    fun completeShelfReconcilesDirtyFalseCatalogAndRepeatsWithoutNewRevision() = runBlocking {
+        val store = MemoryStore()
+        val transport = FakeTransport()
+        val repo = repository(store, transport)
+        val completeShelf = shelf185()
+        val initial = repo.publish(completeShelf.take(3))
+        assertEquals(3, requireNotNull(SyncV1Protocol.parseCatalog(
+            transport.remote.entries.single { "/catalog/" in it.key }.value
+        )).works.size)
+        assertFalse(store.isChapterCatalogDirty("service", "root"))
+
+        // Model the previously published but incomplete revision 4 without mutating revision 1.
+        val previousIntent = store.publishedCatalog.single()
+        val revision4Snapshot = UUID.fromString("99999999-9999-4999-8999-999999999999")
+        val revision4Path = "${SyncV1CatalogRepository.CATALOG_DIRECTORY}4-$revision4Snapshot.json"
+        val revision4Bytes = com.google.gson.JsonParser.parseString(String(previousIntent.rawJsonBytes))
+            .asJsonObject.apply {
+                addProperty("catalog_revision", 4)
+                addProperty("snapshot_id", revision4Snapshot.toString())
+            }.let { GsonBuilder().disableHtmlEscaping().create().toJson(it).toByteArray(Charsets.UTF_8) }
+        transport.remote[revision4Path] = revision4Bytes
+        val revision4Intent = SyncV1CatalogPublicationIntent(
+            4, revision4Snapshot, revision4Path, revision4Bytes, SyncV1Protocol.sha256(revision4Bytes),
+            previousIntent.semanticSha256, 0, previousIntent.configIdentity, previousIntent.serviceIdentity,
+            previousIntent.rootIdentity, "published", now, now
+        )
+        store.publishedCatalog += revision4Intent
+        store.catalogStates["service" to "root"] = SyncV1CatalogPublicationState(
+            4, revision4Snapshot, revision4Path, revision4Intent.semanticSha256, revision4Intent.rawSha256,
+            "service", "root", now
+        )
+
+        val repaired = repo.publish(completeShelf)
+        val revision5Path = transport.remote.keys.filter { "/catalog/" in it }
+            .single { it.substringAfterLast('/').startsWith("5-") }
+        val revision5 = requireNotNull(SyncV1Protocol.parseCatalog(transport.remote.getValue(revision5Path)))
+        val positiveIds = completeShelf.take(3).map { store.aliases.getValue(it.bookUrl) }.toSet()
+        val zeroRevisionIds = completeShelf.drop(3).map { store.aliases.getValue(it.bookUrl) }.toSet()
+        assertEquals(SyncV1ChaptersPhase.PUBLISHED, initial.phase)
+        assertEquals(185, revision5.works.size)
+        assertEquals(185, revision5.works.map { it.workId }.distinct().size)
+        assertEquals(3, revision5.works.count { it.tocRevision == 1L })
+        assertEquals(182, revision5.works.count { it.tocRevision == 0L })
+        assertTrue(revision5.works.filter { it.workId in positiveIds }.all { it.tocRevision == 1L })
+        assertTrue(revision5.works.filter { it.workId in zeroRevisionIds }.all { it.tocRevision == 0L })
+        assertTrue(zeroRevisionIds.none { id -> transport.remote.keys.any { "/chapters/$id/" in it } })
+        assertEquals(3, repaired.unchanged)
+        assertEquals(0, repaired.published)
+        assertEquals(0, repaired.failed)
+        assertNull(repaired.errorCode)
+        assertEquals(3, transport.remote.keys.count { "/chapters/" in it })
+
+        val repeated = repo.publish(completeShelf)
+        assertEquals(3, repeated.unchanged)
+        assertEquals(0, repeated.published)
+        assertEquals(0, repeated.failed)
+        assertNull(repeated.errorCode)
+        val catalogRevisions = transport.remote.keys.filter { "/catalog/" in it }
+            .mapNotNull { it.substringAfterLast('/').substringBefore('-').toLongOrNull() }.toSet()
+        assertEquals(setOf(1L, 4L, 5L), catalogRevisions)
+        assertEquals(3, transport.remote.keys.count { "/chapters/" in it })
+        assertEquals(3, transport.putPaths.count { "/chapters/" in it })
+        assertEquals(2, transport.putPaths.count { "/catalog/" in it })
+    }
+
+    @Test
+    fun chapterRevisionFromAnotherWebDavRootIsPublishedAsZero() = runBlocking {
+        val store = MemoryStore()
+        repository(store, FakeTransport(), root = "root-one")
+            .publish(listOf(input(chapters("confirmed"))))
+        assertEquals(1L, store.identities.values.single().tocRevision)
+
+        val otherRootTransport = FakeTransport()
+        val result = repository(store, otherRootTransport, root = "root-two").publish(
+            listOf(input(SyncV1ChapterSourceResult(SyncV1ChapterSourceState.UNAVAILABLE)))
+        )
+        val catalog = requireNotNull(SyncV1Protocol.parseCatalog(
+            otherRootTransport.remote.entries.single { "/catalog/" in it.key }.value
+        ))
+        assertEquals(SyncV1ChaptersPhase.FAILED, result.phase)
         assertEquals(1, catalog.works.size)
-        assertEquals(setOf(1L), catalog.works.map { it.tocRevision }.toSet())
+        assertEquals(0L, catalog.works.single().tocRevision)
+        assertTrue(otherRootTransport.remote.keys.none { "/chapters/" in it })
+        assertEquals(1L, store.identities.values.single().tocRevision)
     }
 
     @Test
@@ -479,6 +571,49 @@ class SyncV1ChaptersRepositoryTest {
 
         assertTrue(transport.putPaths.first().contains("/catalog/"))
         assertTrue(transport.putPaths.drop(1).any { "/chapters/" in it })
+    }
+
+    @Test
+    fun pendingCatalogIntentResumesExactBytesBeforeCompleteShelfReconciliation() = runBlocking {
+        val store = MemoryStore()
+        val transport = FakeTransport()
+        val pendingSnapshot = snapshot
+        val pendingRevision = 4L
+        val pendingPath = "${SyncV1CatalogRepository.CATALOG_DIRECTORY}$pendingRevision-$pendingSnapshot.json"
+        val pendingBytes = JsonObject().apply {
+            addProperty("protocol_version", "sync-v1")
+            addProperty("schema_version", "1.0.0")
+            addProperty("normalization_version", "normalization-v1")
+            addProperty("device_id", publisherId)
+            addProperty("catalog_revision", pendingRevision)
+            addProperty("snapshot_id", pendingSnapshot.toString())
+            addProperty("generated_at", Instant.ofEpochMilli(now).toString())
+            add("works", JsonArray())
+        }.toString().toByteArray(Charsets.UTF_8)
+        store.pendingCatalog += SyncV1CatalogPublicationIntent(
+            pendingRevision, pendingSnapshot, pendingPath, pendingBytes, SyncV1Protocol.sha256(pendingBytes),
+            "0".repeat(64), 0, "config", "service", "root", "pending", now, now
+        )
+        val currentShelf = (0..1).map { index ->
+            input(SyncV1ChapterSourceResult(SyncV1ChapterSourceState.UNAVAILABLE), "https://books.example/current/$index")
+                .copy(title = "Current $index")
+        }
+
+        val result = repository(store, transport).publish(currentShelf)
+
+        val catalogPuts = transport.putPaths.indices.filter { "/catalog/" in transport.putPaths[it] }
+        assertEquals(2, catalogPuts.size)
+        assertArrayEquals(pendingBytes, transport.putBodies[catalogPuts.first()])
+        assertTrue(store.pendingCatalog.isEmpty())
+        assertTrue(store.publishedCatalog.any {
+            it.catalogRevision == pendingRevision && it.rawJsonBytes.contentEquals(pendingBytes)
+        })
+        val reconciledPath = transport.remote.keys.single { it.substringAfterLast('/').startsWith("5-") }
+        val reconciled = requireNotNull(SyncV1Protocol.parseCatalog(transport.remote.getValue(reconciledPath)))
+        assertEquals(SyncV1ChaptersPhase.FAILED, result.phase)
+        assertEquals(2, reconciled.works.size)
+        assertTrue(reconciled.works.all { it.tocRevision == 0L })
+        assertTrue(transport.putPaths.none { "/chapters/" in it })
     }
 
     @Test
@@ -563,7 +698,7 @@ class SyncV1ChaptersRepositoryTest {
         val over = repository(overStore, overTransport, identityId = fixedId, snapshotId = fixedId)
             .publish(listOf(input(overSource)))
         assertEquals(SyncV1ErrorCode.CHAPTERS_TOO_LARGE, over.workOutcomes.single().errorCode)
-        assertTrue(overTransport.putBodies.isEmpty())
+        assertTrue(overTransport.putPaths.none { "/chapters/" in it })
     }
 
     private fun repository(
@@ -585,6 +720,12 @@ class SyncV1ChaptersRepositoryTest {
         source: SyncV1ChapterSourceResult,
         url: String = workUrl
     ) = SyncV1ChapterWorkInput(url, "Work", "Author", source)
+
+    private fun shelf185(): List<SyncV1ChapterWorkInput> = (0 until 185).map { index ->
+        val source = if (index < 3) chapters("chapter-$index")
+        else SyncV1ChapterSourceResult(SyncV1ChapterSourceState.UNAVAILABLE)
+        input(source, "https://books.example/work/$index").copy(title = "Work $index")
+    }
 
     private fun chapters(vararg titleAndIndex: Any): SyncV1ChapterSourceResult {
         val chapters = if (titleAndIndex.size == 1) {

@@ -219,21 +219,19 @@ internal class SyncV1ChaptersRepository(
                 }
             }
 
-            val catalogDirty = chaptersStore.isChapterCatalogDirty(session.serviceIdentity, session.rootIdentity)
-            if (catalogDirty) {
-                val revisions = chaptersStore.confirmedChapterRevisions(session.serviceIdentity, session.rootIdentity)
-                val catalogOutcome = catalogRepository.publish(
-                    books = catalogBooks,
-                    confirmedTocRevisions = revisions,
-                    sessionOverride = session,
-                    includedWorkIds = revisions.keys
-                )
-                if (catalogOutcome.errorCode == null) {
-                    chaptersStore.clearChapterCatalogDirty(session.serviceIdentity, session.rootIdentity)
-                    catalogPublished = true
-                } else {
-                    catalogError = catalogOutcome.errorCode
-                }
+            // Reconcile the complete current bookshelf once per manual batch. The dirty
+            // bit records known chapter changes, but cannot reveal an older incomplete catalog.
+            val revisions = chaptersStore.confirmedChapterRevisions(session.serviceIdentity, session.rootIdentity)
+            val catalogOutcome = catalogRepository.publish(
+                books = catalogBooks,
+                confirmedTocRevisions = revisions,
+                sessionOverride = session
+            )
+            if (catalogOutcome.errorCode == null) {
+                chaptersStore.clearChapterCatalogDirty(session.serviceIdentity, session.rootIdentity)
+                catalogPublished = true
+            } else {
+                catalogError = catalogOutcome.errorCode
             }
             val failed = (counts[SyncV1ChapterSourceState.FAILED] ?: 0) +
                 (counts[SyncV1ChapterSourceState.UNAVAILABLE] ?: 0) + outcomes.values.count {

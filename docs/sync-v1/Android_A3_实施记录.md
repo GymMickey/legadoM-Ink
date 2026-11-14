@@ -74,6 +74,28 @@ A3 现在先确保并验证共享 `android/chapters/` collection，再处理 pen
 
 Android A3 章节目录 exporter 的真实 WebDAV 验收通过；本阶段不包含 Android A4、进度/阅读时间导入、ack、清理或 Kindle K2。
 
+## Catalog 完整性修正（2026-11-14）
+
+更正此前对 revision 4 的完整性描述：Kindle 严格解析到的作品总数实际为 **3**，且这 3 项 `toc_revision` 均为 1；此前把 revision 4 描述为包含 185 项不准确。该 revision 只反映当时已有章节快照的 3 个作品。revision 4 保持不可变，本次实现没有访问或修改真实 WebDAV。
+
+根因是 A3 只在 `catalogDirty` 为 true 时运行 catalog 发布，并把 `revisions.keys` 作为作品过滤条件，导致没有章节快照的当前书架作品被遗漏。修正后每次手动 A3 批次结束都会进行一次完整 catalog 语义对账，即使 dirty 已清除也会执行；catalog 输入为当前书架上成功解析的全部作品身份，不包含历史孤立身份。章节 revision 只取当前 `serviceIdentity + rootIdentity` 的已确认映射；映射缺少的当前作品写 0，只有该映射中的正 revision 才能写入 catalog。
+
+pending catalog intent 仍先于章节处理和书架读取恢复，使用原路径、revision、snapshot 和持久化原始字节；之后再对完整当前书架做一次对账。新测试覆盖 185 项书架、唯一 work_id、3 项 revision 1 / 182 项 revision 0、revision 0 无章节文件要求、跨根目录 revision 隔离、dirty=false 时从不完整 catalog 生成 revision 5、重复运行不生成 revision 6/额外章节快照，以及 pending intent 原字节先恢复后再对账。
+
+定向验证：A3 chapters/catalog JVM 测试 **31/31 通过**，A2 catalog 回归 **13/13 通过**；`:app:assembleAppLegacyDebug` 成功。Debug APK 为 `app/build/outputs/apk/appLegacy/debug/LegadoM-Ink_兼容版_3.26-beta33_legacy.apk`，包名 `io.legado.app.debug`，SHA-256 `1ADF29661013F2FE8DF899F9F5D28EC6FFBA462869ADAED89797BE3D91248727`。
+
+本次实现、定向测试和 Debug 构建阶段未访问真实 WebDAV；本记录现补充后续真实设备验收结果。
+
+## Catalog 完整性真实 WebDAV 验收（2026-11-15）
+
+- Android 发布了不可变 catalog revision 5，包含 **185 个唯一 `work_id`**：3 项 `toc_revision=1`，182 项 `toc_revision=0`。revision 4 保持不变。
+- 远端仍只有原来的 3 个 chapters 作品目录及快照，没有重发、覆盖或新增章节快照。
+- Kindle 在线解析显示 revision 5、作品数 185、可用目录 3。章节缓存结果为新增 0、未变化 3、失败 0。
+- 当前目录缓存为 3，旧目录缓存为 0；离线缓存结果一致。
+- 重复发布没有生成 catalog revision 6，章节快照数量也未增加。
+
+以上完成 A3 catalog 完整性真实 WebDAV 验收。本轮只记录既有验收，不重新构建或运行测试；未提交、未推送。
+
 ## 已知限制与后续边界
 
 - 由于旧数据没有权威空目录回执，生产路径目前不能自动产生 `KNOWN_EMPTY`；空 DAO 结果安全地显示为 `UNAVAILABLE`。

@@ -59,28 +59,29 @@ class NetworkSecurityTest {
     }
 
     @Test
-    fun webDavClientRejectsHttpByDefault() {
+    fun webDavClientAllowsHttpByDefault() {
+        server.enqueue(MockResponse().setBody("webdav"))
         val request = Request.Builder().url(server.url("/webdav")).build()
 
-        try {
-            getWebDavClient(allowInsecure = false).newCall(request).execute()
-                .use { error("HTTP WebDAV request unexpectedly succeeded") }
-        } catch (_: IOException) {
-            // Expected: WebDAV uses HTTPS unless the dedicated option is enabled.
-        }
-
-        assertEquals(0, server.requestCount)
+        getWebDavClient(requireHttps = false, allowUnsafeCertificate = false)
+            .newCall(request).execute().use { response ->
+                assertEquals(200, response.code)
+            }
+        assertEquals(1, server.requestCount)
     }
 
     @Test
-    fun webDavClientAllowsHttpOnlyWithExplicitOption() {
-        server.enqueue(MockResponse().setResponseCode(200))
+    fun webDavClientRejectsHttpWhenHttpsOnlyIsEnabled() {
         val request = Request.Builder().url(server.url("/webdav")).build()
 
-        getWebDavClient(allowInsecure = true).newCall(request).execute().use { response ->
-            assertEquals(200, response.code)
+        try {
+            getWebDavClient(requireHttps = true, allowUnsafeCertificate = false)
+                .newCall(request).execute().use { error("HTTP WebDAV request unexpectedly succeeded") }
+        } catch (_: IOException) {
+            // Expected while HTTPS-only is explicitly enabled.
         }
-        assertEquals(1, server.requestCount)
+
+        assertEquals(0, server.requestCount)
     }
 
     @Test
@@ -90,7 +91,7 @@ class NetworkSecurityTest {
         val request = Request.Builder().url(server.url("/webdav")).build()
 
         try {
-            getWebDavClient(allowInsecure = false).newCall(request).execute()
+            getWebDavClient(requireHttps = false, allowUnsafeCertificate = false).newCall(request).execute()
                 .use { error("自签证书 WebDAV 请求不应成功") }
         } catch (_: IOException) {
             // Expected: the default WebDAV client trusts system certificates only.
@@ -105,7 +106,7 @@ class NetworkSecurityTest {
         server.enqueue(MockResponse().setResponseCode(200))
         val request = Request.Builder().url(server.url("/webdav")).build()
 
-        getWebDavClient(allowInsecure = true).newCall(request).execute().use { response ->
+        getWebDavClient(requireHttps = false, allowUnsafeCertificate = true).newCall(request).execute().use { response ->
             assertEquals(200, response.code)
         }
         assertEquals(1, server.requestCount)
@@ -153,35 +154,67 @@ class NetworkSecurityTest {
         )
         val request = Request.Builder().url(server.url("/webdav")).build()
 
-        // The test certificate needs the explicit test-only trust option. The redirect policy
-        // remains strict because getWebDavClient never follows an HTTPS-to-HTTP redirect.
-        getWebDavClient(allowInsecure = true).newCall(request).execute().use { response ->
-            assertEquals(302, response.code)
+        // Trust the local test certificate, but reject the subsequent HTTP downgrade.
+        try {
+            getWebDavClient(requireHttps = false, allowUnsafeCertificate = true)
+                .newCall(request).execute().use { error("HTTPS downgrade unexpectedly followed") }
+        } catch (_: IOException) {
+            // Expected: HTTPS-to-HTTP redirects are blocked.
         }
+        assertEquals(1, server.requestCount)
         assertEquals(0, redirectTarget.requestCount)
+    }
+
+    @Test
+    fun httpWebDavCanRedirectToHttps() {
+        val certificates = selfSignedCertificates()
+        redirectTarget.useHttps(certificates.sslSocketFactory(), false)
+        redirectTarget.enqueue(MockResponse().setBody("secure"))
+        server.enqueue(
+            MockResponse()
+                .setResponseCode(302)
+                .addHeader("Location", redirectTarget.url("/upgrade").toString())
+        )
+        val request = Request.Builder().url(server.url("/webdav")).build()
+
+        getWebDavClient(requireHttps = false, allowUnsafeCertificate = true)
+            .newCall(request).execute().use { response ->
+                assertEquals(200, response.code)
+                assertEquals("secure", response.body.string())
+            }
+        assertEquals(1, server.requestCount)
+        assertEquals(1, redirectTarget.requestCount)
     }
 
     @Test
     fun webDavUnsafeOptionIsIndependentAndCanBeClosedImmediately() {
         server.enqueue(MockResponse().setResponseCode(200))
         val previous = AppConfig.unsafeWebDav
+        val previousHttpsOnly = AppConfig.webDavHttpsOnly
         try {
             AppConfig.unsafeWebDav = true
+            AppConfig.webDavHttpsOnly = false
             val request = Request.Builder().url(server.url("/webdav")).build()
-            getWebDavClient(AppConfig.unsafeWebDav).newCall(request).execute().use { response ->
+            getWebDavClient(
+                requireHttps = AppConfig.webDavHttpsOnly,
+                allowUnsafeCertificate = AppConfig.unsafeWebDav
+            ).newCall(request).execute().use { response ->
                 assertEquals(200, response.code)
             }
 
-            AppConfig.unsafeWebDav = false
+            AppConfig.webDavHttpsOnly = true
             try {
-                getWebDavClient(AppConfig.unsafeWebDav).newCall(request).execute()
-                    .use { error("关闭不安全 WebDAV 后不应继续访问 HTTP") }
+                getWebDavClient(
+                    requireHttps = AppConfig.webDavHttpsOnly,
+                    allowUnsafeCertificate = AppConfig.unsafeWebDav
+                ).newCall(request).execute().use { error("HTTPS-only must reject HTTP") }
             } catch (_: IOException) {
-                // Expected: turning the dedicated option off restores the HTTPS boundary.
+                // HTTPS-only is independent from the certificate bypass option.
             }
             assertEquals(1, server.requestCount)
         } finally {
             AppConfig.unsafeWebDav = previous
+            AppConfig.webDavHttpsOnly = previousHttpsOnly
         }
     }
 

@@ -5,9 +5,9 @@ import android.net.Uri
 import cn.hutool.core.net.URLDecoder
 import io.legado.app.constant.AppLog
 import io.legado.app.exception.NoStackTraceException
+import io.legado.app.help.config.AppConfig
 import io.legado.app.help.http.newCallResponse
 import io.legado.app.help.http.getWebDavClient
-import io.legado.app.help.http.okHttpClient
 import io.legado.app.help.http.text
 import io.legado.app.model.analyzeRule.AnalyzeUrl
 import io.legado.app.model.analyzeRule.CustomUrl
@@ -20,6 +20,7 @@ import kotlinx.coroutines.Dispatchers.IO
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.CancellationException
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Interceptor
 import okhttp3.MediaType.Companion.toMediaType
@@ -32,6 +33,7 @@ import org.jsoup.parser.Parser
 import java.io.File
 import java.io.FileOutputStream
 import java.io.InputStream
+import java.io.IOException
 import java.net.MalformedURLException
 import java.net.URL
 import java.time.ZonedDateTime
@@ -42,15 +44,19 @@ import java.util.concurrent.TimeUnit
 open class WebDav(
     val path: String,
     val authorization: Authorization,
-    private val requireHttps: Boolean = false,
-    private val allowInsecure: Boolean = false,
+    private val requireHttps: Boolean = AppConfig.webDavHttpsOnly,
+    private val allowInsecure: Boolean = AppConfig.unsafeWebDav,
 ) {
     companion object {
 
-        fun fromPath(path: String, allowInsecure: Boolean = false): WebDav {
+        fun fromPath(
+            path: String,
+            allowInsecure: Boolean = AppConfig.unsafeWebDav,
+            requireHttps: Boolean = AppConfig.webDavHttpsOnly
+        ): WebDav {
             val id = AnalyzeUrl(path).serverID ?: throw WebDavException("没有serverID")
             val authorization = Authorization(id)
-            return WebDav(path, authorization, allowInsecure = allowInsecure)
+            return WebDav(path, authorization, requireHttps, allowInsecure)
         }
 
         @SuppressLint("DateTimeFormatter")
@@ -85,15 +91,12 @@ open class WebDav(
 
 
     private val url: URL = URL(CustomUrl(path).getUrl())
-    private val httpsPath = url.protocol.equals("https", true)
-        || path.startsWith("https://", true)
-        || path.startsWith("davs://", true)
     private val httpUrl: String? by lazy {
         val raw = url.toString()
             .replace("davs://", "https://")
             .replace("dav://", "http://")
         val parsed = kotlin.runCatching { raw.toHttpUrl() }.getOrNull() ?: return@lazy null
-        if ((requireHttps || (!allowInsecure && httpsPath)) && !parsed.isHttps) {
+        if (!WebDavSecurityPolicy.isUrlAllowed(raw, requireHttps)) {
             throw WebDavException("应用同步和备份必须使用 HTTPS")
         }
         return@lazy parsed.toString()
@@ -109,10 +112,10 @@ open class WebDav(
             }
             chain.proceed(request)
         }
-        (if (requireHttps || allowInsecure || httpsPath) {
-            getWebDavClient(allowInsecure)
-        } else okHttpClient)
-            .newBuilder().run {
+        getWebDavClient(
+            requireHttps = requireHttps,
+            allowUnsafeCertificate = allowInsecure
+        ).newBuilder().run {
             callTimeout(0, TimeUnit.SECONDS)
             interceptors().add(0, authInterceptor)
             addNetworkInterceptor(authInterceptor)
@@ -240,7 +243,8 @@ open class WebDav(
                     contentType = contentType,
                     resourceType = resourceType,
                     lastModify = lastModify,
-                    allowInsecure = allowInsecure
+                    allowInsecure = allowInsecure,
+                    requireHttps = requireHttps
                 )
                 list.add(webDavFile)
             } catch (e: MalformedURLException) {
@@ -270,17 +274,24 @@ open class WebDav(
     /**
      * 检查用户名密码是否有效
      */
-    suspend fun check(): Boolean {
-        return kotlin.runCatching {
+    suspend fun check(): WebDavCheckResult {
+        return try {
+            val targetUrl = httpUrl ?: return WebDavCheckResult.SERVER_ERROR
             webDavClient.newCallResponse {
-                url(url)
+                url(targetUrl)
                 addHeader("Depth", "0")
                 val requestBody = EXISTS.toRequestBody("application/xml".toMediaType())
                 method("PROPFIND", requestBody)
-            }.use { it.code != 401 }
-        }.onFailure {
+            }.use { WebDavConnectionPolicy.fromHttpCode(it.code) }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: IOException) {
             currentCoroutineContext().ensureActive()
-        }.getOrDefault(false)
+            WebDavConnectionPolicy.fromFailure(e)
+        } catch (e: Exception) {
+            currentCoroutineContext().ensureActive()
+            WebDavConnectionPolicy.fromFailure(e)
+        }
     }
 
     /**

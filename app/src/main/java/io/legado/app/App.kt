@@ -30,6 +30,7 @@ import io.legado.app.data.entities.rule.ExploreRule
 import io.legado.app.data.entities.rule.SearchRule
 import io.legado.app.help.AppFreezeMonitor
 import io.legado.app.help.AppWebDav
+import io.legado.app.lib.webdav.WebDavStatus
 import io.legado.app.help.CrashHandler
 import io.legado.app.help.DefaultData
 import io.legado.app.help.DispatchersMonitor
@@ -57,6 +58,7 @@ import io.legado.app.utils.defaultSharedPreferences
 import io.legado.app.utils.getPrefBoolean
 import io.legado.app.utils.isDebuggable
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.first
 import org.chromium.base.ThreadUtils
 import splitties.init.appCtx
 import splitties.systemservices.notificationManager
@@ -95,6 +97,7 @@ class App : Application() {
             DefaultData.upVersion()
             AppFreezeMonitor.init(this@App)
             DispatchersMonitor.init()
+            AppWebDav.startMonitoring()
             URL.setURLStreamHandlerFactory(ObsoleteUrlFactory(okHttpClient))
             launch { installGmsTlsProvider(appCtx) }
             initRhino()
@@ -124,8 +127,15 @@ class App : Application() {
             //调整排序序号
             SourceHelp.adjustSortNumber()
             //同步阅读记录
-            if (AppConfig.syncBookProgress) {
-                AppWebDav.downloadAllBookProgress()
+            val webDavConfigured = !defaultSharedPreferences
+                .getString(PreferKey.webDavAccount, null).isNullOrBlank()
+                    && !defaultSharedPreferences
+                .getString(PreferKey.webDavPassword, null).isNullOrBlank()
+            if (AppConfig.syncBookProgress && webDavConfigured) {
+                launch {
+                    AppWebDav.status.first { it == WebDavStatus.AVAILABLE }
+                    AppWebDav.downloadAllBookProgress()
+                }
             }
             //自动扫描默认书籍目录导入新书（5 分钟防抖）
             if (AppConfig.defaultBookTreeUri != null) {

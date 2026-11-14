@@ -16,9 +16,7 @@ import splitties.init.appCtx
 class ConfigViewModel(application: Application) : BaseViewModel(application) {
 
     fun upWebDavConfig() {
-        execute {
-            AppWebDav.upConfig()
-        }
+        AppWebDav.refreshConfig()
     }
 
     fun clearCache() {

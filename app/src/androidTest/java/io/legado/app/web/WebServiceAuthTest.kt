@@ -22,6 +22,7 @@ class WebServiceAuthTest {
     private var originalAuth: Boolean? = null
     private var originalToken: String? = null
     private var originalInitialized: Boolean? = null
+    private var originalDefaultOffMigrated: Boolean? = null
     private lateinit var webSocketServer: WebSocketServer
     private var webSocketPort = 0
 
@@ -32,6 +33,8 @@ class WebServiceAuthTest {
         originalToken = preferences.getString(PreferKey.webServiceToken, null)
         originalInitialized = preferences.getBoolean(PreferKey.webServiceAuthInitialized, false)
             .takeIf { preferences.contains(PreferKey.webServiceAuthInitialized) }
+        originalDefaultOffMigrated = preferences.getBoolean(PreferKey.webServiceAuthDefaultOffMigrated, false)
+            .takeIf { preferences.contains(PreferKey.webServiceAuthDefaultOffMigrated) }
         AppConfig.webServiceAuthEnabled = true
         AppConfig.webServiceToken = "a".repeat(32)
         webSocketPort = ServerSocket(0).use { it.localPort }
@@ -51,6 +54,8 @@ class WebServiceAuthTest {
             else putString(PreferKey.webServiceToken, originalToken)
             if (originalInitialized == null) remove(PreferKey.webServiceAuthInitialized)
             else putBoolean(PreferKey.webServiceAuthInitialized, originalInitialized!!)
+            if (originalDefaultOffMigrated == null) remove(PreferKey.webServiceAuthDefaultOffMigrated)
+            else putBoolean(PreferKey.webServiceAuthDefaultOffMigrated, originalDefaultOffMigrated!!)
         }.apply()
     }
 

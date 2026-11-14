@@ -1,5 +1,7 @@
 package io.legado.app.lib.webdav
 
+import io.legado.app.help.config.AppConfig
+
 /**
  * webDavFile
  */
@@ -13,8 +15,14 @@ class WebDavFile(
     val contentType: String,
     val resourceType: String,
     val lastModify: Long,
-    allowInsecure: Boolean = false
-) : WebDav(urlStr, authorization, allowInsecure = allowInsecure) {
+    allowInsecure: Boolean = AppConfig.unsafeWebDav,
+    requireHttps: Boolean = AppConfig.webDavHttpsOnly
+) : WebDav(
+    urlStr,
+    authorization,
+    requireHttps = requireHttps,
+    allowInsecure = allowInsecure
+) {
 
     val isDir by lazy {
         isDir(contentType, resourceType)

@@ -26,6 +26,7 @@ import io.legado.app.utils.putPrefString
 import io.legado.app.utils.removePref
 import io.legado.app.utils.sysConfiguration
 import io.legado.app.utils.toastOnUi
+import io.legado.app.web.WebServiceAuthDefaultOffPolicy
 import splitties.init.appCtx
 import java.net.InetAddress
 import java.security.SecureRandom
@@ -47,6 +48,7 @@ import java.security.SecureRandom
  */
 @Suppress("MemberVisibilityCanBePrivate", "ConstPropertyName")
 object AppConfig : SharedPreferences.OnSharedPreferenceChangeListener {
+    private val webServiceAuthLock = Any()
     val isCronet = appCtx.getPrefBoolean(PreferKey.cronet)
     var useAntiAlias = appCtx.getPrefBoolean(PreferKey.antiAlias)
     var userAgent: String = getPrefUserAgent()
@@ -587,24 +589,44 @@ object AppConfig : SharedPreferences.OnSharedPreferenceChangeListener {
 
     var webServiceAuthEnabled: Boolean
         get() {
-            val preferences = appCtx.defaultSharedPreferences
-            if (!preferences.getBoolean(PreferKey.webServiceAuthInitialized, false)) {
-                // A missing preference means either a fresh install or an upgraded legacy user.
-                // Package install/update times distinguish those cases without changing legacy
-                // users' disabled setting silently.
-                val enabled = if (isFreshInstall()) {
-                    true
-                } else {
-                    preferences.getBoolean(PreferKey.webServiceAuthEnabled, false)
+            synchronized(webServiceAuthLock) {
+                val preferences = appCtx.defaultSharedPreferences
+                if (!preferences.getBoolean(PreferKey.webServiceAuthDefaultOffMigrated, false)) {
+                    val migrated = WebServiceAuthDefaultOffPolicy.migrate(
+                        currentEnabled = preferences.getBoolean(PreferKey.webServiceAuthEnabled, false),
+                        migrated = false
+                    )
+                    preferences.edit()
+                        .putBoolean(PreferKey.webServiceAuthEnabled, migrated.enabled)
+                        .putBoolean(PreferKey.webServiceAuthDefaultOffMigrated, migrated.migrated)
+                        .putBoolean(PreferKey.webServiceAuthInitialized, true)
+                        .apply()
+                } else if (!preferences.getBoolean(PreferKey.webServiceAuthInitialized, false)) {
+                    preferences.edit()
+                        .putBoolean(PreferKey.webServiceAuthInitialized, true)
+                        .apply()
                 }
-                appCtx.putPrefBoolean(PreferKey.webServiceAuthEnabled, enabled)
-                appCtx.putPrefBoolean(PreferKey.webServiceAuthInitialized, true)
+                return preferences.getBoolean(PreferKey.webServiceAuthEnabled, false)
             }
-            return preferences.getBoolean(PreferKey.webServiceAuthEnabled, false)
         }
         set(value) {
-            appCtx.putPrefBoolean(PreferKey.webServiceAuthEnabled, value)
-            appCtx.putPrefBoolean(PreferKey.webServiceAuthInitialized, true)
+            synchronized(webServiceAuthLock) {
+                val preferences = appCtx.defaultSharedPreferences
+                if (!preferences.getBoolean(PreferKey.webServiceAuthDefaultOffMigrated, false)) {
+                    val migrated = WebServiceAuthDefaultOffPolicy.migrate(
+                        currentEnabled = preferences.getBoolean(PreferKey.webServiceAuthEnabled, false),
+                        migrated = false
+                    )
+                    preferences.edit()
+                        .putBoolean(PreferKey.webServiceAuthEnabled, migrated.enabled)
+                        .putBoolean(PreferKey.webServiceAuthDefaultOffMigrated, migrated.migrated)
+                        .apply()
+                }
+                preferences.edit()
+                    .putBoolean(PreferKey.webServiceAuthEnabled, value)
+                    .putBoolean(PreferKey.webServiceAuthInitialized, true)
+                    .apply()
+            }
         }
 
     var webServiceToken: String
@@ -631,17 +653,18 @@ object AppConfig : SharedPreferences.OnSharedPreferenceChangeListener {
             appCtx.putPrefBoolean(PreferKey.unsafeSsl, value)
         }
 
-    /** 仅对用户自定义 WebDAV 生效，允许 HTTP 和不受信任的服务器证书。 */
+    /** 仅在 HTTPS WebDAV 连接中跳过证书和主机名校验。 */
     var unsafeWebDav: Boolean
         get() = appCtx.getPrefBoolean(PreferKey.unsafeWebDav, false)
         set(value) {
             appCtx.putPrefBoolean(PreferKey.unsafeWebDav, value)
         }
 
-    private fun isFreshInstall(): Boolean = runCatching {
-        val packageInfo = appCtx.packageManager.getPackageInfo(appCtx.packageName, 0)
-        packageInfo.firstInstallTime == packageInfo.lastUpdateTime
-    }.getOrDefault(false)
+    var webDavHttpsOnly: Boolean
+        get() = appCtx.getPrefBoolean(PreferKey.webDavHttpsOnly, false)
+        set(value) {
+            appCtx.putPrefBoolean(PreferKey.webDavHttpsOnly, value)
+        }
 
     private fun generateWebServiceToken(): String {
         val bytes = ByteArray(32)

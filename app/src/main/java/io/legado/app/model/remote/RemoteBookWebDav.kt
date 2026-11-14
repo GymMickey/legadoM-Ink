@@ -21,15 +21,15 @@ class RemoteBookWebDav(
     val rootBookUrl: String,
     val authorization: Authorization,
     val serverID: Long? = null,
-    private val allowInsecure: Boolean = false
+    private val allowInsecure: Boolean = AppConfig.unsafeWebDav,
+    private val requireHttps: Boolean = AppConfig.webDavHttpsOnly
 ) : RemoteBookManager() {
 
     private fun webDav(path: String): WebDav {
-        val isHttps = path.startsWith("https://", true) || path.startsWith("davs://", true)
         return WebDav(
             path,
             authorization,
-            requireHttps = !allowInsecure && isHttps,
+            requireHttps = requireHttps,
             allowInsecure = allowInsecure
         )
     }

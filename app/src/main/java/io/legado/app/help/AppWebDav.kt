@@ -1,7 +1,6 @@
 package io.legado.app.help
 
 import android.net.Uri
-import io.legado.app.R
 import io.legado.app.constant.AppLog
 import io.legado.app.constant.PreferKey
 import io.legado.app.data.appDb
@@ -14,9 +13,13 @@ import io.legado.app.help.storage.Restore
 import io.legado.app.help.storage.RestoreStageTimer
 import io.legado.app.lib.webdav.Authorization
 import io.legado.app.lib.webdav.WebDav
+import io.legado.app.lib.webdav.WebDavCheckResult
+import io.legado.app.lib.webdav.WebDavConnectionPolicy
 import io.legado.app.lib.webdav.WebDavException
 import io.legado.app.lib.webdav.WebDavFile
+import io.legado.app.lib.webdav.WebDavStatus
 import io.legado.app.model.remote.RemoteBookWebDav
+import io.legado.app.receiver.NetworkChangedListener
 import io.legado.app.utils.AlphanumComparator
 import io.legado.app.utils.FileUtils
 import io.legado.app.utils.GSON
@@ -27,13 +30,20 @@ import io.legado.app.utils.fromJsonObject
 import io.legado.app.utils.getPrefString
 import io.legado.app.utils.isJson
 import io.legado.app.utils.normalizeFileName
-import io.legado.app.utils.removePref
-import io.legado.app.utils.toastOnUi
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import splitties.init.appCtx
 import java.io.File
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**webDav初始化会访问网络,不要放到主线程
  * WebDav云同步管理类
@@ -73,34 +83,78 @@ object AppWebDav {
     /** 背景图片URL */
     private val bgWebDavUrl get() = "${rootWebDavUrl}background/"
 
-    private val allowInsecureWebDav get() = AppConfig.unsafeWebDav
-
     private fun appWebDav(path: String, authorization: Authorization): WebDav {
-        val allowInsecure = allowInsecureWebDav
         return WebDav(
             path,
             authorization,
-            requireHttps = !allowInsecure,
-            allowInsecure = allowInsecure
+            requireHttps = AppConfig.webDavHttpsOnly,
+            allowInsecure = AppConfig.unsafeWebDav
         )
     }
 
     /** WebDav授权信息 */
+    @Volatile
     var authorization: Authorization? = null
         private set
 
     /** 默认书籍WebDav客户端 */
+    @Volatile
     var defaultBookWebDav: RemoteBookWebDav? = null
 
     /** WebDav是否配置成功 */
     val isOk get() = authorization != null
 
+    private val _status = MutableStateFlow(WebDavStatus.UNCONFIGURED)
+    val status = _status.asStateFlow()
+
+    private val monitorScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val monitorLock = Any()
+    private val monitoringStarted = AtomicBoolean(false)
+    private var checkGeneration = 0L
+    private var checkJob: Job? = null
+    private var networkDebounceJob: Job? = null
+    private val networkListener by lazy {
+        NetworkChangedListener(appCtx).apply {
+            onNetworkChanged = { scheduleNetworkRefresh() }
+        }
+    }
+
     /** 是否为坚果云服务 */
     val isJianGuoYun get() = rootWebDavUrl.startsWith(defaultWebDavUrl, true)
 
-    init {
-        runBlocking {
-            upConfig()
+    /** Start the process-scoped monitor once; it never holds an Activity. */
+    fun startMonitoring() {
+        if (!monitoringStarted.compareAndSet(false, true)) return
+        runCatching { networkListener.register() }
+        refreshConfig()
+    }
+
+    private fun scheduleNetworkRefresh() {
+        synchronized(monitorLock) {
+            networkDebounceJob?.cancel()
+            networkDebounceJob = monitorScope.launch {
+                delay(500)
+                synchronized(monitorLock) { networkDebounceJob = null }
+                val configured = !appCtx.getPrefString(PreferKey.webDavAccount).isNullOrBlank()
+                        && !appCtx.getPrefString(PreferKey.webDavPassword).isNullOrBlank()
+                if (WebDavConnectionPolicy.shouldRefreshOnNetworkChange(configured)) {
+                    refreshConfig()
+                }
+            }
+        }
+    }
+
+    /** Queue a cancellable, serialized replacement check on IO. */
+    fun refreshConfig() {
+        synchronized(monitorLock) {
+            networkDebounceJob?.cancel()
+            networkDebounceJob = null
+            checkJob?.cancel()
+            val generation = ++checkGeneration
+            authorization = null
+            defaultBookWebDav = null
+            _status.value = WebDavStatus.CHECKING
+            checkJob = monitorScope.launch { checkConfig(generation) }
         }
     }
 
@@ -131,50 +185,52 @@ object AppWebDav {
      * - 书籍导出目录
      * - 背景图片目录
      */
-    suspend fun upConfig() {
-        kotlin.runCatching {
-            authorization = null
-            defaultBookWebDav = null
-            val allowInsecure = allowInsecureWebDav
-            if (!allowInsecure && !rootWebDavUrl.startsWith("https://", true)) {
-                appCtx.toastOnUi(R.string.webdav_https_required)
-                return@runCatching
-            }
+    private suspend fun checkConfig(generation: Long) {
+        try {
             val account = appCtx.getPrefString(PreferKey.webDavAccount)
             val password = appCtx.getPrefString(PreferKey.webDavPassword)
-            if (!account.isNullOrEmpty() && !password.isNullOrEmpty()) {
-                if (allowInsecure) {
-                    appCtx.toastOnUi(R.string.webdav_insecure_warning)
-                }
-                val mAuthorization = Authorization(account, password)
-                checkAuthorization(mAuthorization)
-                appWebDav(rootWebDavUrl, mAuthorization).makeAsDir()
-                appWebDav(bookProgressUrl, mAuthorization).makeAsDir()
-                appWebDav(exportsWebDavUrl, mAuthorization).makeAsDir()
-                appWebDav(bgWebDavUrl, mAuthorization).makeAsDir()
-                val rootBooksUrl = "${rootWebDavUrl}books/"
-                defaultBookWebDav = RemoteBookWebDav(
-                    rootBooksUrl,
-                    mAuthorization,
-                    allowInsecure = allowInsecure
-                )
-                authorization = mAuthorization
+            if (account.isNullOrBlank() || password.isNullOrBlank()) {
+                updateCheckResult(generation, WebDavStatus.UNCONFIGURED)
+                return
             }
+
+            val currentAuthorization = Authorization(account, password)
+            val result = appWebDav(rootWebDavUrl, currentAuthorization).check()
+            if (result != WebDavCheckResult.AVAILABLE) {
+                updateCheckResult(generation, WebDavConnectionPolicy.statusFor(result))
+                return
+            }
+
+            appWebDav(rootWebDavUrl, currentAuthorization).makeAsDir()
+            appWebDav(bookProgressUrl, currentAuthorization).makeAsDir()
+            appWebDav(exportsWebDavUrl, currentAuthorization).makeAsDir()
+            appWebDav(bgWebDavUrl, currentAuthorization).makeAsDir()
+            val remoteBookWebDav = RemoteBookWebDav(
+                "${rootWebDavUrl}books/",
+                currentAuthorization,
+                allowInsecure = AppConfig.unsafeWebDav,
+                requireHttps = AppConfig.webDavHttpsOnly
+            )
+            synchronized(monitorLock) {
+                if (generation == checkGeneration) {
+                    authorization = currentAuthorization
+                    defaultBookWebDav = remoteBookWebDav
+                    _status.value = WebDavStatus.AVAILABLE
+                }
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            currentCoroutineContext().ensureActive()
+            updateCheckResult(generation, WebDavConnectionPolicy.statusFor(
+                WebDavConnectionPolicy.fromFailure(e)
+            ))
         }
     }
 
-    /**
-     * 检查WebDav授权是否有效
-     * 
-     * @param authorization 授权信息
-     * @throws WebDavException 授权失败时抛出异常
-     */
-    @Throws(WebDavException::class)
-    private suspend fun checkAuthorization(authorization: Authorization) {
-        if (!appWebDav(rootWebDavUrl, authorization).check()) {
-            appCtx.removePref(PreferKey.webDavPassword)
-            appCtx.toastOnUi(R.string.webdav_application_authorization_error)
-            throw WebDavException(appCtx.getString(R.string.webdav_application_authorization_error))
+    private fun updateCheckResult(generation: Long, status: WebDavStatus) {
+        synchronized(monitorLock) {
+            if (generation == checkGeneration) _status.value = status
         }
     }
 

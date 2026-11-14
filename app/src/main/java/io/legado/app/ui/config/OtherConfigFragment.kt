@@ -73,6 +73,7 @@ class OtherConfigFragment : PreferenceFragment(),
         addPreferencesFromResource(R.xml.pref_config_other)
         findPreference<SwitchPreferenceCompat>(PreferKey.webServiceAuthEnabled)?.isChecked =
             AppConfig.webServiceAuthEnabled
+        upWebServiceAuthSummary()
         upPreferenceSummary(PreferKey.userAgent, AppConfig.userAgent)
         upPreferenceSummary(PreferKey.preDownloadNum, AppConfig.preDownloadNum.toString())
         upPreferenceSummary(PreferKey.backwardPreDownloadNum, AppConfig.backwardPreDownloadNum.toString())
@@ -225,6 +226,7 @@ class OtherConfigFragment : PreferenceFragment(),
             }
 
             PreferKey.webServiceAuthEnabled -> {
+                upWebServiceAuthSummary()
                 if (WebService.isRun) {
                     WebService.stop(requireContext())
                     WebService.start(requireContext())
@@ -477,6 +479,17 @@ class OtherConfigFragment : PreferenceFragment(),
         } else {
             "****"
         }
+    }
+
+    private fun upWebServiceAuthSummary() {
+        val preference = findPreference<Preference>(PreferKey.webServiceAuthEnabled) ?: return
+        preference.summary = getString(
+            if (AppConfig.webServiceAuthEnabled) {
+                R.string.web_service_auth_enabled_summary
+            } else {
+                R.string.web_service_auth_disabled_summary
+            }
+        )
     }
 
     @SuppressLint("InflateParams")

@@ -101,10 +101,19 @@ object AppWebDav {
     @Volatile
     var defaultBookWebDav: RemoteBookWebDav? = null
 
-    /** WebDav是否配置成功 */
+    /** WebDav当前连接是否已验证可用 */
     val isOk get() = authorization != null
 
-    private val _status = MutableStateFlow(WebDavStatus.UNCONFIGURED)
+    /** Whether complete WebDAV credentials are saved on this device. */
+    val isConfigured: Boolean
+        get() = WebDavConnectionPolicy.hasSavedCredentials(
+            appCtx.getPrefString(PreferKey.webDavAccount),
+            appCtx.getPrefString(PreferKey.webDavPassword)
+        )
+
+    private val _status = MutableStateFlow(
+        WebDavConnectionPolicy.initialStatus(isConfigured)
+    )
     val status = _status.asStateFlow()
 
     private val monitorScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -135,8 +144,7 @@ object AppWebDav {
             networkDebounceJob = monitorScope.launch {
                 delay(500)
                 synchronized(monitorLock) { networkDebounceJob = null }
-                val configured = !appCtx.getPrefString(PreferKey.webDavAccount).isNullOrBlank()
-                        && !appCtx.getPrefString(PreferKey.webDavPassword).isNullOrBlank()
+                val configured = isConfigured
                 if (WebDavConnectionPolicy.shouldRefreshOnNetworkChange(configured)) {
                     refreshConfig()
                 }
@@ -150,9 +158,14 @@ object AppWebDav {
             networkDebounceJob?.cancel()
             networkDebounceJob = null
             checkJob?.cancel()
+            checkJob = null
             val generation = ++checkGeneration
             authorization = null
             defaultBookWebDav = null
+            if (!isConfigured) {
+                _status.value = WebDavStatus.UNCONFIGURED
+                return
+            }
             _status.value = WebDavStatus.CHECKING
             checkJob = monitorScope.launch { checkConfig(generation) }
         }

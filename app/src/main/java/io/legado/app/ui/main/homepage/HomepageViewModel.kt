@@ -27,6 +27,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -94,18 +95,23 @@ class HomepageViewModel(application: Application) : BaseViewModel(application) {
         HomepageStats(totalBooksRead = readBooksCount, totalReadTimeMs = totalTime)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), HomepageStats())
 
+    private val webDavConfiguredState = AppWebDav.status
+        .map { AppWebDav.isConfigured }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), AppWebDav.isConfigured)
+
     /** Book cards are independent from the slower aggregate statistics query. */
     val dashboardState: StateFlow<HomepageDashboardState> = combine(
         homepageBooksState,
         homepageStatsState,
+        webDavConfiguredState,
         _isBackingUp
-    ) { books, stats, backingUp ->
+    ) { books, stats, webDavConfigured, backingUp ->
         HomepageDashboardState(
             lastReadBook = books.lastReadBook,
             totalBooksRead = stats.totalBooksRead,
             totalReadTimeMs = stats.totalReadTimeMs,
             recentBooks = books.recentBooks,
-            webDavConfigured = AppWebDav.isOk,
+            webDavConfigured = webDavConfigured,
             isBackingUp = backingUp,
             lastBackupTime = LocalConfig.lastBackup,
             isBooksLoaded = books.isLoaded

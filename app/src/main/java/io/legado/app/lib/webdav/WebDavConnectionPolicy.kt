@@ -20,6 +20,12 @@ enum class WebDavStatus {
 }
 
 object WebDavConnectionPolicy {
+    fun hasSavedCredentials(account: String?, password: String?): Boolean =
+        !account.isNullOrBlank() && !password.isNullOrBlank()
+
+    fun initialStatus(isConfigured: Boolean): WebDavStatus =
+        if (isConfigured) WebDavStatus.CHECKING else WebDavStatus.UNCONFIGURED
+
     fun fromHttpCode(code: Int): WebDavCheckResult = when {
         code in 200..299 -> WebDavCheckResult.AVAILABLE
         code == 401 || code == 403 -> WebDavCheckResult.AUTHENTICATION_FAILED

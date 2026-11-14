@@ -11,6 +11,29 @@ import java.net.SocketTimeoutException
 
 class WebDavConnectionPolicyTest {
     @Test
+    fun savedCredentialsRequireNonBlankAccountAndPassword() {
+        assertTrue(WebDavConnectionPolicy.hasSavedCredentials("account", "password"))
+        assertFalse(WebDavConnectionPolicy.hasSavedCredentials(null, "password"))
+        assertFalse(WebDavConnectionPolicy.hasSavedCredentials("", "password"))
+        assertFalse(WebDavConnectionPolicy.hasSavedCredentials("account", null))
+        assertFalse(WebDavConnectionPolicy.hasSavedCredentials("account", ""))
+        assertFalse(WebDavConnectionPolicy.hasSavedCredentials("  ", "password"))
+        assertFalse(WebDavConnectionPolicy.hasSavedCredentials("account", "\t"))
+    }
+
+    @Test
+    fun initialStatusReflectsWhetherCredentialsAreConfigured() {
+        assertEquals(
+            WebDavStatus.CHECKING,
+            WebDavConnectionPolicy.initialStatus(isConfigured = true)
+        )
+        assertEquals(
+            WebDavStatus.UNCONFIGURED,
+            WebDavConnectionPolicy.initialStatus(isConfigured = false)
+        )
+    }
+
+    @Test
     fun classifiesSuccessAuthenticationNetworkAndServerResponses() {
         assertEquals(WebDavCheckResult.AVAILABLE, WebDavConnectionPolicy.fromHttpCode(200))
         assertEquals(WebDavCheckResult.AVAILABLE, WebDavConnectionPolicy.fromHttpCode(207))
@@ -43,6 +66,9 @@ class WebDavConnectionPolicyTest {
             WebDavConnectionPolicy.statusFor(failures[1])
         )
         assertEquals(WebDavStatus.SERVER_ERROR, WebDavConnectionPolicy.statusFor(failures[3]))
+        assertFalse(WebDavConnectionPolicy.statusFor(failures[0]) == WebDavStatus.UNCONFIGURED)
+        assertFalse(WebDavConnectionPolicy.statusFor(failures[1]) == WebDavStatus.UNCONFIGURED)
+        assertFalse(WebDavConnectionPolicy.statusFor(failures[3]) == WebDavStatus.UNCONFIGURED)
     }
 
     @Test

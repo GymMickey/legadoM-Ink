@@ -1077,6 +1077,17 @@
     <string name="sync_v1_catalog_published">已發布 %1$d 部作品 · 版本 %2$d</string>
     <string name="sync_v1_catalog_unchanged">內容未變更 · %1$d 部作品 · 版本 %2$d</string>
     <string name="sync_v1_catalog_error">目錄發布失敗 · %1$d 部作品 · 版本 %2$s · 錯誤 %3$s</string>
+    <string name="sync_v1_publish_chapters">發布 Sync-v1 章節目錄</string>
+    <string name="sync_v1_publish_chapters_summary">將本機已儲存的章節列表發布為不可變快照</string>
+    <string name="sync_v1_chapters_state_title">Sync-v1 章節狀態</string>
+    <string name="sync_v1_chapters_not_published">尚未處理章節快照</string>
+    <string name="sync_v1_chapters_running">正在發布章節快照…</string>
+    <string name="sync_v1_chapters_result">書籍 %1$d · 可用 %2$d · 已知為空 %3$d · 不可用 %4$d · 失敗 %5$d · 新發布 %6$d · 已採納 %7$d · 未變更 %8$d · 目錄 %9$s · 錯誤碼 %10$s · %11$s</string>
+    <string name="sync_v1_chapters_catalog_done">已發布</string>
+    <string name="sync_v1_chapters_catalog_pending">未發布</string>
+    <string name="sync_v1_chapters_success">成功</string>
+    <string name="sync_v1_chapters_partial_success">部分成功</string>
+    <string name="sync_v1_chapters_error">失敗</string>
     <string name="web_service_wake_lock">WebService喚醒鎖</string>
     <string name="web_service_wake_lock_summary">開啟web服務的時候啟用喚醒鎖，有些手機開啟喚醒鎖會被殺後台</string>
 <string name="change_search_scope">切換搜尋範圍</string>

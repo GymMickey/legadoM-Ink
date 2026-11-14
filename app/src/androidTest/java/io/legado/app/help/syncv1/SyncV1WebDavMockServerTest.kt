@@ -66,6 +66,24 @@ class SyncV1WebDavMockServerTest {
     }
 
     @Test
+    fun ambiguousMkcolIsFollowedByPropfindBeforeAnyCallerCanUpload() = runBlocking {
+        server.enqueue(MockResponse().setResponseCode(404))
+        server.enqueue(MockResponse().setSocketPolicy(SocketPolicy.DISCONNECT_AFTER_REQUEST))
+        server.enqueue(
+            MockResponse().setResponseCode(207).setBody(
+                """<?xml version="1.0"?><D:multistatus xmlns:D="DAV:"><D:response><D:href>/root/</D:href><D:propstat><D:prop><D:resourcetype><D:collection/></D:resourcetype></D:prop></D:propstat></D:response></D:multistatus>"""
+            )
+        )
+
+        webDav().ensureSyncV1Directory()
+
+        assertEquals("PROPFIND", server.takeRequest().method)
+        assertEquals("MKCOL", server.takeRequest().method)
+        assertEquals("PROPFIND", server.takeRequest().method)
+        assertEquals(3, server.requestCount)
+    }
+
+    @Test
     fun failedPutCanBeFollowedByAReadThatRecoversExactRemoteBytes() = runBlocking {
         val payload = "immutable-state-bytes".toByteArray()
         server.enqueue(MockResponse().setSocketPolicy(SocketPolicy.DISCONNECT_AFTER_REQUEST))

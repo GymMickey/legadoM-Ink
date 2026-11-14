@@ -41,7 +41,12 @@ internal class SyncV1CatalogRepository(
     private val operationMutex = Mutex()
     private val gson = GsonBuilder().disableHtmlEscaping().create()
 
-    suspend fun publish(books: List<SyncV1CatalogBook>): SyncV1CatalogOutcome = operationMutex.withLock {
+    suspend fun publish(
+        books: List<SyncV1CatalogBook>,
+        confirmedTocRevisions: Map<String, Long>? = null,
+        sessionOverride: SyncV1Session? = null,
+        includedWorkIds: Set<String>? = null
+    ): SyncV1CatalogOutcome = operationMutex.withLock {
         try {
             if (!store.hasReadyDevice()) {
                 return@withLock SyncV1CatalogOutcome(
@@ -49,7 +54,7 @@ internal class SyncV1CatalogRepository(
                     errorCode = SyncV1ErrorCode.NO_READY_DEVICE
                 )
             }
-            val session = sessionProvider()
+            val session = sessionOverride ?: sessionProvider()
             requireCurrent(session)
             session.transport.ensureDirectory(CATALOG_DIRECTORY)
             requireCurrent(session)
@@ -76,7 +81,11 @@ internal class SyncV1CatalogRepository(
                 .mapValues { it.value.toSet() }
 
             val publisherDeviceId = store.androidPublisherDeviceId(uuidProvider)
-            val semanticWorks = resolveAndBuildWorks(books, aliasOwners, latestRemote?.catalog)
+            val rootScopedTocRevisions = confirmedTocRevisions ?: (store as? SyncV1ChaptersStore)
+                ?.confirmedChapterRevisions(session.serviceIdentity, session.rootIdentity)
+            val semanticWorks = resolveAndBuildWorks(
+                books, aliasOwners, latestRemote?.catalog, rootScopedTocRevisions, includedWorkIds
+            )
             val semanticSha = catalogSemanticSha256(publisherDeviceId, semanticWorks)
             val persisted = store.catalogPublicationState(session.serviceIdentity, session.rootIdentity)
             val previousPublished = store.latestPublishedCatalogIntent(session.serviceIdentity, session.rootIdentity)
@@ -185,10 +194,56 @@ internal class SyncV1CatalogRepository(
         }
     }
 
+    /** Resume an existing immutable catalog intent without scanning books or allocating a revision. */
+    suspend fun resumePendingIntent(sessionOverride: SyncV1Session? = null): SyncV1CatalogOutcome? = operationMutex.withLock {
+        val session = sessionOverride ?: sessionProvider()
+        requireCurrent(session)
+        val pending = store.pendingCatalogIntent(session.serviceIdentity, session.rootIdentity) ?: return@withLock null
+        try {
+            session.transport.ensureDirectory(CATALOG_DIRECTORY)
+            val remote = scanRemoteCatalogs(session)
+            checkNoRevisionConflict(remote, pending.catalogRevision, pending.snapshotId.toString())
+            publishIntent(session, pending)
+            SyncV1CatalogOutcome(
+                SyncV1CatalogPhase.PUBLISHED,
+                parseCatalogOrFail(pending.rawJsonBytes).works.size,
+                pending.catalogRevision,
+                pending.snapshotId.toString()
+            )
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (failure: Exception) {
+            SyncV1CatalogOutcome(SyncV1CatalogPhase.FAILED, errorCode = failure.asCatalogError())
+        }
+    }
+
+    /** Resolve A2 identities against the latest valid remote catalog before exporting per-work data. */
+    suspend fun resolveWorkIdentities(
+        books: List<SyncV1CatalogBook>,
+        session: SyncV1Session
+    ): Map<String, String> {
+        requireCurrent(session)
+        val remote = scanRemoteCatalogs(session).latest?.catalog
+        val aliasOwners = remote?.works.orEmpty()
+            .flatMap { work -> work.bookUrlAliases.map { it to work.workId } }
+            .groupBy({ it.first }, { it.second })
+            .mapValues { it.value.toSet() }
+        val identities = SyncV1WorkIdentityRepository(store, uuidProvider)
+        val result = linkedMapOf<String, String>()
+        for (book in books.distinctBy { it.bookUrl }) {
+            val resolved = identities.resolve(book.bookUrl, aliasOwners) as? SyncV1WorkIdentityResolution.Resolved
+                ?: throw SyncV1Failure(SyncV1ErrorCode.IDENTITY_CONFLICT)
+            result[book.bookUrl] = resolved.identity.workId
+        }
+        return result
+    }
+
     private suspend fun resolveAndBuildWorks(
         books: List<SyncV1CatalogBook>,
         aliasOwners: Map<String, Set<String>>,
-        remoteCatalog: ParsedCatalog?
+        remoteCatalog: ParsedCatalog?,
+        confirmedTocRevisions: Map<String, Long>?,
+        includedWorkIds: Set<String>?
     ): List<CatalogWork> {
         val uniqueBooks = books.distinctBy { it.bookUrl }
         val identityRepository = SyncV1WorkIdentityRepository(store, uuidProvider)
@@ -211,6 +266,7 @@ internal class SyncV1CatalogRepository(
         val remoteWorks = remoteCatalog?.works?.associateBy { it.workId }.orEmpty()
         val output = ArrayList<CatalogWork>(byWork.size)
         for ((workId, book) in byWork.toSortedMap()) {
+            if (includedWorkIds != null && workId !in includedWorkIds) continue
             val title = book.title
             val authors = book.author.takeIf { it.isNotBlank() }?.let(::listOf).orEmpty()
             if (title.codePointCount(0, title.length) !in 1..512
@@ -221,7 +277,8 @@ internal class SyncV1CatalogRepository(
             val identity = store.resolveWorkIdentity(book.bookUrl, emptySet(), uuidProvider)
                 .let { (it as? SyncV1WorkIdentityResolution.Resolved)?.identity }
                 ?: throw SyncV1Failure(SyncV1ErrorCode.IDENTITY_CONFLICT)
-            val tocRevision = identity.tocRevision
+            val tocRevision = confirmedTocRevisions?.get(workId) ?:
+                if (confirmedTocRevisions == null) identity.tocRevision else 0L
             val progressRevision = identity.progressRevision
             val fieldsHash = workFieldsSha256(workId, title, authors, aliases, tocRevision, progressRevision)
             val matchingRemote = remoteWorks[workId]?.takeIf {
@@ -529,7 +586,7 @@ internal class SyncV1CatalogRepository(
     )
     private data class RemoteCatalogScan(val latest: RemoteCatalog?, val listed: List<CatalogPath>)
 
-    private companion object {
+    internal companion object {
         const val CATALOG_DIRECTORY = "legadom_ink_sync/v1/android/catalog/"
         val CATALOG_FILE_PATTERN = Regex("^([0-9]+)-([0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})\\.json$")
     }

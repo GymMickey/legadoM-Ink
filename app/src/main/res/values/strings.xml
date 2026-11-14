@@ -1305,6 +1305,17 @@
     <string name="sync_v1_catalog_published">Published %1$d works · revision %2$d</string>
     <string name="sync_v1_catalog_unchanged">Unchanged · %1$d works · revision %2$d</string>
     <string name="sync_v1_catalog_error">Catalog failed · %1$d works · revision %2$s · error %3$s</string>
+    <string name="sync_v1_publish_chapters">Publish Sync-v1 chapter directory</string>
+    <string name="sync_v1_publish_chapters_summary">Publish saved chapter lists as immutable snapshots</string>
+    <string name="sync_v1_chapters_state_title">Sync-v1 chapter status</string>
+    <string name="sync_v1_chapters_not_published">No chapter snapshots processed</string>
+    <string name="sync_v1_chapters_running">Publishing chapter snapshots…</string>
+    <string name="sync_v1_chapters_result">Books %1$d · available %2$d · known empty %3$d · unavailable %4$d · failed %5$d · published %6$d · adopted %7$d · unchanged %8$d · catalog %9$s · code %10$s · %11$s</string>
+    <string name="sync_v1_chapters_catalog_done">published</string>
+    <string name="sync_v1_chapters_catalog_pending">not published</string>
+    <string name="sync_v1_chapters_success">success</string>
+    <string name="sync_v1_chapters_partial_success">partial_success</string>
+    <string name="sync_v1_chapters_error">error</string>
     <string name="web_service_wake_lock">WebService Wake up Lock</string>
     <string name="web_service_wake_lock_summary">The wake-up lock is enabled when the web service is enabled, and some phones will be killed when the wake-up lock is enabled.</string>
     <string name="unsafe_ssl_title">Skip SSL Verification</string>

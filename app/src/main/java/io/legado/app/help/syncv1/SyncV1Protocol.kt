@@ -21,6 +21,8 @@ import java.util.UUID
 internal const val SYNC_V1_MAX_OBJECT_BYTES = 64 * 1024
 internal const val SYNC_V1_MAX_CATALOG_BYTES = 1024 * 1024
 internal const val SYNC_V1_MAX_CATALOG_WORKS = 2500
+internal const val SYNC_V1_MAX_CHAPTERS_BYTES = 2 * 1024 * 1024
+internal const val SYNC_V1_MAX_CHAPTERS = 6000
 internal const val SYNC_V1_MAX_SAFE_INTEGER = 9_007_199_254_740_991L
 internal const val SYNC_V1_CREATE_MODE = "uuid_verified"
 
@@ -135,6 +137,11 @@ internal object SyncV1Protocol {
         "progress_revision",
         "updated_at"
     )
+    private val chaptersKeys = setOf(
+        "protocol_version", "schema_version", "device_id", "work_id", "toc_revision",
+        "snapshot_id", "generated_at", "chapters"
+    )
+    private val chapterKeys = setOf("chapter_key", "title", "local_toc_index")
     private val registrationResults = setOf(
         "registration_verified",
         "registration_recovered",
@@ -327,6 +334,70 @@ internal object SyncV1Protocol {
             )
         }
         return ParsedCatalog(deviceId, revision, snapshotId, generatedAt, works)
+    }
+
+    fun parseChapters(rawBytes: ByteArray): ParsedChapters? {
+        if (rawBytes.size > SYNC_V1_MAX_CHAPTERS_BYTES) return null
+        val root = try {
+            parseStrictJson(rawBytes) as? JsonObject ?: return null
+        } catch (_: Exception) {
+            return null
+        }
+        if (root.keySet() != chaptersKeys
+            || root.string("protocol_version") != "sync-v1"
+            || root.string("schema_version") != "1.0.0"
+        ) return null
+        val deviceId = root.string("device_id")?.takeIf(::isUuidV4) ?: return null
+        val workId = root.string("work_id")?.takeIf(::isUuidV4) ?: return null
+        val revision = root.safeLong("toc_revision")?.takeIf { it > 0L } ?: return null
+        val snapshotId = root.string("snapshot_id")?.takeIf(::isUuidV4) ?: return null
+        val generatedAt = root.string("generated_at")?.takeIf(::isUtcDateTime) ?: return null
+        val chapterArray = root.get("chapters")?.takeIf { it.isJsonArray }?.asJsonArray ?: return null
+        if (chapterArray.size() > SYNC_V1_MAX_CHAPTERS) return null
+        val result = ArrayList<SyncV1ChapterRecord>(chapterArray.size())
+        val seenKeys = HashSet<String>(chapterArray.size())
+        var previousIndex = -1L
+        for (element in chapterArray) {
+            val chapter = element.takeIf { it.isJsonObject }?.asJsonObject ?: return null
+            if (chapter.keySet() != chapterKeys) return null
+            val key = chapter.string("chapter_key")
+                ?.takeIf { Regex("^ck1-[a-f0-9]{64}$").matches(it) } ?: return null
+            val title = chapter.string("title") ?: return null
+            if (!isValidChapterTitle(title)) return null
+            val index = chapter.safeLong("local_toc_index") ?: return null
+            if (index <= previousIndex || !seenKeys.add(key) || key != chapterKey(workId, index, title)) {
+                return null
+            }
+            previousIndex = index
+            result += SyncV1ChapterRecord(key, title, index)
+        }
+        return ParsedChapters(deviceId, workId, revision, snapshotId, generatedAt, result)
+    }
+
+    fun chapterKey(workId: String, localTocIndex: Long, rawTitle: String): String {
+        require(isUuidV4(workId) && localTocIndex in 0..SYNC_V1_MAX_SAFE_INTEGER && isValidChapterTitle(rawTitle))
+        val input = "chapter-key-v1\u001f$workId\u001f$localTocIndex\u001f$rawTitle"
+        return "ck1-${sha256(input.toByteArray(Charsets.UTF_8))}"
+    }
+
+    fun isValidChapterTitle(title: String): Boolean {
+        if (title.isEmpty()) return false
+        var index = 0
+        var codePoints = 0
+        while (index < title.length) {
+            val character = title[index]
+            when {
+                Character.isHighSurrogate(character) -> {
+                    if (index + 1 >= title.length || !Character.isLowSurrogate(title[index + 1])) return false
+                    index += 2
+                }
+                Character.isLowSurrogate(character) -> return false
+                else -> index++
+            }
+            codePoints++
+            if (codePoints > 512) return false
+        }
+        return true
     }
 
     private fun invalid(

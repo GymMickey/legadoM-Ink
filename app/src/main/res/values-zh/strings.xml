@@ -1301,6 +1301,17 @@
     <string name="sync_v1_catalog_published">已发布 %1$d 部作品 · 版本 %2$d</string>
     <string name="sync_v1_catalog_unchanged">内容未变化 · %1$d 部作品 · 版本 %2$d</string>
     <string name="sync_v1_catalog_error">目录发布失败 · %1$d 部作品 · 版本 %2$s · 错误 %3$s</string>
+    <string name="sync_v1_publish_chapters">发布 Sync-v1 章节目录</string>
+    <string name="sync_v1_publish_chapters_summary">将本地已保存的章节列表发布为不可变快照</string>
+    <string name="sync_v1_chapters_state_title">Sync-v1 章节状态</string>
+    <string name="sync_v1_chapters_not_published">尚未处理章节快照</string>
+    <string name="sync_v1_chapters_running">正在发布章节快照…</string>
+    <string name="sync_v1_chapters_result">书籍 %1$d · 可用 %2$d · 已知为空 %3$d · 不可用 %4$d · 失败 %5$d · 新发布 %6$d · 已采纳 %7$d · 未变化 %8$d · 目录 %9$s · 错误码 %10$s · %11$s</string>
+    <string name="sync_v1_chapters_catalog_done">已发布</string>
+    <string name="sync_v1_chapters_catalog_pending">未发布</string>
+    <string name="sync_v1_chapters_success">成功</string>
+    <string name="sync_v1_chapters_partial_success">部分成功</string>
+    <string name="sync_v1_chapters_error">失败</string>
     <string name="web_service_wake_lock">WebService唤醒锁</string>
     <string name="web_service_wake_lock_summary">开启web服务的时候启用唤醒锁,有些手机开启唤醒锁会被杀后台</string>
     <string name="unsafe_ssl_title">跳过SSL验证</string>

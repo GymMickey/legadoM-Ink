@@ -194,6 +194,11 @@ class BackupConfigFragment : PreferenceFragment(),
                 viewModel.syncV1CatalogUiState.collect(::renderSyncV1CatalogState)
             }
         }
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.syncV1ChaptersUiState.collect(::renderSyncV1ChaptersState)
+            }
+        }
         if (!LocalConfig.backupHelpVersionIsLast) {
             showHelp("webDavHelp")
         }
@@ -295,6 +300,10 @@ class BackupConfigFragment : PreferenceFragment(),
                 viewModel.publishSyncV1Catalog()
                 return true
             }
+            "sync_v1_publish_chapters" -> {
+                viewModel.publishSyncV1Chapters()
+                return true
+            }
             "import_old" -> restoreOld.launch()
             "viewBackupInfo" -> showBackupInfo()
             "viewRestoreInfo" -> showRestoreInfo()
@@ -329,6 +338,40 @@ class BackupConfigFragment : PreferenceFragment(),
                 R.string.sync_v1_catalog_published,
                 outcome.workCount,
                 outcome.catalogRevision ?: 0L
+            )
+        }
+    }
+
+    private fun renderSyncV1ChaptersState(state: io.legado.app.help.syncv1.SyncV1ChaptersUiState) {
+        val action = findPreference<Preference>("sync_v1_publish_chapters") ?: return
+        val status = findPreference<Preference>("sync_v1_chapters_state") ?: return
+        action.isEnabled = !state.isRunning
+        action.title = getString(
+            if (state.isRunning) R.string.sync_v1_chapters_running else R.string.sync_v1_publish_chapters
+        )
+        val outcome = state.outcome
+        status.summary = if (outcome == null) {
+            getString(if (state.isRunning) R.string.sync_v1_chapters_running else R.string.sync_v1_chapters_not_published)
+        } else {
+            getString(
+                R.string.sync_v1_chapters_result,
+                outcome.totalWorks,
+                outcome.available,
+                outcome.knownEmpty,
+                outcome.unavailable,
+                outcome.failed,
+                outcome.published,
+                outcome.adopted,
+                outcome.unchanged,
+                getString(if (outcome.catalogPublished) R.string.sync_v1_chapters_catalog_done else R.string.sync_v1_chapters_catalog_pending),
+                outcome.errorCode?.name?.lowercase() ?: "—",
+                getString(
+                    when (outcome.phase) {
+                        io.legado.app.help.syncv1.SyncV1ChaptersPhase.PARTIAL_SUCCESS -> R.string.sync_v1_chapters_partial_success
+                        io.legado.app.help.syncv1.SyncV1ChaptersPhase.FAILED -> R.string.sync_v1_chapters_error
+                        else -> R.string.sync_v1_chapters_success
+                    }
+                )
             )
         }
     }

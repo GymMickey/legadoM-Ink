@@ -14,6 +14,15 @@ import io.legado.app.help.syncv1.SyncV1CatalogBook
 import io.legado.app.help.syncv1.SyncV1CatalogOutcome
 import io.legado.app.help.syncv1.SyncV1CatalogPhase
 import io.legado.app.help.syncv1.SyncV1CatalogRepository
+import io.legado.app.help.syncv1.SyncV1ChapterInput
+import io.legado.app.help.syncv1.SyncV1ChapterSourceResult
+import io.legado.app.help.syncv1.SyncV1ChapterSourceState
+import io.legado.app.help.syncv1.SyncV1ChapterSourceClassifier
+import io.legado.app.help.syncv1.SyncV1ChapterWorkInput
+import io.legado.app.help.syncv1.SyncV1ChaptersRepository
+import io.legado.app.help.syncv1.SyncV1ChaptersOutcome
+import io.legado.app.help.syncv1.SyncV1ChaptersPhase
+import io.legado.app.help.syncv1.SyncV1ChaptersUiState
 import io.legado.app.help.syncv1.SyncV1CatalogUiState
 import io.legado.app.help.syncv1.SyncV1DeviceOutcome
 import io.legado.app.help.syncv1.SyncV1ErrorCode
@@ -55,6 +64,18 @@ class ConfigViewModel(application: Application) : BaseViewModel(application) {
     private val _syncV1CatalogUiState = MutableStateFlow(SyncV1CatalogUiState())
     val syncV1CatalogUiState = _syncV1CatalogUiState.asStateFlow()
     private var syncV1CatalogJob: Job? = null
+    private val syncV1ChaptersRepository by lazy {
+        val store = SyncV1SQLiteStore(context)
+        SyncV1ChaptersRepository(
+            catalogStore = store,
+            chaptersStore = store,
+            sessionProvider = AppWebDavSyncV1SessionFactory()::create,
+            catalogRepository = syncV1CatalogRepository
+        )
+    }
+    private val _syncV1ChaptersUiState = MutableStateFlow(SyncV1ChaptersUiState())
+    val syncV1ChaptersUiState = _syncV1ChaptersUiState.asStateFlow()
+    private var syncV1ChaptersJob: Job? = null
 
     fun upWebDavConfig() {
         webDavUpdateJob?.cancel()
@@ -103,6 +124,7 @@ class ConfigViewModel(application: Application) : BaseViewModel(application) {
     }
 
     fun publishSyncV1Catalog() {
+        if (syncV1ChaptersJob?.isActive == true) return
         if (syncV1CatalogJob?.isActive == true) return
         _syncV1CatalogUiState.value = SyncV1CatalogUiState(isRunning = true)
         syncV1CatalogJob = viewModelScope.launch(Dispatchers.IO) {
@@ -124,6 +146,57 @@ class ConfigViewModel(application: Application) : BaseViewModel(application) {
                 )
             } finally {
                 _syncV1CatalogUiState.update { it.copy(isRunning = false) }
+            }
+        }
+    }
+
+    fun publishSyncV1Chapters() {
+        if (syncV1CatalogJob?.isActive == true || syncV1Job?.isActive == true) return
+        if (syncV1ChaptersJob?.isActive == true) return
+        _syncV1ChaptersUiState.value = SyncV1ChaptersUiState(isRunning = true)
+        syncV1ChaptersJob = viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val outcome = syncV1ChaptersRepository.publish {
+                    appDb.bookDao.all.filterNot { it.isNotShelf }.map { book ->
+                        val source = try {
+                            val savedChapters = appDb.bookChapterDao.getChapterList(book.bookUrl)
+                            // No positive empty-TOC receipt exists, so an empty cached list stays UNAVAILABLE.
+                            SyncV1ChapterSourceClassifier.fromPersistedDirectory(
+                                book.totalChapterNum,
+                                savedChapters.map { SyncV1ChapterInput(it.title, it.index.toLong()) }
+                            )
+                        } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                            throw cancelled
+                        } catch (_: Exception) {
+                            SyncV1ChapterSourceResult(
+                                SyncV1ChapterSourceState.FAILED,
+                                errorCode = SyncV1ErrorCode.CHAPTERS_INVALID
+                            )
+                        }
+                        SyncV1ChapterWorkInput(book.bookUrl, book.name, book.author, source)
+                    }
+                }
+                _syncV1ChaptersUiState.value = SyncV1ChaptersUiState(outcome = outcome)
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                _syncV1ChaptersUiState.value = SyncV1ChaptersUiState(
+                    outcome = SyncV1ChaptersOutcome(
+                        phase = SyncV1ChaptersPhase.FAILED,
+                        totalWorks = 0,
+                        available = 0,
+                        knownEmpty = 0,
+                        unavailable = 0,
+                        failed = 0,
+                        published = 0,
+                        adopted = 0,
+                        unchanged = 0,
+                        catalogPublished = false,
+                        errorCode = SyncV1ErrorCode.CHAPTERS_INVALID
+                    )
+                )
+            } finally {
+                _syncV1ChaptersUiState.update { it.copy(isRunning = false) }
             }
         }
     }

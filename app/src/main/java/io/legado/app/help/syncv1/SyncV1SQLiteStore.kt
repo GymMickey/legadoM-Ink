@@ -9,9 +9,14 @@ import kotlinx.coroutines.Dispatchers.IO
 import kotlinx.coroutines.withContext
 import java.util.UUID
 
+internal const val SYNC_V1_DATABASE_NAME = "legadoM_ink_sync.db"
+
 /** Independent, lazily opened storage. It is not part of AppDatabase or backup/restore. */
-class SyncV1SQLiteStore(context: Context) : SyncV1Store, SyncV1CatalogStore {
-    private val helper = SyncV1DatabaseHelper(context.applicationContext)
+class SyncV1SQLiteStore(
+    context: Context,
+    databaseName: String = SYNC_V1_DATABASE_NAME
+) : SyncV1Store, SyncV1CatalogStore, SyncV1ChaptersStore {
+    private val helper = SyncV1DatabaseHelper(context.applicationContext, databaseName)
 
     override suspend fun androidPublisherDeviceId(uuidProvider: () -> UUID): String = withContext(IO) {
         val db = helper.writableDatabase
@@ -346,6 +351,222 @@ class SyncV1SQLiteStore(context: Context) : SyncV1Store, SyncV1CatalogStore {
         }
     }
 
+    override suspend fun pendingChapterIntents(
+        serviceIdentity: String,
+        rootIdentity: String
+    ): List<SyncV1ChapterPublicationIntent> = withContext(IO) {
+        helper.readableDatabase.rawQuery(
+            "SELECT * FROM chapter_publication_intent WHERE publication_status = 'pending' AND service_identity = ? AND root_identity = ? ORDER BY created_at",
+            arrayOf(serviceIdentity, rootIdentity)
+        ).use { cursor -> buildList { while (cursor.moveToNext()) add(cursor.toChapterIntent()) } }
+    }
+
+    override suspend fun chapterPublicationState(
+        serviceIdentity: String,
+        rootIdentity: String,
+        workId: String
+    ): SyncV1ChapterPublicationState? = withContext(IO) {
+        helper.readableDatabase.rawQuery(
+            "SELECT * FROM chapter_publication_state WHERE service_identity = ? AND root_identity = ? AND work_id = ?",
+            arrayOf(serviceIdentity, rootIdentity, workId)
+        ).use { cursor -> if (cursor.moveToFirst()) cursor.toChapterState() else null }
+    }
+
+    override suspend fun createChapterIntentIfNoPending(
+        intent: SyncV1ChapterPublicationIntent
+    ): SyncV1ChapterPublicationIntent = withContext(IO) {
+        val db = helper.writableDatabase
+        db.beginTransaction()
+        try {
+            val existing = db.rawQuery(
+                "SELECT * FROM chapter_publication_intent WHERE publication_status = 'pending' AND service_identity = ? AND root_identity = ? AND work_id = ? ORDER BY created_at LIMIT 1",
+                arrayOf(intent.serviceIdentity, intent.rootIdentity, intent.workId)
+            ).use { cursor -> if (cursor.moveToFirst()) cursor.toChapterIntent() else null }
+            if (existing != null) {
+                db.setTransactionSuccessful()
+                return@withContext existing
+            }
+            val samePath = db.rawQuery(
+                "SELECT raw_sha256, raw_json_bytes FROM chapter_publication_intent WHERE service_identity = ? AND root_identity = ? AND remote_path = ?",
+                arrayOf(intent.serviceIdentity, intent.rootIdentity, intent.remotePath)
+            ).use { cursor ->
+                if (cursor.moveToFirst()) cursor.getString(0) to cursor.getBlob(1) else null
+            }
+            if (samePath != null) {
+                if (samePath.first != intent.rawSha256 || !samePath.second.contentEquals(intent.rawJsonBytes)) {
+                    throw SyncV1Failure(SyncV1ErrorCode.REVISION_CONFLICT)
+                }
+                db.update(
+                    "chapter_publication_intent",
+                    ContentValues().apply {
+                        put("publication_status", "pending")
+                        put("publication_stage", "prepared")
+                        put("updated_at", intent.updatedAt)
+                    },
+                    "service_identity = ? AND root_identity = ? AND remote_path = ?",
+                    arrayOf(intent.serviceIdentity, intent.rootIdentity, intent.remotePath)
+                )
+                val resumed = db.rawQuery(
+                    "SELECT * FROM chapter_publication_intent WHERE service_identity = ? AND root_identity = ? AND remote_path = ?",
+                    arrayOf(intent.serviceIdentity, intent.rootIdentity, intent.remotePath)
+                ).use { cursor -> if (cursor.moveToFirst()) cursor.toChapterIntent() else intent }
+                db.setTransactionSuccessful()
+                return@withContext resumed
+            }
+            db.insertOrThrow(
+                "chapter_publication_intent",
+                null,
+                ContentValues().apply {
+                    put("work_id", intent.workId)
+                    put("toc_revision", intent.tocRevision)
+                    put("snapshot_id", intent.snapshotId.toString())
+                    put("remote_path", intent.remotePath)
+                    put("raw_json_bytes", intent.rawJsonBytes)
+                    put("raw_sha256", intent.rawSha256)
+                    put("semantic_sha256", intent.semanticSha256)
+                    put("put_attempt_count", intent.putAttemptCount)
+                    put("config_identity", intent.configIdentity)
+                    put("service_identity", intent.serviceIdentity)
+                    put("root_identity", intent.rootIdentity)
+                    put("publication_status", "pending")
+                    put("publication_stage", intent.publicationStage)
+                    put("created_at", intent.createdAt)
+                    put("updated_at", intent.updatedAt)
+                }
+            )
+            db.setTransactionSuccessful()
+            intent
+        } finally {
+            db.endTransaction()
+        }
+    }
+
+    override suspend fun incrementChapterPutAttempt(
+        intent: SyncV1ChapterPublicationIntent,
+        now: Long
+    ): Int = withContext(IO) {
+        val db = helper.writableDatabase
+        db.beginTransaction()
+        try {
+            val count = db.rawQuery(
+                "SELECT put_attempt_count FROM chapter_publication_intent WHERE remote_path = ? AND service_identity = ? AND root_identity = ? AND publication_status = 'pending'",
+                arrayOf(intent.remotePath, intent.serviceIdentity, intent.rootIdentity)
+            ).use { cursor ->
+                if (!cursor.moveToFirst()) throw SyncV1Failure(SyncV1ErrorCode.RETRY_LIMIT)
+                cursor.getInt(0)
+            }
+            if (count >= 2) throw SyncV1Failure(SyncV1ErrorCode.RETRY_LIMIT)
+            db.update(
+                "chapter_publication_intent",
+                ContentValues().apply {
+                    put("put_attempt_count", count + 1)
+                    put("publication_stage", "put_attempted")
+                    put("updated_at", now)
+                },
+                "remote_path = ? AND service_identity = ? AND root_identity = ? AND publication_status = 'pending'",
+                arrayOf(intent.remotePath, intent.serviceIdentity, intent.rootIdentity)
+            )
+            db.setTransactionSuccessful()
+            count + 1
+        } finally {
+            db.endTransaction()
+        }
+    }
+
+    override suspend fun markChapterIntentPublished(intent: SyncV1ChapterPublicationIntent, now: Long) = withContext(IO) {
+        val db = helper.writableDatabase
+        db.beginTransaction()
+        try {
+            val updated = db.update(
+                "chapter_publication_intent",
+                ContentValues().apply {
+                    put("publication_status", "published")
+                    put("publication_stage", "verified")
+                    put("updated_at", now)
+                },
+                "remote_path = ? AND raw_sha256 = ? AND service_identity = ? AND root_identity = ? AND publication_status = 'pending'",
+                arrayOf(intent.remotePath, intent.rawSha256, intent.serviceIdentity, intent.rootIdentity)
+            )
+            if (updated != 1) throw SyncV1Failure(SyncV1ErrorCode.CHAPTERS_INVALID)
+            db.insertWithOnConflict(
+                "chapter_publication_state",
+                null,
+                ContentValues().apply {
+                    put("service_identity", intent.serviceIdentity)
+                    put("root_identity", intent.rootIdentity)
+                    put("work_id", intent.workId)
+                    put("toc_revision", intent.tocRevision)
+                    put("snapshot_id", intent.snapshotId.toString())
+                    put("remote_path", intent.remotePath)
+                    put("raw_json_bytes", intent.rawJsonBytes)
+                    put("raw_sha256", intent.rawSha256)
+                    put("semantic_sha256", intent.semanticSha256)
+                    put("confirmed_at", now)
+                },
+                SQLiteDatabase.CONFLICT_REPLACE
+            )
+            val identityUpdated = db.update(
+                "work_identity",
+                ContentValues().apply { put("toc_revision", intent.tocRevision) },
+                "work_id = ?",
+                arrayOf(intent.workId)
+            )
+            if (identityUpdated != 1) throw SyncV1Failure(SyncV1ErrorCode.CHAPTERS_INVALID)
+            db.insertWithOnConflict(
+                "chapter_catalog_publication_state",
+                null,
+                ContentValues().apply {
+                    put("service_identity", intent.serviceIdentity)
+                    put("root_identity", intent.rootIdentity)
+                    put("catalog_dirty", 1)
+                },
+                SQLiteDatabase.CONFLICT_REPLACE
+            )
+            db.setTransactionSuccessful()
+        } finally {
+            db.endTransaction()
+        }
+    }
+
+    override suspend fun markChapterCatalogDirty(serviceIdentity: String, rootIdentity: String, dirty: Boolean) = withContext(IO) {
+        val db = helper.writableDatabase
+        db.insertWithOnConflict(
+            "chapter_catalog_publication_state",
+            null,
+            ContentValues().apply {
+                put("service_identity", serviceIdentity)
+                put("root_identity", rootIdentity)
+                put("catalog_dirty", if (dirty) 1 else 0)
+            },
+            SQLiteDatabase.CONFLICT_REPLACE
+        )
+        Unit
+    }
+
+    override suspend fun isChapterCatalogDirty(serviceIdentity: String, rootIdentity: String): Boolean = withContext(IO) {
+        helper.readableDatabase.rawQuery(
+            "SELECT catalog_dirty FROM chapter_catalog_publication_state WHERE service_identity = ? AND root_identity = ?",
+            arrayOf(serviceIdentity, rootIdentity)
+        ).use { cursor -> cursor.moveToFirst() && cursor.getInt(0) != 0 }
+    }
+
+    override suspend fun confirmedChapterRevisions(serviceIdentity: String, rootIdentity: String): Map<String, Long> = withContext(IO) {
+        helper.readableDatabase.rawQuery(
+            "SELECT work_id, toc_revision FROM chapter_publication_state WHERE service_identity = ? AND root_identity = ?",
+            arrayOf(serviceIdentity, rootIdentity)
+        ).use { cursor -> buildMap { while (cursor.moveToNext()) put(cursor.getString(0), cursor.getLong(1)) } }
+    }
+
+    override suspend fun clearChapterCatalogDirty(serviceIdentity: String, rootIdentity: String) = withContext(IO) {
+        helper.writableDatabase.update(
+            "chapter_catalog_publication_state",
+            ContentValues().apply { put("catalog_dirty", 0) },
+            "service_identity = ? AND root_identity = ?",
+            arrayOf(serviceIdentity, rootIdentity)
+        )
+        Unit
+    }
+
     override suspend fun saveRegistration(record: DeviceRegistrationRecord): Boolean = withContext(IO) {
         val db = helper.writableDatabase
         db.beginTransaction()
@@ -614,6 +835,36 @@ class SyncV1SQLiteStore(context: Context) : SyncV1Store, SyncV1CatalogStore {
         publishedAt = getLong(getColumnIndexOrThrow("published_at"))
     )
 
+    private fun Cursor.toChapterIntent() = SyncV1ChapterPublicationIntent(
+        workId = getString(getColumnIndexOrThrow("work_id")),
+        tocRevision = getLong(getColumnIndexOrThrow("toc_revision")),
+        snapshotId = UUID.fromString(getString(getColumnIndexOrThrow("snapshot_id"))),
+        remotePath = getString(getColumnIndexOrThrow("remote_path")),
+        rawJsonBytes = getBlob(getColumnIndexOrThrow("raw_json_bytes")),
+        rawSha256 = getString(getColumnIndexOrThrow("raw_sha256")),
+        semanticSha256 = getString(getColumnIndexOrThrow("semantic_sha256")),
+        putAttemptCount = getInt(getColumnIndexOrThrow("put_attempt_count")),
+        configIdentity = getString(getColumnIndexOrThrow("config_identity")),
+        serviceIdentity = getString(getColumnIndexOrThrow("service_identity")),
+        rootIdentity = getString(getColumnIndexOrThrow("root_identity")),
+        publicationStatus = getString(getColumnIndexOrThrow("publication_status")),
+        createdAt = getLong(getColumnIndexOrThrow("created_at")),
+        updatedAt = getLong(getColumnIndexOrThrow("updated_at"))
+    )
+
+    private fun Cursor.toChapterState() = SyncV1ChapterPublicationState(
+        workId = getString(getColumnIndexOrThrow("work_id")),
+        tocRevision = getLong(getColumnIndexOrThrow("toc_revision")),
+        snapshotId = UUID.fromString(getString(getColumnIndexOrThrow("snapshot_id"))),
+        remotePath = getString(getColumnIndexOrThrow("remote_path")),
+        rawJsonBytes = getBlob(getColumnIndexOrThrow("raw_json_bytes")),
+        rawSha256 = getString(getColumnIndexOrThrow("raw_sha256")),
+        semanticSha256 = getString(getColumnIndexOrThrow("semantic_sha256")),
+        serviceIdentity = getString(getColumnIndexOrThrow("service_identity")),
+        rootIdentity = getString(getColumnIndexOrThrow("root_identity")),
+        confirmedAt = getLong(getColumnIndexOrThrow("confirmed_at"))
+    )
+
     private fun Cursor.toWorkIdentity() = SyncV1WorkIdentity(
         workId = getString(getColumnIndexOrThrow("work_id")),
         tocRevision = getLong(getColumnIndexOrThrow("toc_revision")),
@@ -666,8 +917,8 @@ class SyncV1SQLiteStore(context: Context) : SyncV1Store, SyncV1CatalogStore {
     }
 }
 
-private class SyncV1DatabaseHelper(context: Context) :
-    SQLiteOpenHelper(context, DATABASE_NAME, null, DATABASE_VERSION) {
+private class SyncV1DatabaseHelper(context: Context, databaseName: String) :
+    SQLiteOpenHelper(context, databaseName, null, DATABASE_VERSION) {
 
     override fun onConfigure(db: SQLiteDatabase) {
         db.setForeignKeyConstraintsEnabled(true)
@@ -676,6 +927,7 @@ private class SyncV1DatabaseHelper(context: Context) :
     override fun onCreate(db: SQLiteDatabase) {
         createVersionOneSchema(db)
         createVersionTwoSchema(db)
+        createVersionThreeSchema(db)
     }
 
     private fun createVersionOneSchema(db: SQLiteDatabase) {
@@ -785,13 +1037,62 @@ private class SyncV1DatabaseHelper(context: Context) :
         )
     }
 
+    private fun createVersionThreeSchema(db: SQLiteDatabase) {
+        db.execSQL(
+            """CREATE TABLE chapter_publication_intent (
+                service_identity TEXT NOT NULL,
+                root_identity TEXT NOT NULL,
+                work_id TEXT NOT NULL,
+                toc_revision INTEGER NOT NULL CHECK (toc_revision > 0),
+                snapshot_id TEXT NOT NULL,
+                remote_path TEXT NOT NULL,
+                raw_json_bytes BLOB NOT NULL,
+                raw_sha256 TEXT NOT NULL,
+                semantic_sha256 TEXT NOT NULL,
+                put_attempt_count INTEGER NOT NULL CHECK (put_attempt_count BETWEEN 0 AND 2),
+                config_identity TEXT NOT NULL,
+                publication_status TEXT NOT NULL,
+                publication_stage TEXT NOT NULL DEFAULT 'prepared',
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL,
+                PRIMARY KEY(service_identity, root_identity, remote_path)
+            )""".trimIndent()
+        )
+        db.execSQL(
+            "CREATE INDEX sync_v1_pending_chapters ON chapter_publication_intent(service_identity, root_identity, publication_status, created_at)"
+        )
+        db.execSQL(
+            """CREATE TABLE chapter_publication_state (
+                service_identity TEXT NOT NULL,
+                root_identity TEXT NOT NULL,
+                work_id TEXT NOT NULL,
+                toc_revision INTEGER NOT NULL CHECK (toc_revision > 0),
+                snapshot_id TEXT NOT NULL,
+                remote_path TEXT NOT NULL,
+                raw_json_bytes BLOB NOT NULL,
+                raw_sha256 TEXT NOT NULL,
+                semantic_sha256 TEXT NOT NULL,
+                confirmed_at INTEGER NOT NULL,
+                PRIMARY KEY(service_identity, root_identity, work_id)
+            )""".trimIndent()
+        )
+        db.execSQL(
+            """CREATE TABLE chapter_catalog_publication_state (
+                service_identity TEXT NOT NULL,
+                root_identity TEXT NOT NULL,
+                catalog_dirty INTEGER NOT NULL,
+                PRIMARY KEY(service_identity, root_identity)
+            )""".trimIndent()
+        )
+    }
+
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
         if (oldVersion < 1) createVersionOneSchema(db)
         if (oldVersion < 2) createVersionTwoSchema(db)
+        if (oldVersion < 3) createVersionThreeSchema(db)
     }
 
     private companion object {
-        const val DATABASE_NAME = "legadoM_ink_sync.db"
-        const val DATABASE_VERSION = 2
+        const val DATABASE_VERSION = 3
     }
 }

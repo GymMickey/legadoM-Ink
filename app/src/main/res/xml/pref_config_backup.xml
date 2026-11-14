@@ -82,6 +82,22 @@
             app:allowDividerBelow="false"
             app:iconSpaceReserved="false" />
 
+        <io.legado.app.lib.prefs.Preference
+            android:key="sync_v1_publish_chapters"
+            android:summary="@string/sync_v1_publish_chapters_summary"
+            android:title="@string/sync_v1_publish_chapters"
+            app:allowDividerAbove="false"
+            app:allowDividerBelow="false"
+            app:iconSpaceReserved="false" />
+
+        <io.legado.app.lib.prefs.Preference
+            android:key="sync_v1_chapters_state"
+            android:summary="@string/sync_v1_chapters_not_published"
+            android:title="@string/sync_v1_chapters_state_title"
+            app:allowDividerAbove="false"
+            app:allowDividerBelow="false"
+            app:iconSpaceReserved="false" />
+
         <io.legado.app.lib.prefs.SwitchPreference
             android:defaultValue="true"
             android:key="syncBookProgress"

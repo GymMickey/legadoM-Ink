@@ -30,7 +30,12 @@ enum class SyncV1ErrorCode {
     CATALOG_TOO_LARGE,
     CATALOG_WORK_LIMIT,
     CATALOG_INVALID,
-    NO_READY_DEVICE
+    NO_READY_DEVICE,
+    CHAPTERS_INVALID,
+    CHAPTERS_LIMIT_EXCEEDED,
+    CHAPTERS_TOO_LARGE,
+    CHAPTER_TITLE_INVALID,
+    CHAPTER_DIRECTORY_UNAVAILABLE
 }
 
 class SyncV1Failure(
@@ -79,6 +84,11 @@ data class SyncV1UiState(
 data class SyncV1CatalogUiState(
     val isRunning: Boolean = false,
     val outcome: SyncV1CatalogOutcome? = null
+)
+
+data class SyncV1ChaptersUiState(
+    val isRunning: Boolean = false,
+    val outcome: SyncV1ChaptersOutcome? = null
 )
 
 data class SyncV1HttpResponse(
@@ -232,6 +242,115 @@ data class SyncV1CatalogPublicationState(
     val rootIdentity: String,
     val publishedAt: Long
 )
+
+enum class SyncV1ChapterSourceState { AVAILABLE, KNOWN_EMPTY, UNAVAILABLE, FAILED }
+
+data class SyncV1ChapterSourceResult(
+    val state: SyncV1ChapterSourceState,
+    val chapters: List<SyncV1ChapterInput> = emptyList(),
+    val errorCode: SyncV1ErrorCode? = null
+)
+
+data class SyncV1ChapterInput(val title: String, val localTocIndex: Long)
+
+data class SyncV1ChapterWorkInput(
+    /** Raw local bookUrl is consumed only for independent identity resolution and never logged/exported. */
+    val bookUrl: String,
+    val title: String,
+    val author: String,
+    val source: SyncV1ChapterSourceResult
+) {
+    override fun toString(): String = "SyncV1ChapterWorkInput(bookUrl=[redacted], source=${source.state}, chapters=${source.chapters.size})"
+}
+
+data class SyncV1ChapterRecord(
+    val chapterKey: String,
+    val title: String,
+    val localTocIndex: Long
+)
+
+data class ParsedChapters(
+    val deviceId: String,
+    val workId: String,
+    val tocRevision: Long,
+    val snapshotId: String,
+    val generatedAt: String,
+    val chapters: List<SyncV1ChapterRecord>
+)
+
+enum class SyncV1ChaptersPhase { PUBLISHED, UNCHANGED, PARTIAL_SUCCESS, FAILED }
+
+data class SyncV1ChapterWorkOutcome(
+    val sourceState: SyncV1ChapterSourceState,
+    val phase: SyncV1ChaptersPhase,
+    val chapterCount: Int = 0,
+    val tocRevision: Long? = null,
+    val errorCode: SyncV1ErrorCode? = null
+)
+
+data class SyncV1ChaptersOutcome(
+    val phase: SyncV1ChaptersPhase,
+    val totalWorks: Int,
+    val available: Int,
+    val knownEmpty: Int,
+    val unavailable: Int,
+    val failed: Int,
+    val published: Int,
+    val adopted: Int,
+    val unchanged: Int,
+    val catalogPublished: Boolean,
+    val workOutcomes: List<SyncV1ChapterWorkOutcome> = emptyList(),
+    val errorCode: SyncV1ErrorCode? = null
+)
+
+class SyncV1ChapterPublicationIntent(
+    val workId: String,
+    val tocRevision: Long,
+    val snapshotId: UUID,
+    val remotePath: String,
+    rawJsonBytes: ByteArray,
+    val rawSha256: String,
+    val semanticSha256: String,
+    val putAttemptCount: Int,
+    val configIdentity: String,
+    val serviceIdentity: String,
+    val rootIdentity: String,
+    val publicationStatus: String,
+    val createdAt: Long,
+    val updatedAt: Long,
+    val publicationStage: String = "prepared"
+) {
+    val rawJsonBytes = rawJsonBytes.copyOf()
+    override fun toString(): String =
+        "SyncV1ChapterPublicationIntent(workId=$workId, tocRevision=$tocRevision, snapshotId=$snapshotId, " +
+            "remotePath=$remotePath, rawBytes=${rawJsonBytes.size}, rawSha256=$rawSha256, " +
+            "putAttemptCount=$putAttemptCount, publicationStatus=$publicationStatus, publicationStage=$publicationStage)"
+}
+
+data class SyncV1ChapterPublicationState(
+    val workId: String,
+    val tocRevision: Long,
+    val snapshotId: UUID,
+    val remotePath: String,
+    val rawJsonBytes: ByteArray,
+    val rawSha256: String,
+    val semanticSha256: String,
+    val serviceIdentity: String,
+    val rootIdentity: String,
+    val confirmedAt: Long
+)
+
+interface SyncV1ChaptersStore {
+    suspend fun pendingChapterIntents(serviceIdentity: String, rootIdentity: String): List<SyncV1ChapterPublicationIntent>
+    suspend fun chapterPublicationState(serviceIdentity: String, rootIdentity: String, workId: String): SyncV1ChapterPublicationState?
+    suspend fun createChapterIntentIfNoPending(intent: SyncV1ChapterPublicationIntent): SyncV1ChapterPublicationIntent
+    suspend fun incrementChapterPutAttempt(intent: SyncV1ChapterPublicationIntent, now: Long): Int
+    suspend fun markChapterIntentPublished(intent: SyncV1ChapterPublicationIntent, now: Long)
+    suspend fun markChapterCatalogDirty(serviceIdentity: String, rootIdentity: String, dirty: Boolean = true)
+    suspend fun isChapterCatalogDirty(serviceIdentity: String, rootIdentity: String): Boolean
+    suspend fun confirmedChapterRevisions(serviceIdentity: String, rootIdentity: String): Map<String, Long>
+    suspend fun clearChapterCatalogDirty(serviceIdentity: String, rootIdentity: String)
+}
 
 /** A2 storage contract kept separate so the A1 registration API and its test doubles remain stable. */
 interface SyncV1CatalogStore {

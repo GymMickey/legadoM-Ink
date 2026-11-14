@@ -232,23 +232,36 @@ open class WebDav(
             throw WebDavHttpException(existing.statusCode, "WebDAV HTTP ${existing.statusCode}")
         }
 
-        val mkcol = requestSyncV1("MKCOL", maxBytes = 0)
-        if (mkcol.statusCode in 200..299) {
-            val verified = propFindRawResponse(depth = 0, maxBytes = maxPropFindBytes)
-            if ((verified.statusCode == 207 || verified.statusCode == 200)
-                && !verified.bodyTooLarge && hasCollection(verified.body)
-            ) return
-            if (verified.bodyTooLarge) throw WebDavResponseTooLargeException()
-            throw WebDavHttpException(verified.statusCode, "WebDAV directory verification failed")
+        val mkcol = try {
+            requestSyncV1("MKCOL", maxBytes = 0)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (failure: Exception) {
+            // MKCOL may have succeeded before the connection failed. Never proceed until PROPFIND proves it.
+            val confirmed = try {
+                confirmSyncV1Collection(maxPropFindBytes)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                false
+            }
+            if (confirmed) return
+            throw failure
         }
-        if (mkcol.statusCode == 405 || mkcol.statusCode == 409) {
-            val verified = propFindRawResponse(depth = 0, maxBytes = maxPropFindBytes)
-            if ((verified.statusCode == 207 || verified.statusCode == 200)
-                && !verified.bodyTooLarge && hasCollection(verified.body)
-            ) return
-            if (verified.bodyTooLarge) throw WebDavResponseTooLargeException()
+        if (mkcol.statusCode in 200..299) {
+            if (confirmSyncV1Collection(maxPropFindBytes)) return
+            throw WebDavHttpException(409, "WebDAV directory verification failed")
+        }
+        if (mkcol.statusCode == 405 || mkcol.statusCode == 409 || mkcol.statusCode in 500..599) {
+            if (confirmSyncV1Collection(maxPropFindBytes)) return
         }
         throw WebDavHttpException(mkcol.statusCode, "WebDAV HTTP ${mkcol.statusCode}")
+    }
+
+    private suspend fun confirmSyncV1Collection(maxBytes: Int): Boolean {
+        val response = propFindRawResponse(depth = 0, maxBytes = maxBytes)
+        if (response.bodyTooLarge) throw WebDavResponseTooLargeException()
+        return (response.statusCode == 207 || response.statusCode == 200) && hasCollection(response.body)
     }
 
     private suspend fun propFindRawResponse(depth: Int, maxBytes: Int): WebDavRawResponse =

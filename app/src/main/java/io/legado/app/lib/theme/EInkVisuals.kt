@@ -3,7 +3,6 @@ package io.legado.app.lib.theme
 import android.content.res.ColorStateList
 import android.graphics.Color
 import android.graphics.drawable.RippleDrawable
-import android.os.Build
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
@@ -12,7 +11,6 @@ import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import io.legado.app.R
 import io.legado.app.help.config.AppConfig
-import io.legado.app.lib.theme.view.ThemeRadioNoButton
 
 /**
  * Small, opt-in visual adjustments shared by the E-Ink target pages.
@@ -60,7 +58,7 @@ object EInkVisuals {
             }
             view.background is RippleDrawable -> view.background = null
         }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && view.foreground is RippleDrawable) {
+        if (view.foreground is RippleDrawable) {
             view.foreground = null
         }
         normalizeTextColor(view)
@@ -74,8 +72,6 @@ object EInkVisuals {
 
     private fun normalizeTextColor(view: View) {
         val textView = view as? TextView ?: return
-        // ThemeRadioNoButton owns checked/unchecked colors for all page animation options.
-        if (textView is ThemeRadioNoButton) return
         val color = textView.textColors.defaultColor
         if (Color.red(color) > 8 || Color.green(color) > 8 || Color.blue(color) > 8) return
 

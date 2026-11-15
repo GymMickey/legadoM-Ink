@@ -151,6 +151,23 @@
         app:isBottomBackground="true" />
 
     <io.legado.app.lib.prefs.SwitchPreference
+        android:defaultValue="false"
+        android:key="iReaderPageHEnabled"
+        android:summary="@string/ireader_page_h_summary"
+        android:title="@string/ireader_page_h_title"
+        app:iconSpaceReserved="false"
+        app:isBottomBackground="true" />
+
+    <io.legado.app.lib.prefs.NameListPreference
+        android:defaultValue="1"
+        android:entries="@array/ireader_page_h_speed_title"
+        android:entryValues="@array/ireader_page_h_speed_value"
+        android:key="iReaderPageHSpeed"
+        android:title="@string/ireader_page_h_speed_title"
+        app:iconSpaceReserved="false"
+        app:isBottomBackground="true" />
+
+    <io.legado.app.lib.prefs.SwitchPreference
         android:defaultValue="true"
         android:key="autoChangeSource"
         android:title="@string/auto_change_source"

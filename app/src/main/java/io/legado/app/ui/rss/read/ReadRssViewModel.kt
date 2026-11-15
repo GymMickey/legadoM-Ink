@@ -16,9 +16,9 @@ import io.legado.app.data.entities.RssArticle
 import io.legado.app.data.entities.RssSource
 import io.legado.app.data.entities.RssStar
 import io.legado.app.exception.NoStackTraceException
+import io.legado.app.help.TTS
 import io.legado.app.help.http.newCallResponseBody
 import io.legado.app.help.http.okHttpClient
-import io.legado.app.help.webView.VisibleWebMediaPolicy
 import io.legado.app.help.webView.WebJsExtensions.Companion.JS_URL
 import io.legado.app.model.analyzeRule.AnalyzeUrl
 import io.legado.app.model.rss.Rss
@@ -38,10 +38,12 @@ import java.util.Date
 class ReadRssViewModel(application: Application) : BaseViewModel(application) {
     var rssSource: RssSource? = null
     var rssArticle: RssArticle? = null
+    var tts: TTS? = null
     val contentLiveData = MutableLiveData<String>()
     val urlLiveData = MutableLiveData<AnalyzeUrl>()
     val htmlLiveData = MutableLiveData<String>()
     var rssStar: RssStar? = null
+    val upTtsMenuData = MutableLiveData<Boolean>()
     val upStarMenuData = MutableLiveData<Boolean>()
     val upTitleData = MutableLiveData<String>()
     var headerMap: Map<String, String> = emptyMap()
@@ -232,20 +234,19 @@ class ReadRssViewModel(application: Application) : BaseViewModel(application) {
     }
 
     fun clHtml(content: String, style: String?): String {
-        val filteredContent = VisibleWebMediaPolicy.filterRssHtml(content)
-        val htmlBuilder = StringBuilder(filteredContent.length + JS_URL.length + 200)
+        val htmlBuilder = StringBuilder(content.length + JS_URL.length + 200)
         if (hasPreloadJs) {
-            val headIndex = filteredContent.indexOf("<head>")
+            val headIndex = content.indexOf("<head>")
             if (headIndex >= 0) {
-                htmlBuilder.append(filteredContent, 0, headIndex + 6)
+                htmlBuilder.append(content, 0, headIndex + 6)
                 htmlBuilder.append(JS_URL)
-                htmlBuilder.append(filteredContent, headIndex + 6, filteredContent.length)
+                htmlBuilder.append(content, headIndex + 6, content.length)
             } else {
                 htmlBuilder.append("<head>").append(JS_URL).append("</head>")
-                htmlBuilder.append(filteredContent)
+                htmlBuilder.append(content)
             }
         } else {
-            htmlBuilder.append(filteredContent)
+            htmlBuilder.append(content)
         }
         val styleEndIndex = htmlBuilder.indexOf("</style>")
         return if (styleEndIndex >= 0) {
@@ -292,6 +293,29 @@ class ReadRssViewModel(application: Application) : BaseViewModel(application) {
             processedHtml = clHtml(processedHtml, source.startStyle ?: source.style)
             htmlLiveData.postValue(processedHtml)
         }
+    }
+
+    @Synchronized
+    fun readAloud(text: String) {
+        if (tts == null) {
+            tts = TTS().apply {
+                setSpeakStateListener(object : TTS.SpeakStateListener {
+                    override fun onStart() {
+                        upTtsMenuData.postValue(true)
+                    }
+
+                    override fun onDone() {
+                        upTtsMenuData.postValue(false)
+                    }
+                })
+            }
+        }
+        tts?.speak(text)
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        tts?.clearTts()
     }
 
 }

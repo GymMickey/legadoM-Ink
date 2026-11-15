@@ -57,9 +57,8 @@ interface BookDao {
         FROM books
         WHERE (type & 512) = 0
         ORDER BY durChapterTime DESC
-        LIMIT :limit
     """)
-    fun flowHomepageBooks(limit: Int): Flow<List<HomepageBookSummary>>
+    fun flowHomepageBooks(): Flow<List<HomepageBookSummary>>
 
     @Query("SELECT * FROM books WHERE type & ${BookType.audio} > 0")
     fun flowAudio(): Flow<List<Book>>

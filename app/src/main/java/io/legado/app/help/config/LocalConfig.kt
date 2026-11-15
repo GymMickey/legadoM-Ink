@@ -8,6 +8,9 @@ import io.legado.app.utils.putBoolean
 import io.legado.app.utils.putLong
 import io.legado.app.utils.putString
 import io.legado.app.utils.remove
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import splitties.init.appCtx
 
 /**
@@ -18,6 +21,22 @@ import splitties.init.appCtx
 @Suppress("ConstPropertyName")
 object LocalConfig : SharedPreferences
 by appCtx.getSharedPreferences("local_plus", Context.MODE_PRIVATE) {
+
+    private val _lastBackupFlow = MutableStateFlow(getLong("lastBackup", 0))
+    val lastBackupFlow: StateFlow<Long> = _lastBackupFlow.asStateFlow()
+
+    /**
+     * Last backup that was confirmed to have reached WebDAV.
+     *
+     * Older installations only have lastBackup.  Use it as a read-only
+     * migration fallback until the first remote upload is confirmed.
+     */
+    private val hasWebDavBackupTime = contains("lastWebDavBackupTime")
+    private val _lastWebDavBackupTime = MutableStateFlow(
+        getLong("lastWebDavBackupTime", 0).takeIf { hasWebDavBackupTime }
+            ?: getLong("lastBackup", 0)
+    )
+    val lastWebDavBackupTimeFlow: StateFlow<Long> = _lastWebDavBackupTime.asStateFlow()
 
     // SharedPreferences 中存储版本号的 key
     private const val versionCodeKey = "appVersionCode"
@@ -43,6 +62,15 @@ by appCtx.getSharedPreferences("local_plus", Context.MODE_PRIVATE) {
         get() = getLong("lastBackup", 0)
         set(value) {
             putLong("lastBackup", value)
+            _lastBackupFlow.value = value
+        }
+
+    /** Last timestamp for which the WebDAV upload was confirmed successful. */
+    var lastWebDavBackupTime: Long
+        get() = getLong("lastWebDavBackupTime", _lastWebDavBackupTime.value)
+        set(value) {
+            putLong("lastWebDavBackupTime", value)
+            _lastWebDavBackupTime.value = value
         }
 
     /**

@@ -48,15 +48,10 @@ object IReaderPageH {
         }
 
         @Synchronized
-        fun prepare(
-            forward: Boolean,
-            rotation: Int,
-            speedIndex: Int,
-            reverse: Boolean = false
-        ): Boolean {
+        fun prepare(forward: Boolean, rotation: Int, speedIndex: Int): Boolean {
             if (capability() != Capability.AVAILABLE) return false
             val activeBridge = bridge ?: return false
-            val effect = calculateEffect(forward, rotation, speedIndex, reverse)
+            val effect = calculateEffect(forward, rotation, speedIndex)
             return try {
                 activeBridge.postCommand("next-effect-type $effect")
                 activeBridge.setForceNextPostMode(FORCE_NEXT_PAGE_H)
@@ -79,23 +74,12 @@ object IReaderPageH {
 
     fun isAvailable(): Boolean = capability() == Capability.AVAILABLE
 
-    fun prepare(
-        forward: Boolean,
-        rotation: Int,
-        speedIndex: Int,
-        reverse: Boolean = false
-    ): Boolean {
-        return controller.prepare(forward, rotation, speedIndex, reverse)
+    fun prepare(forward: Boolean, rotation: Int, speedIndex: Int): Boolean {
+        return controller.prepare(forward, rotation, speedIndex)
     }
 
-    internal fun calculateEffect(
-        forward: Boolean,
-        rotation: Int,
-        speedIndex: Int,
-        reverse: Boolean = false
-    ): Int {
-        val physicalForward = if (reverse) !forward else forward
-        val directions = if (physicalForward) nextDirections else previousDirections
+    internal fun calculateEffect(forward: Boolean, rotation: Int, speedIndex: Int): Int {
+        val directions = if (forward) nextDirections else previousDirections
         val direction = directions[rotation.and(3)]
         val speed = speedBits[speedIndex.coerceIn(0, speedBits.lastIndex)]
         return direction or speed

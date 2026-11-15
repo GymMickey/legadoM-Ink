@@ -493,6 +493,14 @@ object AppConfig : SharedPreferences.OnSharedPreferenceChangeListener {
     val noAnimScrollPage: Boolean
         get() = appCtx.getPrefBoolean(PreferKey.noAnimScrollPage, false)
 
+    const val defaultSpeechRate = 5
+
+    var ttsTimer: Int
+        get() = appCtx.getPrefInt(PreferKey.ttsTimer, 0)
+        set(value) {
+            appCtx.putPrefInt(PreferKey.ttsTimer, value)
+        }
+
     var chineseConverterType: Int
         get() = appCtx.getPrefInt(PreferKey.chineseConverterType)
         set(value) {
@@ -785,6 +793,8 @@ object AppConfig : SharedPreferences.OnSharedPreferenceChangeListener {
 
     val showAddToShelfAlert get() = appCtx.getPrefBoolean(PreferKey.showAddToShelfAlert, true)
 
+    val ignoreAudioFocus get() = appCtx.getPrefBoolean(PreferKey.ignoreAudioFocus, false)
+
     val onlyLatestBackup get() = appCtx.getPrefBoolean(PreferKey.onlyLatestBackup, false)
 
     val autoCheckNewBackup get() = appCtx.getPrefBoolean(PreferKey.autoCheckNewBackup, true)
@@ -860,15 +870,6 @@ object AppConfig : SharedPreferences.OnSharedPreferenceChangeListener {
         get() = appCtx.getPrefBoolean(PreferKey.iReaderPageHEnabled, false)
         set(value) {
             appCtx.putPrefBoolean(PreferKey.iReaderPageHEnabled, value)
-        }
-
-    var iReaderPageHDirection: Int
-        get() = appCtx.getPrefString(PreferKey.iReaderPageHDirection, "0")
-            ?.toIntOrNull()
-            ?.coerceIn(0, 1)
-            ?: 0
-        set(value) {
-            appCtx.putPrefString(PreferKey.iReaderPageHDirection, value.coerceIn(0, 1).toString())
         }
 
     var iReaderPageHSpeed: Int

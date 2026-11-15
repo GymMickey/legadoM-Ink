@@ -529,26 +529,23 @@ object ReadBookConfig {
         return exportConfig
     }
 
-    fun getBackupConfigList(backgroundName: (String) -> String = FileUtils::getName): List<Config> {
-        return configList.map { normalizeBgPathsForBackup(it.copy(), backgroundName) }
+    fun getBackupConfigList(): List<Config> {
+        return configList.map { normalizeBgPathsForBackup(it.copy()) }
     }
 
-    fun getBackupShareConfig(backgroundName: (String) -> String = FileUtils::getName): Config {
-        return normalizeBgPathsForBackup(shareConfig.copy(), backgroundName)
+    fun getBackupShareConfig(): Config {
+        return normalizeBgPathsForBackup(shareConfig.copy())
     }
 
-    private fun normalizeBgPathsForBackup(
-        config: Config,
-        backgroundName: (String) -> String
-    ): Config {
+    private fun normalizeBgPathsForBackup(config: Config): Config {
         if (config.bgType == 2) {
-            config.bgStr = backgroundName(config.bgStr)
+            config.bgStr = FileUtils.getName(config.bgStr)
         }
         if (config.bgTypeNight == 2) {
-            config.bgStrNight = backgroundName(config.bgStrNight)
+            config.bgStrNight = FileUtils.getName(config.bgStrNight)
         }
         if (config.bgTypeEInk == 2) {
-            config.bgStrEInk = backgroundName(config.bgStrEInk)
+            config.bgStrEInk = FileUtils.getName(config.bgStrEInk)
         }
         return config
     }

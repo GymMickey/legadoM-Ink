@@ -8,121 +8,17 @@ import io.legado.app.utils.defaultSharedPreferences
 import io.legado.app.utils.fromJsonObject
 import splitties.init.appCtx
 
-private const val readConfigKey = "readConfig"
-private const val themeConfigKey = "themeConfig"
-private const val coverConfigKey = "coverConfig"
-private const val localBookKey = "localBook"
-private const val bookCacheKey = "bookCache"
-
-/** 只依赖配置 key 的备份/恢复策略，便于在 JVM 测试中验证。 */
-internal object BackupPreferencePolicy {
-
-    val deviceLocalPrefKeys = setOf(
-        PreferKey.defaultCover,
-        PreferKey.defaultCoverDark,
-        PreferKey.backupPath,
-        PreferKey.defaultBookTreeUri,
-        PreferKey.webDavDeviceName,
-        PreferKey.launcherIcon,
-        PreferKey.bitmapCacheSize,
-        PreferKey.webServiceWakeLock,
-        PreferKey.themeMode,
-        PreferKey.iReaderPageHEnabled,
-        PreferKey.iReaderPageHDirection,
-        PreferKey.iReaderPageHSpeed
-    )
-
-    val userIgnoreKeys = listOf(
-        readConfigKey,
-        themeConfigKey,
-        coverConfigKey,
-        PreferKey.bookshelfLayout,
-        PreferKey.showRss,
-        PreferKey.threadCount,
-        localBookKey,
-        bookCacheKey
-    )
-
-    private val readPrefKeys = setOf(
-        PreferKey.readStyleSelect,
-        PreferKey.comicStyleSelect,
-        PreferKey.shareLayout,
-        PreferKey.hideStatusBar,
-        PreferKey.hideNavigationBar,
-        PreferKey.autoReadSpeed,
-        PreferKey.clickActionTL,
-        PreferKey.clickActionTC,
-        PreferKey.clickActionTR,
-        PreferKey.clickActionML,
-        PreferKey.clickActionMC,
-        PreferKey.clickActionMR,
-        PreferKey.clickActionBL,
-        PreferKey.clickActionBC,
-        PreferKey.clickActionBR
-    )
-
-    val themePrefKeys = setOf(
-        PreferKey.dThemeName,
-        PreferKey.dNThemeName,
-        PreferKey.cPrimary,
-        PreferKey.cAccent,
-        PreferKey.cBackground,
-        PreferKey.cBBackground,
-        PreferKey.bgImage,
-        PreferKey.bgImageBlurring,
-        PreferKey.tNavBar,
-        PreferKey.cNPrimary,
-        PreferKey.cNAccent,
-        PreferKey.cNBackground,
-        PreferKey.cNBBackground,
-        PreferKey.bgImageN,
-        PreferKey.bgImageNBlurring,
-        PreferKey.tNavBarN
-    )
-
-    private val coverPrefKeys = setOf(
-        PreferKey.useDefaultCover,
-        PreferKey.loadCoverOnlyWifi,
-        PreferKey.coverShowName,
-        PreferKey.coverShowAuthor,
-        PreferKey.coverShowNameN,
-        PreferKey.coverShowAuthorN
-    )
-
-    fun shouldBackupPreference(key: String): Boolean {
-        return key !in deviceLocalPrefKeys
-    }
-
-    fun shouldRestorePreference(
-        key: String,
-        ignored: Map<String, Boolean>
-    ): Boolean {
-        if (key in deviceLocalPrefKeys) return false
-        return when {
-            ignored[readConfigKey] == true && key in readPrefKeys -> false
-            ignored[themeConfigKey] == true && key in themePrefKeys -> false
-            ignored[coverConfigKey] == true && key in coverPrefKeys -> false
-            key == PreferKey.bookshelfLayout && ignored[PreferKey.bookshelfLayout] == true -> false
-            key == PreferKey.folderLayout && ignored[PreferKey.bookshelfLayout] == true -> false
-            key == PreferKey.bookLayout && ignored[PreferKey.bookshelfLayout] == true -> false
-            key == PreferKey.showRss && ignored[PreferKey.showRss] == true -> false
-            key == PreferKey.threadCount && ignored[PreferKey.threadCount] == true -> false
-            else -> true
-        }
-    }
-}
-
 /**
  * 备份配置管理类
- *
+ * 
  * 管理备份和恢复时的配置忽略规则，用于：
  * - 控制哪些配置项不参与备份/恢复
  * - 用户可自定义忽略特定配置
- *
+ * 
  * 配置忽略分为两类：
  * 1. 自动忽略：固定不备份的配置（如备份路径、设备名等）
  * 2. 用户忽略：用户可选择忽略的配置（如阅读配置、主题配置等）
- *
+ * 
  * 忽略配置存储在 restoreIgnore.json 文件中
  */
 @Suppress("ConstPropertyName")
@@ -140,14 +36,40 @@ object BackupConfig {
 
     // ==================== 配置项Key常量 ====================
 
+    /** 阅读配置忽略Key */
+    private const val readConfigKey = "readConfig"
+
+    /** 主题模式忽略Key */
+    private const val themeConfigKey = "themeConfig"
+
+    /** 封面配置忽略Key */
+    private const val coverConfigKey = "coverConfig"
+
+    /** 本地书籍忽略Key */
+    private const val localBookKey = "localBook"
+
+    /** 书籍缓存备份Key */
+    private const val bookCacheKey = "bookCache"
+
     // ==================== 用户可配置忽略项 ====================
 
     /** 用户可配置忽略的配置Key列表 */
-    val ignoreKeys = BackupPreferencePolicy.userIgnoreKeys.toTypedArray()
+    val ignoreKeys = arrayOf(
+        readConfigKey,
+        PreferKey.themeMode,
+        themeConfigKey,
+        coverConfigKey,
+        PreferKey.bookshelfLayout,
+        PreferKey.showRss,
+        PreferKey.threadCount,
+        localBookKey,
+        bookCacheKey
+    )
 
     /** 用户可配置忽略的配置标题列表（用于UI显示） */
     val ignoreTitle = arrayOf(
         appCtx.getString(R.string.read_config),
+        appCtx.getString(R.string.theme_mode),
         appCtx.getString(R.string.theme_config),
         appCtx.getString(R.string.cover_config),
         appCtx.getString(R.string.bookshelf_layout),
@@ -163,17 +85,90 @@ object BackupConfig {
      * 自动忽略的SharedPreferences Key列表
      * 这些配置项固定不参与备份/恢复
      */
-    /** 固定保留在当前设备，不参与备份或恢复的配置。 */
-    val deviceLocalPrefKeys = BackupPreferencePolicy.deviceLocalPrefKeys
+    private val ignorePrefKeys = arrayOf(
+        PreferKey.defaultCover,
+        PreferKey.defaultCoverDark,
+        PreferKey.backupPath,
+        PreferKey.defaultBookTreeUri,
+        PreferKey.webDavDeviceName,
+        PreferKey.launcherIcon,
+        PreferKey.bitmapCacheSize,
+        PreferKey.webServiceWakeLock,
+    )
 
-    /** 判断配置 Key 是否可以写入新备份。用户恢复忽略项不影响备份。 */
-    fun shouldBackupPreference(key: String): Boolean {
-        return BackupPreferencePolicy.shouldBackupPreference(key)
-    }
+    // ==================== 分类配置Key ====================
 
-    /** 判断配置 Key 是否可以从备份恢复。固定设备项和用户忽略项均排除。 */
-    fun shouldRestorePreference(key: String): Boolean {
-        return BackupPreferencePolicy.shouldRestorePreference(key, ignoreConfig)
+    /** 阅读相关配置Key列表 */
+    private val readPrefKeys = arrayOf(
+        PreferKey.readStyleSelect,
+        PreferKey.comicStyleSelect,
+        PreferKey.shareLayout,
+        PreferKey.hideStatusBar,
+        PreferKey.hideNavigationBar,
+        PreferKey.autoReadSpeed,
+        PreferKey.clickActionTL,
+        PreferKey.clickActionTC,
+        PreferKey.clickActionTR,
+        PreferKey.clickActionML,
+        PreferKey.clickActionMC,
+        PreferKey.clickActionMR,
+        PreferKey.clickActionBL,
+        PreferKey.clickActionBC,
+        PreferKey.clickActionBR
+    )
+
+    /** 主题相关配置Key列表 */
+    private val themePrefKeys = arrayOf(
+        PreferKey.cPrimary,
+        PreferKey.cAccent,
+        PreferKey.cBackground,
+        PreferKey.cBBackground,
+        PreferKey.bgImage,
+        PreferKey.bgImageBlurring,
+        PreferKey.tNavBar,
+        PreferKey.cNPrimary,
+        PreferKey.cNAccent,
+        PreferKey.cNBackground,
+        PreferKey.cNBBackground,
+        PreferKey.bgImageN,
+        PreferKey.bgImageNBlurring,
+        PreferKey.tNavBarN
+    )
+
+    /** 封面相关配置Key列表 */
+    private val coverPrefKeys = arrayOf(
+        PreferKey.useDefaultCover,
+        PreferKey.loadCoverOnlyWifi,
+        PreferKey.coverShowName,
+        PreferKey.coverShowAuthor,
+        PreferKey.coverShowNameN,
+        PreferKey.coverShowAuthorN
+    )
+
+    /**
+     * 判断配置Key是否不应该被忽略
+     *
+     * 检查逻辑：
+     * 1. 是否在自动忽略列表中（始终忽略）
+     * 2. 是否在用户忽略列表中（根据用户配置）
+     *
+     * @param key SharedPreferences配置Key
+     * @return true表示应该备份/恢复，false表示应该忽略
+     */
+    fun keyIsNotIgnore(key: String): Boolean {
+        if (ignorePrefKeys.contains(key)) return false
+
+        return when {
+            ignoreReadConfig && readPrefKeys.contains(key) -> false
+            ignoreThemeConfig && themePrefKeys.contains(key) -> false
+            ignoreCoverConfig && coverPrefKeys.contains(key) -> false
+            PreferKey.themeMode == key && ignoreThemeMode -> false
+            // 书架布局相关配置统一处理
+            (PreferKey.bookshelfLayout == key || PreferKey.folderLayout == key || PreferKey.bookLayout == key) && ignoreBookshelfLayout -> false
+            PreferKey.showRss == key && ignoreShowRss -> false
+            PreferKey.threadCount == key && ignoreThreadCount -> false
+            else -> true
+        }
     }
 
     // ==================== 忽略配置属性 ====================
@@ -182,8 +177,12 @@ object BackupConfig {
     val ignoreReadConfig: Boolean
         get() = ignoreConfig[readConfigKey] == true
 
+    /** 是否忽略主题模式 */
+    private val ignoreThemeMode: Boolean
+        get() = ignoreConfig[PreferKey.themeMode] == true
+
     /** 是否忽略主题配置 */
-    val ignoreThemeConfig: Boolean
+    private val ignoreThemeConfig: Boolean
         get() = ignoreConfig[themeConfigKey] == true
 
     /** 是否忽略封面配置 */

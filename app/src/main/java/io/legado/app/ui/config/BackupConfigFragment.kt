@@ -34,6 +34,7 @@ import io.legado.app.help.storage.Backup
 import io.legado.app.help.storage.BackupConfig
 import io.legado.app.help.storage.BackupFileValidator
 import io.legado.app.help.storage.BackupInfoHelper
+import io.legado.app.help.storage.BackupResult
 import io.legado.app.help.storage.BackupSelectorConfig
 import io.legado.app.help.storage.BookCacheSelectorConfig
 import io.legado.app.help.storage.ImportOldData
@@ -362,10 +363,17 @@ class BackupConfigFragment : PreferenceFragment(),
         backupJob?.cancel()
         backupJob = lifecycleScope.launch {
             try {
-                Backup.backupLocked(requireContext(), backupPath) { itemName ->
+                val result = Backup.backupLocked(requireContext(), backupPath) { itemName ->
                     updateWaitDialog(getString(R.string.backup), itemName)
                 }
-                appCtx.toastOnUi(R.string.backup_success)
+                when (result) {
+                    is BackupResult.Success -> appCtx.toastOnUi(R.string.backup_success)
+                    is BackupResult.LocalOnly ->
+                        appCtx.toastOnUi(R.string.backup_webdav_local_only)
+                    is BackupResult.PartialSuccess ->
+                        appCtx.toastOnUi(R.string.backup_webdav_partial)
+                    is BackupResult.Failed -> throw result.cause
+                }
             } catch (e: Throwable) {
                 ensureActive()
                 AppLog.put("备份出错\n${e.localizedMessage}", e)

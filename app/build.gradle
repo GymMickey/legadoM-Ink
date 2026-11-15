@@ -107,9 +107,9 @@ android {
         minSdk 21
         targetSdk 36
         versionCode releaseCode()
-        versionName "3.26-beta33"
+        versionName "3.26-beta30"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
-        project.ext.set("archivesBaseName", "LegadoM-Ink_3.26-beta33")
+        project.ext.set("archivesBaseName", "LegadoM-Ink_3.26-beta30")
 
         // 👇 就是这行，修复渠道占位符报错
         manifestPlaceholders = [APP_CHANNEL_VALUE: "local"]
@@ -294,6 +294,17 @@ dependencies {
     implementation(libs.lifecycle.common.java8)
     implementation(libs.lifecycle.service)
     
+    //media
+    implementation(libs.media.media)
+    // For media playback using ExoPlayer
+    implementation(libs.media3.exoplayer)
+    //implementation(libs.media3.exoplayer.hls)
+    //implementation(libs.media3.ui)
+    // For loading data using the OkHttp network stack
+    implementation(libs.media3.datasource.okhttp)
+    // For exposing and controlling media sessions
+    //implementation "androidx.media3:media3-session:$media3_version"
+    
     //Splitties
     implementation(libs.splitties.appctx)
     implementation(libs.splitties.systemservices)
@@ -339,6 +350,9 @@ dependencies {
         exclude group: 'com.github.bumptech.glide', module: 'annotations'
         exclude group: 'com.github.bumptech.glide', module: 'glide'
     }
+    // 重新添加glide核心库以保持兼容
+    implementation(libs.glide.glide)
+    
     //webServer
     implementation(libs.nanohttpd.nanohttpd)
     implementation(libs.nanohttpd.websocket)
@@ -383,6 +397,8 @@ dependencies {
     
     //com.github.AmrDeveloper:CodeView代码编辑已集成到应用内
     //epubLib集成到应用内
+    // 椒盐歌词
+    implementation(libs.lyricViewx)
     // sora-editor代码编辑器,更丰富的编辑功能
     implementation(platform(libs.soraEditor.bom))
     implementation(libs.soraEditor.core)

@@ -105,15 +105,10 @@ object ImportOldData {
     }
 
     fun importOldSource(json: String): Int {
-        val sources = parseOldSources(json)
+        val sources = fromOldBookSources(json)
         appDb.bookSourceDao.insert(*sources.toTypedArray())
         return sources.size
     }
-
-    /**
-     * 只解析旧版书源格式，不触碰数据库，供备份恢复先校验后替换使用。
-     */
-    internal fun parseOldSources(json: String): List<BookSource> = fromOldBookSources(json)
 
     private fun importOldReplaceRule(json: String): Int {
         val rules = ReplaceAnalyzer.jsonToReplaceRules(json).getOrNull()

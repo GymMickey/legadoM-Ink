@@ -36,6 +36,7 @@ import io.legado.app.data.entities.BookSource
 import io.legado.app.exception.NoStackTraceException
 import io.legado.app.help.AppWebDav
 import io.legado.app.help.IntentData
+import io.legado.app.help.TTS
 import io.legado.app.help.book.BookHelp
 import io.legado.app.help.book.ContentProcessor
 import io.legado.app.help.book.isAudio
@@ -230,6 +231,7 @@ class ReadBookActivity : BaseReadBookActivity(),
     }
     private var menu: Menu? = null
     private var backupJob: Job? = null
+    private var tts: TTS? = null
     val textActionMenu: TextActionMenu by lazy {
         TextActionMenu(this, this)
     }
@@ -933,6 +935,13 @@ class ReadBookActivity : BaseReadBookActivity(),
     override fun onMenuActionFinally() = binding.run {
         textActionMenu.dismiss()
         readView.cancelSelect()
+    }
+
+    private fun speak(text: String) {
+        if (tts == null) {
+            tts = TTS()
+        }
+        tts?.speak(text)
     }
 
     /**
@@ -1664,6 +1673,7 @@ class ReadBookActivity : BaseReadBookActivity(),
 
     override fun onDestroy() {
         super.onDestroy()
+        tts?.clearTts()
         textActionMenu.dismiss()
         popupAction.dismiss()
         binding.webSearchPanel.onDestroy()

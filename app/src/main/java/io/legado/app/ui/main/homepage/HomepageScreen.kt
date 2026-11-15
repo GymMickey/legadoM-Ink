@@ -65,6 +65,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import io.legado.app.R
 import io.legado.app.data.entities.Book
 import io.legado.app.help.config.AppConfig
+import io.legado.app.lib.webdav.WebDavStatus
 import io.legado.app.ui.main.homepage.modules.HomepageBookCover
 import io.legado.app.ui.theme.pageAccentColor
 import io.legado.app.ui.theme.pageCardContainerColor
@@ -181,7 +182,7 @@ fun HomepageScreen(
                 // 4. WebDAV 备份卡
                 item(key = "webdav") {
                     WebDavCard(
-                        isConfigured = state.webDavConfigured,
+                        status = state.webDavStatus,
                         isBackingUp = state.isBackingUp,
                         lastBackupTime = state.lastBackupTime,
                         onBackup = { viewModel.onBackup() },
@@ -489,7 +490,7 @@ private fun RecentBookItem(book: Book, onClick: () -> Unit) {
 
 @Composable
 private fun WebDavCard(
-    isConfigured: Boolean,
+    status: WebDavStatus,
     isBackingUp: Boolean,
     lastBackupTime: Long,
     onBackup: () -> Unit,
@@ -499,6 +500,7 @@ private fun WebDavCard(
     border: BorderStroke?,
     isEInk: Boolean
 ) {
+    val isConfigured = status.isConfigured
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -530,7 +532,16 @@ private fun WebDavCard(
                         )
                         Text(
                             text = when {
-                                !isConfigured -> stringResource(R.string.homepage_webdav_not_configured)
+                                status == WebDavStatus.UNCONFIGURED ->
+                                    stringResource(R.string.homepage_webdav_not_configured)
+                                status == WebDavStatus.CHECKING ->
+                                    stringResource(R.string.homepage_webdav_checking)
+                                status == WebDavStatus.OFFLINE ->
+                                    stringResource(R.string.homepage_webdav_offline)
+                                status == WebDavStatus.AUTHENTICATION_FAILED ->
+                                    stringResource(R.string.homepage_webdav_authentication_failed)
+                                status == WebDavStatus.SERVER_ERROR ->
+                                    stringResource(R.string.homepage_webdav_server_error)
                                 lastBackupTime > 0 -> stringResource(
                                     R.string.homepage_webdav_last_backup,
                                     formatBackupTime(lastBackupTime)

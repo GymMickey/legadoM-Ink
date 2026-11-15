@@ -12,6 +12,7 @@ import io.legado.app.data.entities.rule.ExploreKind
 import io.legado.app.domain.model.BookShelfState
 import io.legado.app.domain.model.HomepageModuleType
 import io.legado.app.domain.model.ModuleDef
+import io.legado.app.lib.webdav.WebDavStatus
 
 // ==================== E-Ink 精简版仪表盘状态 ====================
 
@@ -58,11 +59,15 @@ data class HomepageDashboardState(
     val totalBooksRead: Int = 0,
     val totalReadTimeMs: Long = 0,
     val recentBooks: List<Book> = emptyList(),
-    val webDavConfigured: Boolean = false,
+    val webDavStatus: WebDavStatus = WebDavStatus.UNCONFIGURED,
     val isBackingUp: Boolean = false,
     val lastBackupTime: Long = 0L,
     val isBooksLoaded: Boolean = false,
-)
+) {
+    /** Compatibility getter for existing UI callers. */
+    val webDavConfigured: Boolean
+        get() = webDavStatus.isConfigured
+}
 
 // ==================== 旧模块系统类型（Phase 3+ 清理移除） ====================
 

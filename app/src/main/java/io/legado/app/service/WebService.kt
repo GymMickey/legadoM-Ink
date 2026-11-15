@@ -92,7 +92,24 @@ class WebService : BaseService() {
         upTile(true)
         networkChangedListener.register()
         networkChangedListener.onNetworkChanged = {
-            updateNetworkAddress()
+            val addressList = NetworkUtils.getLocalIPAddress()
+            notificationList.clear()
+            if (addressList.any()) {
+                notificationList.addAll(addressList.map { address ->
+                    getString(
+                        R.string.http_ip,
+                        address.hostAddress,
+                        getPort()
+                    )
+                })
+                notificationList.add(getString(R.string.web_service_http_warning))
+                hostAddress = notificationList.first()
+            } else {
+                hostAddress = getString(R.string.network_connection_unavailable)
+                notificationList.add(hostAddress)
+            }
+            startForegroundNotification()
+            postEvent(EventBus.WEB_SERVICE, hostAddress)
         }
     }
 
@@ -119,7 +136,6 @@ class WebService : BaseService() {
         }
         networkChangedListener.unRegister()
         isRun = false
-        hostAddress = ""
         if (httpServer?.isAlive == true) {
             httpServer?.stop()
         }
@@ -137,16 +153,27 @@ class WebService : BaseService() {
         if (webSocketServer?.isAlive == true) {
             webSocketServer?.stop()
         }
-        val address = NetworkUtils.getPreferredLocalIPv4()
-        if (address != null) {
+        val addressList = NetworkUtils.getLocalIPAddress()
+        if (addressList.any()) {
             val port = getPort()
             httpServer = HttpServer(port)
             webSocketServer = WebSocketServer(port + 1)
             try {
                 httpServer?.start(30_000)
                 webSocketServer?.start(1000 * 30) // 通信超时设置
+                notificationList.clear()
+                notificationList.addAll(addressList.map { address ->
+                    getString(
+                        R.string.http_ip,
+                        address.hostAddress,
+                        getPort()
+                    )
+                })
+                notificationList.add(getString(R.string.web_service_http_warning))
+                hostAddress = notificationList.first()
                 isRun = true
-                updateNetworkAddress(address)
+                postEvent(EventBus.WEB_SERVICE, hostAddress)
+                startForegroundNotification()
             } catch (e: IOException) {
                 toastOnUi(e.localizedMessage ?: "")
                 e.printOnDebug()
@@ -156,20 +183,6 @@ class WebService : BaseService() {
             toastOnUi("web service cant start, no ip address")
             stopSelf()
         }
-    }
-
-    private fun updateNetworkAddress(address: String? = NetworkUtils.getPreferredLocalIPv4()) {
-        notificationList.clear()
-        if (address != null) {
-            hostAddress = getString(R.string.http_ip, address, getPort())
-            notificationList.add(hostAddress)
-            notificationList.add(getString(R.string.web_service_http_warning))
-        } else {
-            hostAddress = getString(R.string.network_connection_unavailable)
-            notificationList.add(hostAddress)
-        }
-        postEvent(EventBus.WEB_SERVICE, hostAddress)
-        startForegroundNotification()
     }
 
     private fun getPort(): Int {

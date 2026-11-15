@@ -113,12 +113,11 @@ object BackupInfoHelper {
     )
 
     fun getDisplayName(fileName: String): String {
-        val canonicalName = BackupFileMappingPolicy.canonicalFileName(fileName)
-        return displayNameMap[canonicalName] ?: fileName
+        return displayNameMap[fileName] ?: fileName
     }
 
     private val selectorFileAliases = mapOf(
-        BackupFileMappingPolicy.legacyShareConfigFileName to ReadBookConfig.shareConfigFileName,
+        ReadBookConfig.shareConfigFileName to "readShareConfig.json",
         DirectLinkUpload.ruleFileName to "directLinkRule.json",
         BookCover.configFileName to "coverRule.json",
         CoverGalleryRepository.backupDirName to CoverGalleryRepository.backupDirName
@@ -160,11 +159,9 @@ object BackupInfoHelper {
             "rssStar.json" to { appDb.rssStarDao.count },
             "sourceSub.json" to { appDb.ruleSubDao.count },
             "replaceRule.json" to { appDb.replaceRuleDao.count },
-            "readRecord.json" to {
-                appDb.readRecordDao.count +
-                    appDb.readRecordDao.getDetailsCount() +
-                    appDb.readRecordDao.getSessionsCount()
-            },
+            "readRecord.json" to { appDb.readRecordDao.count },
+            "readRecordDetail.json" to { appDb.readRecordDao.getDetailsCount() },
+            "readRecordSession.json" to { appDb.readRecordDao.getSessionsCount() },
             "searchHistory.json" to { appDb.searchKeywordDao.count },
             "txtTocRule.json" to { appDb.txtTocRuleDao.count },
             "keyboardAssists.json" to { appDb.keyboardAssistsDao.count },
@@ -204,13 +201,10 @@ object BackupInfoHelper {
                 }
             }
         }
-        addItem(
-            "book_cache",
-            bookCacheSize +
-                chapterCount * 200L +
-                selectedBooks.size * 300L +
-                selectedBooks.size * 500L
-        )
+        addItem("book_cache", bookCacheSize)
+        addItem("bookChapterCache.json", chapterCount * 200L)
+        addItem("bookCacheIndex.json", selectedBooks.size * 300L)
+        addItem("bookCacheBooks.json", selectedBooks.size * 500L)
     }
 
     private fun addConfigItems(addItem: (String, Long) -> Unit) {
@@ -256,13 +250,9 @@ object BackupInfoHelper {
             "bookCacheIndex.json" -> BackupSelectorConfig.isSelected("bookCache")
 
             "backgroundImages" -> BackupSelectorConfig.isSelected("backgroundImages")
-            "readRecord.json",
-            "readRecordDetail.json",
-            "readRecordSession.json" -> BackupSelectorConfig.isSelected("readRecord")
             else -> {
-                val canonicalName = BackupFileMappingPolicy.canonicalFileName(fileName)
                 val key = BackupSelectorConfig.allItems.find {
-                    it.fileName == canonicalName || it.fileName == selectorFileAliases[canonicalName]
+                    it.fileName == fileName || it.fileName == selectorFileAliases[fileName]
                 }?.key ?: return true
                 BackupSelectorConfig.isSelected(key)
             }
@@ -360,9 +350,7 @@ object BackupInfoHelper {
             "rssStar" -> appDb.rssStarDao.count
             "sourceSub" -> appDb.ruleSubDao.count
             "replaceRule" -> appDb.replaceRuleDao.count
-            "readRecord" -> appDb.readRecordDao.count +
-                appDb.readRecordDao.getDetailsCount() +
-                appDb.readRecordDao.getSessionsCount()
+            "readRecord" -> appDb.readRecordDao.count
             "searchHistory" -> appDb.searchKeywordDao.count
             "txtTocRule" -> appDb.txtTocRuleDao.count
             "keyboardAssists" -> appDb.keyboardAssistsDao.count

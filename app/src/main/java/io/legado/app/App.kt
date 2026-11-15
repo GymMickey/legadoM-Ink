@@ -23,6 +23,7 @@ import io.legado.app.data.appDb
 import io.legado.app.data.entities.Book
 import io.legado.app.data.entities.BookChapter
 import io.legado.app.data.entities.BookSource
+import io.legado.app.data.entities.HttpTTS
 import io.legado.app.data.entities.RssSource
 import io.legado.app.data.entities.rule.BookInfoRule
 import io.legado.app.data.entities.rule.ContentRule
@@ -123,6 +124,9 @@ class App : Application() {
             }
             //调整排序序号
             SourceHelp.adjustSortNumber()
+            // WebDAV 检查和目录创建必须在后台执行；不要在 AppWebDav 对象初始化时阻塞主线程。
+            AppWebDav.startMonitoring()
+            AppWebDav.upConfig()
             //同步阅读记录
             if (AppConfig.syncBookProgress) {
                 AppWebDav.downloadAllBookProgress()
@@ -228,6 +232,7 @@ class App : Application() {
         RhinoScriptEngine
         RhinoWrapFactory.register(BookSource::class.java, NativeBaseSource.factory)
         RhinoWrapFactory.register(RssSource::class.java, NativeBaseSource.factory)
+        RhinoWrapFactory.register(HttpTTS::class.java, NativeBaseSource.factory)
         RhinoWrapFactory.register(ExploreRule::class.java, ReadOnlyJavaObject.factory)
         RhinoWrapFactory.register(SearchRule::class.java, ReadOnlyJavaObject.factory)
         RhinoWrapFactory.register(BookInfoRule::class.java, ReadOnlyJavaObject.factory)

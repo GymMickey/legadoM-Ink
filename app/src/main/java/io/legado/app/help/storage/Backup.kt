@@ -10,6 +10,7 @@ import io.legado.app.data.appDb
 import io.legado.app.exception.NoStackTraceException
 import io.legado.app.help.AppWebDav
 import io.legado.app.help.DirectLinkUpload
+import io.legado.app.help.WebDavUploadResult
 import io.legado.app.help.config.AppConfig
 import io.legado.app.help.config.LocalConfig
 import io.legado.app.help.config.ReadBookConfig
@@ -33,6 +34,7 @@ import io.legado.app.utils.openOutputStream
 import io.legado.app.utils.outputStream
 import io.legado.app.utils.writeToOutputStream
 import kotlinx.coroutines.Dispatchers.IO
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.sync.Mutex
@@ -77,14 +79,6 @@ data class BookCacheIndex(
     val folderName: String,
     val chapters: List<ChapterCacheInfo> = emptyList()  // 章节信息列表
 )
-
-class ReadBackgroundBackupPlan(
-    private val namesByReference: Map<String, String>,
-    val filesByBackupName: Map<String, File>
-) {
-    fun backupName(reference: String): String =
-        namesByReference[reference] ?: FileUtils.getName(reference)
-}
 
 /**
  * 备份管理类
@@ -154,7 +148,6 @@ object Backup {
             HighlightRuleStore.backupFileName,
             "readRecord.json",
             "readRecordDetail.json",
-            "readRecordSession.json",
             "searchHistory.json",
             "txtTocRule.json",
             "httpTTS.json",
@@ -239,60 +232,6 @@ object Backup {
         }.distinctBy { it.absolutePath }
     }
 
-    private fun resolveReadBackgroundFile(path: String): File? {
-        val file = if (File(path).isAbsolute || path.contains(File.separator)) {
-            File(path)
-        } else {
-            appCtx.externalFiles.getFile(READ_BG_DIR, path)
-        }
-        return file.takeIf { it.exists() && it.isFile }
-    }
-
-    private fun backgroundPaths(config: ReadBookConfig.Config): List<String> = buildList {
-        if (config.bgType == 2) add(config.bgStr)
-        if (config.bgTypeNight == 2) add(config.bgStrNight)
-        if (config.bgTypeEInk == 2) add(config.bgStrEInk)
-    }
-
-    private fun isReadConfigSelected(selectedFiles: Collection<String>): Boolean =
-        ReadBackgroundBackupPolicy.readConfigFileName in selectedFiles
-
-    private fun isReadShareConfigSelected(selectedFiles: Collection<String>): Boolean =
-        ReadBackgroundBackupPolicy.shareConfigFileName in
-            ReadBackgroundBackupPolicy.selectedReadConfigNames(selectedFiles)
-
-    internal fun createReadBackgroundBackupPlan(
-        selectedFiles: Collection<String>
-    ): ReadBackgroundBackupPlan {
-        val references = linkedSetOf<String>()
-        if (selectedFiles.contains("bg")) {
-            references.addAll(ReadBookConfig.getAllPicBgStr())
-        } else {
-            if (isReadConfigSelected(selectedFiles)) {
-                ReadBookConfig.configList.forEach { references.addAll(backgroundPaths(it)) }
-            }
-            if (isReadShareConfigSelected(selectedFiles)) {
-                runCatching { ReadBookConfig.shareConfig }
-                    .getOrNull()
-                    ?.let { references.addAll(backgroundPaths(it)) }
-            }
-        }
-
-        val sourceEntries = references.mapNotNull { reference ->
-            resolveReadBackgroundFile(reference)?.let { reference to it }
-        }
-        val namesBySource = ReadBackgroundBackupPolicy.assignBackupNames(
-            sourceEntries.map { it.second.absolutePath }
-        )
-        val namesByReference = sourceEntries.associate { (reference, file) ->
-            reference to namesBySource.getValue(file.absolutePath)
-        }
-        val filesByBackupName = sourceEntries.associate { (_, file) ->
-            namesBySource.getValue(file.absolutePath) to file
-        }
-        return ReadBackgroundBackupPlan(namesByReference, filesByBackupName)
-    }
-
     private fun resolveThemeBackgroundFile(path: String, prefKey: String): File? {
         val file = when {
             path.startsWith("http") -> {
@@ -323,19 +262,11 @@ object Backup {
             .writeText(GSON.toJson(runtimeCaches))
     }
 
-    fun stageBackgroundImageFiles(
-        rootPath: String,
-        readPlan: ReadBackgroundBackupPlan = createReadBackgroundBackupPlan(setOf("bg")),
-        includeThemeBackgrounds: Boolean = true
-    ) {
-        // 阅读界面背景图片统一放入 bg/，并只复制所选配置实际引用的文件。
-        val readBgDir = File(rootPath, ReadBackgroundBackupPolicy.backupDirectoryName)
-            .createFolderIfNotExist()
-        readPlan.filesByBackupName.forEach { (backupName, bgFile) ->
-            bgFile.copyTo(File(readBgDir, backupName), overwrite = true)
+    fun stageBackgroundImageFiles(rootPath: String) {
+        // 阅读界面背景图片：直接复制到暂存根目录
+        getReadBackgroundImageFiles().forEach { bgFile ->
+            bgFile.copyTo(File(rootPath, bgFile.name), overwrite = true)
         }
-        if (!includeThemeBackgrounds) return
-
         // 防御性清理：删除已有的 bgImage/bgImageN 子目录，
         // 避免因上次备份清理不彻底导致残留的已删除图片被一并打包
         val themePrefKeys = listOf(PreferKey.bgImage, PreferKey.bgImageN)
@@ -487,8 +418,8 @@ object Backup {
         context: Context,
         path: String?,
         onProgress: ((String) -> Unit)? = null
-    ) {
-        mutex.withLock {
+    ): BackupResult {
+        return mutex.withLock {
             withContext(IO) {
                 backup(context, path, onProgress)
             }
@@ -514,20 +445,14 @@ object Backup {
         context: Context,
         path: String?,
         onProgress: ((String) -> Unit)? = null
-    ) {
-        LogUtils.d(TAG, "开始备份 path:$path")
-        LocalConfig.lastBackup = System.currentTimeMillis()
-        val aes = BackupAES()
-        FileUtils.delete(backupPath)
+    ): BackupResult {
+        var webDavResult: WebDavUploadResult = WebDavUploadResult.NotConfigured
+        return try {
+            LogUtils.d(TAG, "开始备份 path:$path")
+            val aes = BackupAES()
+            FileUtils.delete(backupPath)
 
         val selectedFiles = BackupSelectorConfig.getSelectedFileNames()
-        val readBackgroundPlan = if (
-            isReadConfigSelected(selectedFiles) || isReadShareConfigSelected(selectedFiles)
-        ) {
-            createReadBackgroundBackupPlan(selectedFiles)
-        } else {
-            null
-        }
 
         // 导出数据库数据到JSON文件
         if (selectedFiles.contains("bookshelf.json")) {
@@ -565,15 +490,11 @@ object Backup {
             FileUtils.createFileIfNotExist(backupPath + File.separator + HighlightRuleStore.backupFileName)
                 .writeText(GSON.toJson(HighlightRuleStore.createBackupData(appCtx)))
         }
-        if (BackupFileMappingPolicy.readRecordFileNames.any(selectedFiles::contains)) {
+        if (selectedFiles.contains("readRecord.json")) {
             writeListToJson(appDb.readRecordDao.all, "readRecord.json", backupPath, onProgress)
+        }
+        if (selectedFiles.contains("readRecordDetail.json")) {
             writeListToJson(appDb.readRecordDao.getAllDetailsList(), "readRecordDetail.json", backupPath, onProgress)
-            writeListToJson(
-                appDb.readRecordDao.getAllSessionsList(),
-                "readRecordSession.json",
-                backupPath,
-                onProgress
-            )
         }
         if (selectedFiles.contains("searchHistory.json")) {
             writeListToJson(appDb.searchKeywordDao.all, "searchHistory.json", backupPath, onProgress)
@@ -619,18 +540,14 @@ object Backup {
         // 导出阅读配置
         if (selectedFiles.contains(ReadBookConfig.configFileName)) {
             onProgress?.invoke(BackupInfoHelper.getDisplayName(ReadBookConfig.configFileName))
-            GSON.toJson(
-                ReadBookConfig.getBackupConfigList(readBackgroundPlan?.let { it::backupName } ?: FileUtils::getName)
-            ).let {
+            GSON.toJson(ReadBookConfig.getBackupConfigList()).let {
                 FileUtils.createFileIfNotExist(backupPath + File.separator + ReadBookConfig.configFileName)
                     .writeText(it)
             }
         }
-        if (isReadShareConfigSelected(selectedFiles)) {
+        if (selectedFiles.contains(ReadBookConfig.shareConfigFileName)) {
             onProgress?.invoke(BackupInfoHelper.getDisplayName(ReadBookConfig.shareConfigFileName))
-            GSON.toJson(
-                ReadBookConfig.getBackupShareConfig(readBackgroundPlan?.let { it::backupName } ?: FileUtils::getName)
-            ).let {
+            GSON.toJson(ReadBookConfig.getBackupShareConfig()).let {
                 FileUtils.createFileIfNotExist(backupPath + File.separator + ReadBookConfig.shareConfigFileName)
                     .writeText(it)
             }
@@ -692,7 +609,7 @@ object Backup {
                 val edit = sp.edit()
                 edit.clear()
                 appCtx.defaultSharedPreferences.all.forEach { (key, value) ->
-                    if (BackupConfig.shouldBackupPreference(key)) {
+                    if (BackupConfig.keyIsNotIgnore(key)) {
                         when (key) {
                             // WebDav密码需要加密存储
                             PreferKey.webDavPassword -> {
@@ -720,13 +637,9 @@ object Backup {
         currentCoroutineContext().ensureActive()
 
         // 打包成ZIP文件
-        if (selectedFiles.contains("bg") || readBackgroundPlan != null) {
+        if (selectedFiles.contains("bg")) {
             onProgress?.invoke(BackupInfoHelper.getDisplayName("backgroundImages"))
-            stageBackgroundImageFiles(
-                rootPath = backupPath,
-                readPlan = readBackgroundPlan ?: createReadBackgroundBackupPlan(selectedFiles),
-                includeThemeBackgrounds = selectedFiles.contains("bg")
-            )
+            stageBackgroundImageFiles(backupPath)
         }
         if (selectedFiles.contains(HighlightRuleStore.backupFileName)) {
             stageHighlightRuleBackgroundFiles(backupPath)
@@ -757,7 +670,10 @@ object Backup {
         }
 
         onProgress?.invoke(BackupInfoHelper.getDisplayName("zip"))
-        if (ZipUtils.zipFiles(paths, zipFilePath)) {
+        if (!ZipUtils.zipFiles(paths, zipFilePath)) {
+            throw NoStackTraceException("本地备份打包失败")
+        }
+        run {
             onProgress?.invoke(BackupInfoHelper.getDisplayName("copyBackup"))
             // 复制到目标目录
             when {
@@ -774,25 +690,49 @@ object Backup {
                 }
             }
 
-            // 上传到WebDav云端
-            try {
-                onProgress?.invoke(BackupInfoHelper.getDisplayName("webDavBackup"))
-                AppWebDav.backUpWebDav(zipFileName)
-            } catch (e: Exception) {
-                AppLog.put("上传备份至webdav失败\n$e", e)
-            }
+            // 上传到WebDav云端；远端失败由结构化结果传回调用方。
+            onProgress?.invoke(BackupInfoHelper.getDisplayName("webDavBackup"))
+            webDavResult = AppWebDav.backUpWebDav(zipFileName)
         }
-
-        // 清理临时文件
-        onProgress?.invoke(BackupInfoHelper.getDisplayName("clearBackupCache"))
-        FileUtils.delete(backupPath)
-        FileUtils.delete(zipFilePath)
 
         currentCoroutineContext().ensureActive()
 
         // 上传背景图片到WebDav
         onProgress?.invoke(BackupInfoHelper.getDisplayName("webDavBackgroundImages"))
-        AppWebDav.upBgs(getBackgroundImageFiles().toTypedArray())
+        try {
+            AppWebDav.upBgs(getBackgroundImageFiles().toTypedArray())
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            AppLog.put("WebDav背景图片上传失败", e)
+        }
+
+        // Keep lastBackup as the legacy local-backup timestamp.  The homepage
+        // uses the separate timestamp that is written only after upload success.
+        val completedAt = System.currentTimeMillis()
+        LocalConfig.lastBackup = completedAt
+        if (webDavResult is WebDavUploadResult.Uploaded) {
+            LocalConfig.lastWebDavBackupTime = completedAt
+        }
+        when (webDavResult) {
+            WebDavUploadResult.Uploaded -> BackupResult.Success(WebDavUploadResult.Uploaded)
+            WebDavUploadResult.NotConfigured -> BackupResult.LocalOnly(WebDavUploadResult.NotConfigured)
+            WebDavUploadResult.NotVerified -> BackupResult.PartialSuccess(WebDavUploadResult.NotVerified)
+            is WebDavUploadResult.Failed -> BackupResult.PartialSuccess(webDavResult)
+        }
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        AppLog.put("备份失败", e)
+        BackupResult.Failed(e)
+    } finally {
+        // Temporary files must be removed even when export, upload, or the
+        // coroutine itself fails.
+        onProgress?.invoke(BackupInfoHelper.getDisplayName("clearBackupCache"))
+        FileUtils.delete(backupPath)
+        FileUtils.delete(zipFilePath)
+        FileUtils.delete(zipFilePath.replace("tmp_", ""))
+    }
     }
 
     /**

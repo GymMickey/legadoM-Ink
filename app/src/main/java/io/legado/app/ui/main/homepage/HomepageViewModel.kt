@@ -17,6 +17,7 @@ import io.legado.app.domain.model.HomepageModuleType
 import io.legado.app.help.AppWebDav
 import io.legado.app.help.book.BookMatcher
 import io.legado.app.help.config.LocalConfig
+import io.legado.app.help.storage.BackupResult
 import io.legado.app.help.storage.Backup
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Dispatchers.Default
@@ -28,6 +29,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -57,6 +60,9 @@ class HomepageViewModel(application: Application) : BaseViewModel(application) {
     val effects = _effects.asSharedFlow()
 
     private val _isBackingUp = MutableStateFlow(false)
+    private var backupJob: Job? = null
+    private var backupRequestId = 0L
+    private var restoreJob: Job? = null
     private val readRecordRepository = ReadRecordRepository(appDb.readRecordDao)
 
     private data class HomepageStats(
@@ -98,16 +104,18 @@ class HomepageViewModel(application: Application) : BaseViewModel(application) {
     val dashboardState: StateFlow<HomepageDashboardState> = combine(
         homepageBooksState,
         homepageStatsState,
+        AppWebDav.status,
+        LocalConfig.lastWebDavBackupTimeFlow,
         _isBackingUp
-    ) { books, stats, backingUp ->
+    ) { books, stats, webDavStatus, lastBackupTime, backingUp ->
         HomepageDashboardState(
             lastReadBook = books.lastReadBook,
             totalBooksRead = stats.totalBooksRead,
             totalReadTimeMs = stats.totalReadTimeMs,
             recentBooks = books.recentBooks,
-            webDavConfigured = AppWebDav.isOk,
+            webDavStatus = webDavStatus,
             isBackingUp = backingUp,
-            lastBackupTime = LocalConfig.lastBackup,
+            lastBackupTime = lastBackupTime,
             isBooksLoaded = books.isLoaded
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), HomepageDashboardState())
@@ -115,27 +123,49 @@ class HomepageViewModel(application: Application) : BaseViewModel(application) {
     // ==================== 操作 ====================
 
     fun onBackup() {
-        viewModelScope.launch {
+        backupJob?.cancel()
+        val requestId = ++backupRequestId
+        backupJob = viewModelScope.launch {
             _isBackingUp.value = true
             try {
-                withContext(Dispatchers.IO) {
+                val result = withContext(Dispatchers.IO) {
                     Backup.backupLocked(getApplication(), null)
                 }
-                _effects.emit(HomepageEffect.ShowSnackbar(context.getString(R.string.homepage_backup_done)))
+                val message = when (result) {
+                    is BackupResult.Success ->
+                        context.getString(R.string.homepage_backup_done)
+                    is BackupResult.LocalOnly ->
+                        context.getString(R.string.homepage_backup_local_only)
+                    is BackupResult.PartialSuccess ->
+                        context.getString(R.string.homepage_backup_partial)
+                    is BackupResult.Failed ->
+                        context.getString(
+                            R.string.homepage_backup_failed,
+                            result.cause.localizedMessage.orEmpty()
+                        )
+                }
+                _effects.emit(HomepageEffect.ShowSnackbar(message))
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 _effects.emit(HomepageEffect.ShowSnackbar(context.getString(R.string.homepage_backup_failed, e.message)))
             } finally {
-                _isBackingUp.value = false
+                if (requestId == backupRequestId) {
+                    _isBackingUp.value = false
+                }
             }
         }
     }
 
     fun onRestore() {
-        viewModelScope.launch {
+        restoreJob?.cancel()
+        restoreJob = viewModelScope.launch {
             // 按 lastModify 取真正最新的备份，避免文件名字母序与时间序不一致
             val latestBackupName = withContext(Dispatchers.IO) {
                 try {
                     AppWebDav.lastBackUp().getOrNull()?.displayName
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     null
                 }

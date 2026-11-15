@@ -103,8 +103,7 @@ class RemoteBookViewModel(application: Application) : BaseViewModel(application)
                 remoteBookWebDav = RemoteBookWebDav(
                     it.url,
                     authorization,
-                    AppConfig.remoteServerId,
-                    allowInsecure = AppConfig.unsafeWebDav
+                    AppConfig.remoteServerId
                 )
                 return@execute
             }

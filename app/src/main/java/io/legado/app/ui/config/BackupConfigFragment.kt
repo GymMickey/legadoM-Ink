@@ -10,7 +10,6 @@ import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
-import androidx.appcompat.app.AlertDialog
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
@@ -23,7 +22,6 @@ import androidx.lifecycle.lifecycleScope
 import androidx.preference.EditTextPreference
 import androidx.preference.ListPreference
 import androidx.preference.Preference
-import androidx.preference.SwitchPreferenceCompat
 import io.legado.app.R
 import io.legado.app.constant.AppLog
 import io.legado.app.constant.PreferKey
@@ -44,8 +42,6 @@ import io.legado.app.help.storage.ValidationResult
 import io.legado.app.help.storage.ValidationState
 import io.legado.app.lib.dialogs.alert
 import io.legado.app.lib.dialogs.selector
-import io.legado.app.lib.webdav.WebDavSecurityPolicy
-import io.legado.app.lib.webdav.WebDavStatus
 import io.legado.app.lib.permission.Permissions
 import io.legado.app.lib.permission.PermissionsCompat
 import io.legado.app.lib.prefs.fragment.PreferenceFragment
@@ -76,7 +72,6 @@ import kotlinx.coroutines.Dispatchers.Main
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import splitties.init.appCtx
@@ -147,46 +142,6 @@ class BackupConfigFragment : PreferenceFragment(),
 
     override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
         addPreferencesFromResource(R.xml.pref_config_backup)
-        findPreference<EditTextPreference>(PreferKey.webDavUrl)?.onPreferenceChangeListener =
-            Preference.OnPreferenceChangeListener { preference, newValue ->
-                val newUrl = newValue as? String ?: return@OnPreferenceChangeListener false
-                val oldUrl = preferenceManager.sharedPreferences
-                    ?.getString(preference.key, null)
-                if (WebDavSecurityPolicy.shouldConfirmHttpUrl(newUrl, oldUrl)) {
-                    AlertDialog.Builder(requireContext())
-                        .setMessage(R.string.webdav_http_confirmation)
-                        .setNegativeButton(android.R.string.cancel, null)
-                        .setPositiveButton(android.R.string.ok) { _, _ ->
-                            preferenceManager.sharedPreferences?.edit()
-                                ?.putString(preference.key, newUrl)?.apply()
-                        }
-                        .show()
-                    false
-                } else {
-                    true
-                }
-            }
-        findPreference<SwitchPreferenceCompat>(PreferKey.unsafeWebDav)?.onPreferenceChangeListener =
-            Preference.OnPreferenceChangeListener { preference, newValue ->
-                val enabled = newValue as? Boolean ?: false
-                if (WebDavSecurityPolicy.shouldConfirmCertificateBypass(
-                        AppConfig.unsafeWebDav,
-                        enabled
-                    )
-                ) {
-                    AlertDialog.Builder(requireContext())
-                        .setMessage(R.string.webdav_certificate_confirmation)
-                        .setNegativeButton(android.R.string.cancel, null)
-                        .setPositiveButton(android.R.string.ok) { _, _ ->
-                            preferenceManager.sharedPreferences?.edit()
-                                ?.putBoolean(preference.key, true)?.apply()
-                        }
-                        .show()
-                    false
-                } else {
-                    true
-                }
-            }
         findPreference<EditTextPreference>(PreferKey.webDavPassword)?.let {
             it.setOnBindEditTextListener { editText ->
                 editText.inputType =
@@ -228,9 +183,6 @@ class BackupConfigFragment : PreferenceFragment(),
         if (!LocalConfig.backupHelpVersionIsLast) {
             showHelp("webDavHelp")
         }
-        viewLifecycleOwner.lifecycleScope.launch {
-            AppWebDav.status.collect(::upWebDavStatus)
-        }
     }
 
     override fun onCreateMenu(menu: Menu, menuInflater: MenuInflater) {
@@ -266,42 +218,8 @@ class BackupConfigFragment : PreferenceFragment(),
                 viewModel.upWebDavConfig()
             }
 
-            PreferKey.unsafeWebDav,
-            PreferKey.webDavHttpsOnly -> viewModel.upWebDavConfig()
-
             PreferKey.webDavDeviceName -> upPreferenceSummary(key, getPrefString(key))
         }
-    }
-
-    private fun upWebDavStatus(status: WebDavStatus) {
-        val preference = findPreference<Preference>("webDavSecurityStatus") ?: return
-        val configured = !appCtx.getPrefString(PreferKey.webDavAccount).isNullOrBlank()
-                && !appCtx.getPrefString(PreferKey.webDavPassword).isNullOrBlank()
-        val notices = WebDavSecurityPolicy.settingsNotices(
-            isConfigured = configured,
-            url = appCtx.getPrefString(PreferKey.webDavUrl),
-            requireHttps = AppConfig.webDavHttpsOnly,
-            ignoreCertificateErrors = AppConfig.unsafeWebDav
-        ).map { notice ->
-            getString(
-                when (notice) {
-                    WebDavSecurityPolicy.SettingsNotice.HTTP_COMPATIBILITY -> R.string.webdav_http_compatibility_notice
-                    WebDavSecurityPolicy.SettingsNotice.CERTIFICATE_IGNORED -> R.string.webdav_certificate_ignored_notice
-                    WebDavSecurityPolicy.SettingsNotice.HTTPS_ONLY_CONFLICT -> R.string.webdav_https_only_conflict
-                }
-            )
-        }
-        val state = getString(
-            when (status) {
-                WebDavStatus.UNCONFIGURED -> R.string.webdav_status_unconfigured
-                WebDavStatus.CHECKING -> R.string.webdav_status_checking
-                WebDavStatus.AVAILABLE -> R.string.webdav_status_available
-                WebDavStatus.OFFLINE -> R.string.webdav_status_offline
-                WebDavStatus.AUTHENTICATION_FAILED -> R.string.webdav_status_authentication_failed
-                WebDavStatus.SERVER_ERROR -> R.string.webdav_status_server_error
-            }
-        )
-        preference.summary = (listOf(state) + notices).joinToString("\n")
     }
 
     private fun upPreferenceSummary(preferenceKey: String, value: String?) {

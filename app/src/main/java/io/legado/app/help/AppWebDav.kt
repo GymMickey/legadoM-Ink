@@ -84,12 +84,7 @@ object AppWebDav {
     private val bgWebDavUrl get() = "${rootWebDavUrl}background/"
 
     private fun appWebDav(path: String, authorization: Authorization): WebDav {
-        return WebDav(
-            path,
-            authorization,
-            requireHttps = AppConfig.webDavHttpsOnly,
-            allowInsecure = AppConfig.unsafeWebDav
-        )
+        return WebDav(path, authorization)
     }
 
     /** WebDav授权信息 */
@@ -220,9 +215,7 @@ object AppWebDav {
             appWebDav(bgWebDavUrl, currentAuthorization).makeAsDir()
             val remoteBookWebDav = RemoteBookWebDav(
                 "${rootWebDavUrl}books/",
-                currentAuthorization,
-                allowInsecure = AppConfig.unsafeWebDav,
-                requireHttps = AppConfig.webDavHttpsOnly
+                currentAuthorization
             )
             synchronized(monitorLock) {
                 if (generation == checkGeneration) {

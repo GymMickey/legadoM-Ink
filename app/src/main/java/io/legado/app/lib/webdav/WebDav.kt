@@ -5,7 +5,6 @@ import android.net.Uri
 import cn.hutool.core.net.URLDecoder
 import io.legado.app.constant.AppLog
 import io.legado.app.exception.NoStackTraceException
-import io.legado.app.help.config.AppConfig
 import io.legado.app.help.http.newCallResponse
 import io.legado.app.help.http.getWebDavClient
 import io.legado.app.help.http.text
@@ -44,19 +43,13 @@ import java.util.concurrent.TimeUnit
 open class WebDav(
     val path: String,
     val authorization: Authorization,
-    private val requireHttps: Boolean = AppConfig.webDavHttpsOnly,
-    private val allowInsecure: Boolean = AppConfig.unsafeWebDav,
 ) {
     companion object {
 
-        fun fromPath(
-            path: String,
-            allowInsecure: Boolean = AppConfig.unsafeWebDav,
-            requireHttps: Boolean = AppConfig.webDavHttpsOnly
-        ): WebDav {
+        fun fromPath(path: String): WebDav {
             val id = AnalyzeUrl(path).serverID ?: throw WebDavException("没有serverID")
             val authorization = Authorization(id)
-            return WebDav(path, authorization, requireHttps, allowInsecure)
+            return WebDav(path, authorization)
         }
 
         @SuppressLint("DateTimeFormatter")
@@ -95,11 +88,7 @@ open class WebDav(
         val raw = url.toString()
             .replace("davs://", "https://")
             .replace("dav://", "http://")
-        val parsed = kotlin.runCatching { raw.toHttpUrl() }.getOrNull() ?: return@lazy null
-        if (!WebDavSecurityPolicy.isUrlAllowed(raw, requireHttps)) {
-            throw WebDavException("应用同步和备份必须使用 HTTPS")
-        }
-        return@lazy parsed.toString()
+        return@lazy runCatching { raw.toHttpUrl().toString() }.getOrNull()
     }
     private val webDavClient by lazy {
         val authInterceptor = Interceptor { chain ->
@@ -112,10 +101,7 @@ open class WebDav(
             }
             chain.proceed(request)
         }
-        getWebDavClient(
-            requireHttps = requireHttps,
-            allowUnsafeCertificate = allowInsecure
-        ).newBuilder().run {
+        getWebDavClient().newBuilder().run {
             callTimeout(0, TimeUnit.SECONDS)
             interceptors().add(0, authInterceptor)
             addNetworkInterceptor(authInterceptor)
@@ -242,9 +228,7 @@ open class WebDav(
                     size = size,
                     contentType = contentType,
                     resourceType = resourceType,
-                    lastModify = lastModify,
-                    allowInsecure = allowInsecure,
-                    requireHttps = requireHttps
+                    lastModify = lastModify
                 )
                 list.add(webDavFile)
             } catch (e: MalformedURLException) {

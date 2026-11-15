@@ -653,19 +653,6 @@ object AppConfig : SharedPreferences.OnSharedPreferenceChangeListener {
             appCtx.putPrefBoolean(PreferKey.unsafeSsl, value)
         }
 
-    /** 仅在 HTTPS WebDAV 连接中跳过证书和主机名校验。 */
-    var unsafeWebDav: Boolean
-        get() = appCtx.getPrefBoolean(PreferKey.unsafeWebDav, false)
-        set(value) {
-            appCtx.putPrefBoolean(PreferKey.unsafeWebDav, value)
-        }
-
-    var webDavHttpsOnly: Boolean
-        get() = appCtx.getPrefBoolean(PreferKey.webDavHttpsOnly, false)
-        set(value) {
-            appCtx.putPrefBoolean(PreferKey.webDavHttpsOnly, value)
-        }
-
     private fun generateWebServiceToken(): String {
         val bytes = ByteArray(32)
         SecureRandom().nextBytes(bytes)

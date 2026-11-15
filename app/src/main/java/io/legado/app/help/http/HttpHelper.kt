@@ -216,18 +216,12 @@ val secureOkHttpClient: OkHttpClient by lazy {
     )
 }
 
-/**
- * WebDAV HTTP compatibility and HTTPS certificate bypass are independent options.
- * An HTTP-to-HTTPS redirect is allowed, while HTTPS-to-HTTP downgrade is blocked.
- */
-fun getWebDavClient(
-    requireHttps: Boolean = AppConfig.webDavHttpsOnly,
-    allowUnsafeCertificate: Boolean = AppConfig.unsafeWebDav
-): OkHttpClient = buildHttpClient(
+/** WebDAV allows HTTP and validates HTTPS with the system trust store. */
+fun getWebDavClient(): OkHttpClient = buildHttpClient(
     specs = sourceConnectionSpecs,
-    allowUnsafeSsl = allowUnsafeCertificate,
+    allowUnsafeSsl = false,
     useCronet = false,
-    requireHttps = requireHttps,
+    requireHttps = false,
     followSslRedirects = true,
     protectWebDavRedirects = true,
 )

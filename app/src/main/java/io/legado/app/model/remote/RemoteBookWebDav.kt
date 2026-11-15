@@ -20,18 +20,11 @@ import kotlinx.coroutines.runBlocking
 class RemoteBookWebDav(
     val rootBookUrl: String,
     val authorization: Authorization,
-    val serverID: Long? = null,
-    private val allowInsecure: Boolean = AppConfig.unsafeWebDav,
-    private val requireHttps: Boolean = AppConfig.webDavHttpsOnly
+    val serverID: Long? = null
 ) : RemoteBookManager() {
 
     private fun webDav(path: String): WebDav {
-        return WebDav(
-            path,
-            authorization,
-            requireHttps = requireHttps,
-            allowInsecure = allowInsecure
-        )
+        return WebDav(path, authorization)
     }
 
     init {

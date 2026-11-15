@@ -1,0 +1,132 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://legadom-ink.invalid/sync-v1/schemas/binding-request.schema.json",
+  "title": "Sync v1 immutable first-binding request event",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "protocol_version",
+    "schema_version",
+    "normalization_version",
+    "event_type",
+    "event_id",
+    "device_id",
+    "counter_epoch",
+    "sequence",
+    "created_at",
+    "content_id",
+    "title",
+    "author",
+    "local_toc_count"
+  ],
+  "properties": {
+    "protocol_version": {
+      "const": "sync-v1"
+    },
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "normalization_version": {
+      "const": "normalization-v1"
+    },
+    "event_type": {
+      "const": "binding_request"
+    },
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "device_id": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "counter_epoch": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "sequence": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?Z$"
+    },
+    "content_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512
+    },
+    "author": {
+      "type": "string",
+      "maxLength": 512
+    },
+    "local_toc_count": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "toc_candidates": {
+      "type": "array",
+      "maxItems": 20,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "local_toc_index",
+          "title"
+        ],
+        "properties": {
+          "local_toc_index": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          }
+        }
+      }
+    },
+    "selected_work_id": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "selection_from_event_id": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    }
+  },
+  "oneOf": [
+    {
+      "properties": {
+        "selected_work_id": false,
+        "selection_from_event_id": false
+      }
+    },
+    {
+      "properties": {
+        "selected_work_id": {},
+        "selection_from_event_id": {}
+      },
+      "required": [
+        "selected_work_id",
+        "selection_from_event_id"
+      ]
+    }
+  ]
+}

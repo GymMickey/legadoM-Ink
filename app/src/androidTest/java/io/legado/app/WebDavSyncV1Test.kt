@@ -4,6 +4,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import io.legado.app.constant.PreferKey
 import io.legado.app.help.AppWebDav
 import io.legado.app.help.storage.Backup
+import io.legado.app.help.storage.BackupResult
 import io.legado.app.help.config.LocalConfig
 import io.legado.app.help.WebDavUploadResult
 import io.legado.app.lib.webdav.Authorization
@@ -12,9 +13,14 @@ import io.legado.app.lib.webdav.WebDavCheckResult
 import io.legado.app.lib.webdav.WebDavHttpException
 import io.legado.app.lib.webdav.WebDavStatus
 import io.legado.app.utils.defaultSharedPreferences
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import okhttp3.tls.HandshakeCertificates
@@ -33,6 +39,7 @@ import java.io.IOException
 import java.net.ConnectException
 import java.net.UnknownHostException
 import java.net.SocketTimeoutException
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.TimeUnit
 import javax.net.ssl.SSLException
 
@@ -90,6 +97,43 @@ class WebDavSyncV1Test {
     }
 
     @Test
+    fun dnsFailureKeepsConfiguredPassword() = runBlocking {
+        val prefs = appCtx.defaultSharedPreferences
+        val previous = mapOf(
+            PreferKey.webDavUrl to prefs.getString(PreferKey.webDavUrl, null),
+            PreferKey.webDavAccount to prefs.getString(PreferKey.webDavAccount, null),
+            PreferKey.webDavPassword to prefs.getString(PreferKey.webDavPassword, null),
+            PreferKey.webDavDir to prefs.getString(PreferKey.webDavDir, null),
+            PreferKey.unsafeWebDav to prefs.getBoolean(PreferKey.unsafeWebDav, false)
+        )
+        try {
+            prefs.edit()
+                .putString(PreferKey.webDavUrl, "http://webdav-sync-v1.invalid/dav/")
+                .putString(PreferKey.webDavAccount, "account")
+                .putString(PreferKey.webDavPassword, "password")
+                .putString(PreferKey.webDavDir, "")
+                .putBoolean(PreferKey.unsafeWebDav, true)
+                .commit()
+
+            AppWebDav.upConfig()
+
+            assertEquals("password", prefs.getString(PreferKey.webDavPassword, null))
+            assertEquals(WebDavStatus.OFFLINE, AppWebDav.status.value)
+        } finally {
+            val editor = prefs.edit()
+            previous.forEach { (key, value) ->
+                when (value) {
+                    null -> editor.remove(key)
+                    is Boolean -> editor.putBoolean(key, value)
+                    else -> editor.putString(key, value.toString())
+                }
+            }
+            editor.commit()
+            AppWebDav.upConfig()
+        }
+    }
+
+    @Test
     fun tlsFailureIsNotAuthenticationFailure() = runBlocking {
         val certificate = HeldCertificate.Builder()
             .addSubjectAlternativeName("localhost")
@@ -114,7 +158,7 @@ class WebDavSyncV1Test {
         server.enqueue(
             MockResponse()
                 .setResponseCode(200)
-                .setBodyDelay(10, TimeUnit.SECONDS)
+                    .setHeadersDelay(10, TimeUnit.SECONDS)
                 .setBody("ok")
         )
         val job = launch {
@@ -248,6 +292,54 @@ class WebDavSyncV1Test {
     }
 
     @Test
+    fun structuredBackupResultUpdatesRemoteTimeOnlyAfterConfirmedUpload() {
+        val previous = LocalConfig.lastWebDavBackupTime
+        val failedAt = previous + 1_000L
+        val successAt = previous + 2_000L
+        try {
+            val localOnly = Backup.completeWebDavBackup(
+                WebDavUploadResult.NotConfigured,
+                failedAt
+            )
+            assertTrue(localOnly is BackupResult.LocalOnly)
+            assertEquals(previous, LocalConfig.lastWebDavBackupTimeFlow.value)
+
+            val unverified = Backup.completeWebDavBackup(
+                WebDavUploadResult.NotVerified,
+                failedAt
+            )
+            assertTrue(unverified is BackupResult.PartialSuccess)
+            assertEquals(previous, LocalConfig.lastWebDavBackupTimeFlow.value)
+
+            val failed = Backup.completeWebDavBackup(
+                WebDavUploadResult.Failed(WebDavStatus.SERVER_ERROR),
+                failedAt
+            )
+            assertTrue(failed is BackupResult.PartialSuccess)
+            assertEquals(previous, LocalConfig.lastWebDavBackupTimeFlow.value)
+
+            val uploaded = Backup.completeWebDavBackup(
+                WebDavUploadResult.Uploaded,
+                successAt
+            )
+            assertTrue(uploaded is BackupResult.Success)
+            assertEquals(successAt, LocalConfig.lastWebDavBackupTime)
+            assertEquals(successAt, LocalConfig.lastWebDavBackupTimeFlow.value)
+
+            val backgroundFailure = Backup.completeWebDavBackup(
+                WebDavUploadResult.Uploaded,
+                successAt + 1_000L,
+                WebDavStatus.SERVER_ERROR
+            )
+            assertTrue(backgroundFailure is BackupResult.PartialSuccess)
+            assertEquals(successAt + 1_000L, LocalConfig.lastWebDavBackupTimeFlow.value)
+            assertTrue(BackupResult.Failed(IOException("local failure")) is BackupResult)
+        } finally {
+            LocalConfig.lastWebDavBackupTime = previous
+        }
+    }
+
+    @Test
     fun failedNewConfigurationDoesNotMixWithOldSnapshot() = runBlocking {
         val prefs = appCtx.defaultSharedPreferences
         val previous = mapOf(
@@ -272,13 +364,18 @@ class WebDavSyncV1Test {
             val oldSnapshot = AppWebDav.activeConfig.value
             assertTrue(oldSnapshot != null)
 
-            prefs.edit().putString(PreferKey.webDavUrl, otherServer.url("/").toString()).commit()
+            prefs.edit()
+                .putString(PreferKey.webDavUrl, otherServer.url("/").toString())
+                .putString(PreferKey.webDavPassword, "new-password")
+                .commit()
             otherServer.enqueue(MockResponse().setResponseCode(401))
             AppWebDav.upConfig()
 
             assertEquals(WebDavStatus.AUTHENTICATION_FAILED, AppWebDav.status.value)
+            assertEquals("new-password", prefs.getString(PreferKey.webDavPassword, null))
             assertEquals(oldSnapshot?.rootUrl, AppWebDav.activeConfig.value?.rootUrl)
-            assertEquals("old-account", AppWebDav.authorization?.username)
+            assertEquals("old-account", AppWebDav.activeConfig.value?.authorization?.username)
+            assertEquals(null, AppWebDav.authorization)
             assertFalse(AppWebDav.activeConfig.value?.rootUrl == otherServer.url("/").toString())
 
             val zipFile = File(Backup.zipFilePath)
@@ -501,14 +598,27 @@ class WebDavSyncV1Test {
             repeat(5) { server.enqueue(MockResponse().setResponseCode(200)) }
             AppWebDav.upConfig()
             assertEquals(WebDavStatus.AVAILABLE, AppWebDav.status.value)
+            val requestCountBeforeCancellation = server.requestCount
             server.enqueue(
                 MockResponse().setResponseCode(200)
-                    .setBodyDelay(5, TimeUnit.SECONDS)
+                    .setHeadersDelay(5, TimeUnit.SECONDS)
             )
-            val job = launch { AppWebDav.upConfig() }
-            delay(100)
-            job.cancel()
-            job.join()
+            val cancellationPropagated = AtomicBoolean(false)
+            val job = launch(Dispatchers.IO) {
+                try {
+                    AppWebDav.upConfig()
+                } catch (e: CancellationException) {
+                    cancellationPropagated.set(true)
+                    throw e
+                }
+            }
+            withTimeout(5_000) {
+                while (server.requestCount <= requestCountBeforeCancellation) {
+                    kotlinx.coroutines.yield()
+                }
+            }
+            job.cancelAndJoin()
+            assertTrue(cancellationPropagated.get())
             assertEquals(WebDavStatus.AVAILABLE, AppWebDav.status.value)
         } finally {
             prefs.edit().remove(PreferKey.webDavUrl)
@@ -527,6 +637,65 @@ class WebDavSyncV1Test {
                 }
             }
             editor.commit()
+        }
+    }
+
+    @Test
+    fun explicitCheckReplacesBackgroundCheckWithoutCancellingEitherCaller() = runBlocking {
+        val prefs = appCtx.defaultSharedPreferences
+        val previous = mapOf(
+            PreferKey.webDavUrl to prefs.getString(PreferKey.webDavUrl, null),
+            PreferKey.webDavAccount to prefs.getString(PreferKey.webDavAccount, null),
+            PreferKey.webDavPassword to prefs.getString(PreferKey.webDavPassword, null),
+            PreferKey.webDavDir to prefs.getString(PreferKey.webDavDir, null),
+            PreferKey.unsafeWebDav to prefs.getBoolean(PreferKey.unsafeWebDav, false)
+        )
+        try {
+            prefs.edit()
+                .putString(PreferKey.webDavUrl, server.url("/").toString())
+                .putString(PreferKey.webDavAccount, "account")
+                .putString(PreferKey.webDavPassword, "password")
+                .putString(PreferKey.webDavDir, "backup")
+                .putBoolean(PreferKey.unsafeWebDav, true)
+                .commit()
+
+            server.enqueue(
+                MockResponse().setResponseCode(200)
+                    .setHeadersDelay(10, TimeUnit.SECONDS)
+            )
+            val backgroundCheck = async(Dispatchers.IO) { AppWebDav.upConfig() }
+            assertTrue(server.takeRequest(5, TimeUnit.SECONDS) != null)
+
+            server.enqueue(
+                MockResponse().setResponseCode(200)
+                    .setHeadersDelay(500, TimeUnit.MILLISECONDS)
+            )
+            repeat(4) { server.enqueue(MockResponse().setResponseCode(200)) }
+            val explicitCheck = async(Dispatchers.IO) { AppWebDav.upConfig() }
+            assertTrue(server.takeRequest(5, TimeUnit.SECONDS) != null)
+            delay(100)
+            assertFalse(backgroundCheck.isCompleted)
+            explicitCheck.await()
+            backgroundCheck.await()
+
+            assertEquals(WebDavStatus.AVAILABLE, AppWebDav.status.value)
+            assertEquals(
+                AppWebDav.webDavConfigIdentity(
+                    server.url("/backup/").toString(), "account", "password", true
+                ),
+                AppWebDav.activeConfig.value?.configIdentity
+            )
+        } finally {
+            val editor = prefs.edit()
+            previous.forEach { (key, value) ->
+                when (value) {
+                    null -> editor.remove(key)
+                    is Boolean -> editor.putBoolean(key, value)
+                    else -> editor.putString(key, value.toString())
+                }
+            }
+            editor.commit()
+            AppWebDav.upConfig()
         }
     }
 
@@ -551,10 +720,10 @@ class WebDavSyncV1Test {
                 .commit()
             server.enqueue(
                 MockResponse().setResponseCode(200)
-                    .setBodyDelay(5, TimeUnit.SECONDS)
+                    .setHeadersDelay(5, TimeUnit.SECONDS)
             )
-            val oldCheck = launch { AppWebDav.upConfig() }
-            delay(100)
+            val oldCheck = async(Dispatchers.IO) { AppWebDav.upConfig() }
+            assertTrue(server.takeRequest(5, TimeUnit.SECONDS) != null)
 
             prefs.edit()
                 .putString(PreferKey.webDavUrl, newServer.url("/").toString())
@@ -562,9 +731,17 @@ class WebDavSyncV1Test {
                 .putString(PreferKey.webDavPassword, "new-password")
                 .putString(PreferKey.webDavDir, "new")
                 .commit()
-            repeat(5) { newServer.enqueue(MockResponse().setResponseCode(200)) }
-            AppWebDav.upConfig()
-            oldCheck.join()
+            newServer.enqueue(
+                MockResponse().setResponseCode(200)
+                    .setHeadersDelay(500, TimeUnit.MILLISECONDS)
+            )
+            repeat(4) { newServer.enqueue(MockResponse().setResponseCode(200)) }
+            val newCheck = async(Dispatchers.IO) { AppWebDav.upConfig() }
+            assertTrue(newServer.takeRequest(5, TimeUnit.SECONDS) != null)
+            delay(100)
+            assertFalse(oldCheck.isCompleted)
+            newCheck.await()
+            oldCheck.await()
 
             assertEquals(WebDavStatus.AVAILABLE, AppWebDav.status.value)
             assertTrue(AppWebDav.activeConfig.value?.rootUrl?.contains("new") == true)
@@ -593,5 +770,15 @@ class WebDavSyncV1Test {
     @Test
     fun authorizationToStringDoesNotExposeSecret() {
         assertFalse(Authorization("account", "password").toString().contains("password"))
+    }
+
+    @Test
+    fun configurationIdentityIncludesAllEndpointAndSecurityInputs() {
+        val rootUrl = "https://example.invalid/dav/"
+        val base = AppWebDav.webDavConfigIdentity(rootUrl, "account", "password", false)
+        assertFalse(base == AppWebDav.webDavConfigIdentity("https://other.invalid/dav/", "account", "password", false))
+        assertFalse(base == AppWebDav.webDavConfigIdentity(rootUrl, "other-account", "password", false))
+        assertFalse(base == AppWebDav.webDavConfigIdentity(rootUrl, "account", "other-password", false))
+        assertFalse(base == AppWebDav.webDavConfigIdentity(rootUrl, "account", "password", true))
     }
 }

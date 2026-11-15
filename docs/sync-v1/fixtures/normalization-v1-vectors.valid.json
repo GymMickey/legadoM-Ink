@@ -1,0 +1,88 @@
+{
+  "protocol_version": "sync-v1",
+  "schema_version": "1.0.0",
+  "normalization_version": "normalization-v1",
+  "unicode_data_version": "15.1.0",
+  "vectors": [
+    {
+      "case_id": "line-endings-crlf-cr",
+      "description": "CRLF and CR become LF",
+      "input_text": "甲\r\n乙\r丙",
+      "normalized_text": "甲\n乙\n丙",
+      "normalized_codepoint_count": 5,
+      "sha256": "edc2cbb4af5c52f083f33f050a5f8e5fc9e1ce8ee09542d1ae2a6a7df9bdd0dd"
+    },
+    {
+      "case_id": "chinese-punctuation",
+      "description": "Chinese punctuation is preserved",
+      "input_text": "你好，世界！",
+      "normalized_text": "你好，世界！",
+      "normalized_codepoint_count": 6,
+      "sha256": "fa65d94b3532d83fd24ada92dadecfc7ae5370e6dbf762133027a89c2e7202f1"
+    },
+    {
+      "case_id": "nfc-composition",
+      "description": "A decomposed Latin letter is composed with NFC",
+      "input_text": "é",
+      "normalized_text": "é",
+      "normalized_codepoint_count": 1,
+      "sha256": "4a99557e4033c3539de2eb65472017cad5f9557f7a0625a09f1c3f6e2ba69c4c"
+    },
+    {
+      "case_id": "non-bmp-emoji",
+      "description": "A non-BMP emoji counts as one Unicode code point",
+      "input_text": "A😀B",
+      "normalized_text": "A😀B",
+      "normalized_codepoint_count": 3,
+      "sha256": "aacfb6637bd0df2238641c5b15898d1a61df3157b1d0b4099f590fc0b0b6fbbd"
+    },
+    {
+      "case_id": "collapsed-whitespace",
+      "description": "Horizontal whitespace collapses and blank lines are capped at one",
+      "input_text": "甲   乙\t\t丙 丁\n\n\n戊",
+      "normalized_text": "甲 乙 丙 丁\n\n戊",
+      "normalized_codepoint_count": 10,
+      "sha256": "6be2302bc0668cfd031319342a7e03813ac9056554b87c75756ad1be82f121d9"
+    },
+    {
+      "case_id": "removed-zero-width-space",
+      "description": "U+200B, U+FEFF and U+2060 are removed",
+      "input_text": "甲​﻿⁠乙",
+      "normalized_text": "甲乙",
+      "normalized_codepoint_count": 2,
+      "sha256": "f73ab1f5c2b9542c9cea79597b69a5c4dc106721d7de6fa9e4303c0fe45cfe3d"
+    },
+    {
+      "case_id": "preserved-zwj",
+      "description": "U+200D ZERO WIDTH JOINER is preserved inside a non-BMP emoji sequence",
+      "input_text": "👩‍💻",
+      "normalized_text": "👩‍💻",
+      "normalized_codepoint_count": 3,
+      "sha256": "427274538f1f24ef137872891551ffb4263f6edd90c80c533534578e8a5a9893"
+    },
+    {
+      "case_id": "preserved-zwnj",
+      "description": "U+200C ZERO WIDTH NON-JOINER is preserved",
+      "input_text": "A‌B",
+      "normalized_text": "A‌B",
+      "normalized_codepoint_count": 3,
+      "sha256": "8b3c8bf6189b60fd91390c7805f516012f8a2ea4cf065a86fa7e59979cf3ec54"
+    },
+    {
+      "case_id": "preserved-variation-selector",
+      "description": "U+FE0F variation selector is preserved",
+      "input_text": "❤️",
+      "normalized_text": "❤️",
+      "normalized_codepoint_count": 2,
+      "sha256": "16e81418a36c58995e00aeb9c261c9ef7fb739b37c72351f511dc3b3a89e5962"
+    },
+    {
+      "case_id": "non-bmp-u1cc00-codepoint",
+      "description": "U+1CC00 is preserved and counted as one non-BMP Unicode code point; this vector is not a Unicode-version detector",
+      "input_text": "A𜰀B",
+      "normalized_text": "A𜰀B",
+      "normalized_codepoint_count": 3,
+      "sha256": "af101faf7a06694ff4f0afe44d937b68f5fc1a4b8afb52feedf228ac8d86f6b4"
+    }
+  ]
+}

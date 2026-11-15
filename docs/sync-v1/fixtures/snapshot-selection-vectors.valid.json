@@ -1,0 +1,233 @@
+{
+  "protocol_version": "sync-v1",
+  "schema_version": "1.0.0",
+  "normalization_version": "normalization-v1",
+  "vectors": [
+    {
+      "case_id": "catalog-revision-gap",
+      "projection_kind": "catalog",
+      "candidates": [
+        {
+          "revision": 1,
+          "snapshot_id": "77777777-7777-4777-8777-000000000001",
+          "path_revision": 1,
+          "path_snapshot_id": "77777777-7777-4777-8777-000000000001",
+          "path": "android/catalog/1-77777777-7777-4777-8777-000000000001.json",
+          "device_id": "11111111-1111-4111-8111-111111111111",
+          "work_id": null,
+          "payload_utf8": "{\"protocol_version\":\"sync-v1\",\"schema_version\":\"1.0.0\",\"normalization_version\":\"normalization-v1\",\"device_id\":\"11111111-1111-4111-8111-111111111111\",\"catalog_revision\":1,\"snapshot_id\":\"77777777-7777-4777-8777-000000000001\",\"generated_at\":\"2026-11-10T08:00:00Z\",\"works\":[]}",
+          "payload_sha256": "09afc0e887ccf225011e06365dfbb99489a5ebe6a4c4b5f6bb57e9f4ce075456"
+        },
+        {
+          "revision": 3,
+          "snapshot_id": "77777777-7777-4777-8777-000000000002",
+          "path_revision": 3,
+          "path_snapshot_id": "77777777-7777-4777-8777-000000000002",
+          "path": "android/catalog/3-77777777-7777-4777-8777-000000000002.json",
+          "device_id": "11111111-1111-4111-8111-111111111111",
+          "work_id": null,
+          "payload_utf8": "{\"protocol_version\":\"sync-v1\",\"schema_version\":\"1.0.0\",\"normalization_version\":\"normalization-v1\",\"device_id\":\"11111111-1111-4111-8111-111111111111\",\"catalog_revision\":3,\"snapshot_id\":\"77777777-7777-4777-8777-000000000002\",\"generated_at\":\"2026-11-10T08:00:00Z\",\"works\":[]}",
+          "payload_sha256": "19836349f7afea6982883b85759a256353acfe46a1c3425190280d8b18c0f68e"
+        }
+      ],
+      "expected_outcome": "selected",
+      "selected_revision": 3,
+      "selected_snapshot_id": "77777777-7777-4777-8777-000000000002"
+    },
+    {
+      "case_id": "same-revision-identical-object",
+      "projection_kind": "progress",
+      "candidates": [
+        {
+          "revision": 5,
+          "snapshot_id": "77777777-7777-4777-8777-000000000003",
+          "path_revision": 5,
+          "path_snapshot_id": "77777777-7777-4777-8777-000000000003",
+          "path": "android/progress/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/5-77777777-7777-4777-8777-000000000003.json",
+          "device_id": "11111111-1111-4111-8111-111111111111",
+          "work_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+          "payload_utf8": "{\"protocol_version\":\"sync-v1\",\"schema_version\":\"1.0.0\",\"normalization_version\":\"normalization-v1\",\"work_id\":\"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa\",\"toc_revision\":7,\"progress_revision\":5,\"snapshot_id\":\"77777777-7777-4777-8777-000000000003\",\"chapter_title\":\"第一章\",\"local_toc_index\":0,\"visible_char_offset\":null,\"visible_char_count\":null,\"chapter_fraction\":null,\"chapter_fraction_is_estimated\":true,\"chapter_text_fingerprint\":null,\"locator_confidence\":\"chapter\",\"source_event_id\":null,\"updated_by_device_id\":\"11111111-1111-4111-8111-111111111111\",\"updated_at\":\"2026-11-10T08:00:00Z\"}",
+          "payload_sha256": "5072e5e67f493994cef693fff1ba29fb1c00f5de89334332c42d3d23d05a6774"
+        },
+        {
+          "revision": 5,
+          "snapshot_id": "77777777-7777-4777-8777-000000000003",
+          "path_revision": 5,
+          "path_snapshot_id": "77777777-7777-4777-8777-000000000003",
+          "path": "android/progress/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/5-77777777-7777-4777-8777-000000000003.json",
+          "device_id": "11111111-1111-4111-8111-111111111111",
+          "work_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+          "payload_utf8": "{\"protocol_version\":\"sync-v1\",\"schema_version\":\"1.0.0\",\"normalization_version\":\"normalization-v1\",\"work_id\":\"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa\",\"toc_revision\":7,\"progress_revision\":5,\"snapshot_id\":\"77777777-7777-4777-8777-000000000003\",\"chapter_title\":\"第一章\",\"local_toc_index\":0,\"visible_char_offset\":null,\"visible_char_count\":null,\"chapter_fraction\":null,\"chapter_fraction_is_estimated\":true,\"chapter_text_fingerprint\":null,\"locator_confidence\":\"chapter\",\"source_event_id\":null,\"updated_by_device_id\":\"11111111-1111-4111-8111-111111111111\",\"updated_at\":\"2026-11-10T08:00:00Z\"}",
+          "payload_sha256": "5072e5e67f493994cef693fff1ba29fb1c00f5de89334332c42d3d23d05a6774"
+        }
+      ],
+      "expected_outcome": "selected",
+      "selected_revision": 5,
+      "selected_snapshot_id": "77777777-7777-4777-8777-000000000003"
+    },
+    {
+      "case_id": "same-revision-multiple-snapshot-ids",
+      "projection_kind": "chapters",
+      "candidates": [
+        {
+          "revision": 7,
+          "snapshot_id": "77777777-7777-4777-8777-000000000004",
+          "path_revision": 7,
+          "path_snapshot_id": "77777777-7777-4777-8777-000000000004",
+          "path": "android/chapters/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/7-77777777-7777-4777-8777-000000000004.json",
+          "device_id": "11111111-1111-4111-8111-111111111111",
+          "work_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+          "payload_utf8": "{\"protocol_version\":\"sync-v1\",\"schema_version\":\"1.0.0\",\"normalization_version\":\"normalization-v1\",\"device_id\":\"11111111-1111-4111-8111-111111111111\",\"work_id\":\"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa\",\"toc_revision\":7,\"snapshot_id\":\"77777777-7777-4777-8777-000000000004\",\"generated_at\":\"2026-11-10T08:00:00Z\",\"chapters\":[]}",
+          "payload_sha256": "6a9d95dcd348e04f7a4abdc9cc5876f528a2fddd6af4f80e693ed723713c92e9"
+        },
+        {
+          "revision": 7,
+          "snapshot_id": "77777777-7777-4777-8777-000000000005",
+          "path_revision": 7,
+          "path_snapshot_id": "77777777-7777-4777-8777-000000000005",
+          "path": "android/chapters/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/7-77777777-7777-4777-8777-000000000005.json",
+          "device_id": "11111111-1111-4111-8111-111111111111",
+          "work_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+          "payload_utf8": "{\"protocol_version\":\"sync-v1\",\"schema_version\":\"1.0.0\",\"normalization_version\":\"normalization-v1\",\"device_id\":\"11111111-1111-4111-8111-111111111111\",\"work_id\":\"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa\",\"toc_revision\":7,\"snapshot_id\":\"77777777-7777-4777-8777-000000000005\",\"generated_at\":\"2026-11-10T08:00:00Z\",\"chapters\":[]}",
+          "payload_sha256": "ee47926185ae3624ab7766890e93532f3427441f701d44ebca8b340df10be638"
+        }
+      ],
+      "expected_outcome": "revision_conflict",
+      "selected_revision": null,
+      "selected_snapshot_id": null
+    },
+    {
+      "case_id": "same-revision-different-payload",
+      "projection_kind": "progress",
+      "candidates": [
+        {
+          "revision": 9,
+          "snapshot_id": "77777777-7777-4777-8777-000000000006",
+          "path_revision": 9,
+          "path_snapshot_id": "77777777-7777-4777-8777-000000000006",
+          "path": "android/progress/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/9-77777777-7777-4777-8777-000000000006.json",
+          "device_id": "11111111-1111-4111-8111-111111111111",
+          "work_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+          "payload_utf8": "{\"protocol_version\":\"sync-v1\",\"schema_version\":\"1.0.0\",\"normalization_version\":\"normalization-v1\",\"work_id\":\"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa\",\"toc_revision\":7,\"progress_revision\":9,\"snapshot_id\":\"77777777-7777-4777-8777-000000000006\",\"chapter_title\":\"第一章\",\"local_toc_index\":0,\"visible_char_offset\":null,\"visible_char_count\":null,\"chapter_fraction\":null,\"chapter_fraction_is_estimated\":true,\"chapter_text_fingerprint\":null,\"locator_confidence\":\"chapter\",\"source_event_id\":null,\"updated_by_device_id\":\"11111111-1111-4111-8111-111111111111\",\"updated_at\":\"2026-11-10T08:00:00Z\"}",
+          "payload_sha256": "3d717704f9fb6dc2424473aa3095702cc80a49485ede73b5766b34ec967399e0"
+        },
+        {
+          "revision": 9,
+          "snapshot_id": "77777777-7777-4777-8777-000000000006",
+          "path_revision": 9,
+          "path_snapshot_id": "77777777-7777-4777-8777-000000000006",
+          "path": "android/progress/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/9-77777777-7777-4777-8777-000000000006.json",
+          "device_id": "11111111-1111-4111-8111-111111111111",
+          "work_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+          "payload_utf8": "{\"protocol_version\":\"sync-v1\",\"schema_version\":\"1.0.0\",\"normalization_version\":\"normalization-v1\",\"work_id\":\"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa\",\"toc_revision\":7,\"progress_revision\":9,\"snapshot_id\":\"77777777-7777-4777-8777-000000000006\",\"chapter_title\":\"第二章\",\"local_toc_index\":0,\"visible_char_offset\":null,\"visible_char_count\":null,\"chapter_fraction\":null,\"chapter_fraction_is_estimated\":true,\"chapter_text_fingerprint\":null,\"locator_confidence\":\"chapter\",\"source_event_id\":null,\"updated_by_device_id\":\"11111111-1111-4111-8111-111111111111\",\"updated_at\":\"2026-11-10T08:00:00Z\"}",
+          "payload_sha256": "251dd3fdae633842c26e4e53bbd294de000238f5fd28aadce7eb8eab10e2e409"
+        }
+      ],
+      "expected_outcome": "revision_conflict",
+      "selected_revision": null,
+      "selected_snapshot_id": null
+    },
+    {
+      "case_id": "device-state-revision-gap",
+      "projection_kind": "device_state",
+      "candidates": [
+        {
+          "revision": 1,
+          "snapshot_id": "77777777-7777-4777-8777-000000000007",
+          "path_revision": 1,
+          "path_snapshot_id": "77777777-7777-4777-8777-000000000007",
+          "path": "android/device-state/11111111-1111-4111-8111-111111111111/1-77777777-7777-4777-8777-000000000007.json",
+          "device_id": "11111111-1111-4111-8111-111111111111",
+          "work_id": null,
+          "payload_utf8": "{\"protocol_version\":\"sync-v1\",\"schema_version\":\"1.0.0\",\"normalization_version\":\"normalization-v1\",\"device_id\":\"11111111-1111-4111-8111-111111111111\",\"state_revision\":1,\"snapshot_id\":\"77777777-7777-4777-8777-000000000007\",\"status\":\"ready\",\"registration_result\":\"registration_verified\",\"create_mode\":\"uuid_verified\",\"locator_capability\":\"chapter_only\",\"registration_payload_sha256\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"generated_at\":\"2026-11-10T08:00:00Z\"}",
+          "payload_sha256": "142ecc04659c2f97a9ce3b297458124d5f5e8cb2fd0ff2bf949e937c8b84d27e"
+        },
+        {
+          "revision": 4,
+          "snapshot_id": "77777777-7777-4777-8777-000000000008",
+          "path_revision": 4,
+          "path_snapshot_id": "77777777-7777-4777-8777-000000000008",
+          "path": "android/device-state/11111111-1111-4111-8111-111111111111/4-77777777-7777-4777-8777-000000000008.json",
+          "device_id": "11111111-1111-4111-8111-111111111111",
+          "work_id": null,
+          "payload_utf8": "{\"protocol_version\":\"sync-v1\",\"schema_version\":\"1.0.0\",\"normalization_version\":\"normalization-v1\",\"device_id\":\"11111111-1111-4111-8111-111111111111\",\"state_revision\":4,\"snapshot_id\":\"77777777-7777-4777-8777-000000000008\",\"status\":\"ready\",\"registration_result\":\"registration_verified\",\"create_mode\":\"uuid_verified\",\"locator_capability\":\"chapter_only\",\"registration_payload_sha256\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"generated_at\":\"2026-11-10T08:00:00Z\"}",
+          "payload_sha256": "f598180a76b966e627b3a27f1edc537899d5c3260f24dd6dc995006d8bc325a9"
+        }
+      ],
+      "expected_outcome": "selected",
+      "selected_revision": 4,
+      "selected_snapshot_id": "77777777-7777-4777-8777-000000000008"
+    },
+    {
+      "case_id": "highest-valid-not-highest-invalid",
+      "projection_kind": "catalog",
+      "candidates": [
+        {
+          "revision": 2,
+          "snapshot_id": "77777777-7777-4777-8777-000000000009",
+          "path_revision": 2,
+          "path_snapshot_id": "77777777-7777-4777-8777-000000000009",
+          "path": "android/catalog/2-77777777-7777-4777-8777-000000000009.json",
+          "device_id": "11111111-1111-4111-8111-111111111111",
+          "work_id": null,
+          "payload_utf8": "{\"protocol_version\":\"sync-v1\",\"schema_version\":\"1.0.0\",\"normalization_version\":\"normalization-v1\",\"device_id\":\"11111111-1111-4111-8111-111111111111\",\"catalog_revision\":2,\"snapshot_id\":\"77777777-7777-4777-8777-000000000009\",\"generated_at\":\"2026-11-10T08:00:00Z\",\"works\":[]}",
+          "payload_sha256": "b837bc83a425ec790bb43e554de392ae1987f6eb999dcb85baa63dec2003f65b"
+        },
+        {
+          "revision": 8,
+          "snapshot_id": "77777777-7777-4777-8777-000000000010",
+          "path_revision": 7,
+          "path_snapshot_id": "77777777-7777-4777-8777-000000000010",
+          "path": "android/catalog/7-77777777-7777-4777-8777-000000000010.json",
+          "device_id": "11111111-1111-4111-8111-111111111111",
+          "work_id": null,
+          "payload_utf8": "{\"protocol_version\":\"sync-v1\",\"schema_version\":\"1.0.0\",\"normalization_version\":\"normalization-v1\",\"device_id\":\"11111111-1111-4111-8111-111111111111\",\"catalog_revision\":8,\"snapshot_id\":\"77777777-7777-4777-8777-000000000010\",\"generated_at\":\"2026-11-10T08:00:00Z\",\"works\":[]}",
+          "payload_sha256": "2127ba73266c58b62c794a61de191aac25f483bd940074ba24439d423d866241"
+        }
+      ],
+      "expected_outcome": "selected",
+      "selected_revision": 2,
+      "selected_snapshot_id": "77777777-7777-4777-8777-000000000009"
+    },
+    {
+      "case_id": "no-valid-path-candidate",
+      "projection_kind": "progress",
+      "candidates": [
+        {
+          "revision": 4,
+          "snapshot_id": "77777777-7777-4777-8777-000000000011",
+          "path_revision": 4,
+          "path_snapshot_id": "77777777-7777-4777-8777-000000000012",
+          "path": "android/progress/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/4-77777777-7777-4777-8777-000000000011.json",
+          "device_id": "11111111-1111-4111-8111-111111111111",
+          "work_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+          "payload_utf8": "{\"protocol_version\":\"sync-v1\",\"schema_version\":\"1.0.0\",\"normalization_version\":\"normalization-v1\",\"work_id\":\"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa\",\"toc_revision\":7,\"progress_revision\":4,\"snapshot_id\":\"77777777-7777-4777-8777-000000000011\",\"chapter_title\":\"第一章\",\"local_toc_index\":0,\"visible_char_offset\":null,\"visible_char_count\":null,\"chapter_fraction\":null,\"chapter_fraction_is_estimated\":true,\"chapter_text_fingerprint\":null,\"locator_confidence\":\"chapter\",\"source_event_id\":null,\"updated_by_device_id\":\"11111111-1111-4111-8111-111111111111\",\"updated_at\":\"2026-11-10T08:00:00Z\"}",
+          "payload_sha256": "6ae7e5000efe8d12d3377db53854093dadb756ce7a6183950750e9e5d46dd7f3"
+        }
+      ],
+      "expected_outcome": "no_valid_candidate",
+      "selected_revision": null,
+      "selected_snapshot_id": null
+    },
+    {
+      "case_id": "chapter-projection-selection",
+      "projection_kind": "chapters",
+      "candidates": [
+        {
+          "revision": 12,
+          "snapshot_id": "77777777-7777-4777-8777-000000000013",
+          "path_revision": 12,
+          "path_snapshot_id": "77777777-7777-4777-8777-000000000013",
+          "path": "android/chapters/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/12-77777777-7777-4777-8777-000000000013.json",
+          "device_id": "11111111-1111-4111-8111-111111111111",
+          "work_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+          "payload_utf8": "{\"protocol_version\":\"sync-v1\",\"schema_version\":\"1.0.0\",\"normalization_version\":\"normalization-v1\",\"device_id\":\"11111111-1111-4111-8111-111111111111\",\"work_id\":\"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa\",\"toc_revision\":12,\"snapshot_id\":\"77777777-7777-4777-8777-000000000013\",\"generated_at\":\"2026-11-10T08:00:00Z\",\"chapters\":[]}",
+          "payload_sha256": "2f74254d7a817596dec58f6b2f0be402672b744dbeffdf3ac083d31f23e74a0f"
+        }
+      ],
+      "expected_outcome": "selected",
+      "selected_revision": 12,
+      "selected_snapshot_id": "77777777-7777-4777-8777-000000000013"
+    }
+  ]
+}

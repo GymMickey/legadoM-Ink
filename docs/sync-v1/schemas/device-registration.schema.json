@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://legadom-ink.invalid/sync-v1/schemas/device-registration.schema.json",
+  "title": "Sync v1 immutable device registration",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "protocol_version",
+    "schema_version",
+    "normalization_version",
+    "device_id",
+    "created_at",
+    "client",
+    "counter_epoch",
+    "supported_create_modes",
+    "locator_capability"
+  ],
+  "properties": {
+    "protocol_version": {
+      "const": "sync-v1"
+    },
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "normalization_version": {
+      "const": "normalization-v1"
+    },
+    "device_id": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?Z$"
+    },
+    "client": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "name",
+        "version"
+      ],
+      "properties": {
+        "kind": {
+          "const": "koreader"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "version": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        }
+      }
+    },
+    "counter_epoch": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "supported_create_modes": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "uuid_verified",
+          "conditional_create"
+        ]
+      }
+    },
+    "locator_capability": {
+      "enum": [
+        "chapter_only",
+        "character_exact"
+      ]
+    }
+  }
+}

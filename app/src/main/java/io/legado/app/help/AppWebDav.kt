@@ -38,9 +38,14 @@ import io.legado.app.utils.normalizeFileName
 import io.legado.app.utils.toastOnUi
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers.IO
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
@@ -54,6 +59,7 @@ import java.io.File
 import java.io.IOException
 import java.net.URI
 import java.security.MessageDigest
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
 
@@ -127,7 +133,9 @@ object AppWebDav {
     }
 
     private val checkRequestId = AtomicLong(0)
-    private val configJob = AtomicReference<Job?>(null)
+    private val configRequestLock = Any()
+    private val configCheckScope = CoroutineScope(SupervisorJob() + IO)
+    private val configJob = AtomicReference<Deferred<Unit>?>(null)
     private val _activeConfig = MutableStateFlow<WebDavConfigSnapshot?>(null)
 
     /** Last configuration whose endpoint and directories were verified together. */
@@ -251,6 +259,27 @@ object AppWebDav {
         return snapshot.takeIf(::isCurrent)
     }
 
+    /** Return only a previously verified snapshot; callers must keep its fields together. */
+    internal fun currentSyncV1ConfigSnapshot(): WebDavConfigSnapshot? = activeConfigForOperation()
+
+    internal fun isSyncV1ConfigCurrent(snapshot: WebDavConfigSnapshot): Boolean = isCurrent(snapshot)
+
+    /** Create a client under the same verified URL/auth/TLS snapshot, never from preferences. */
+    internal fun syncV1WebDav(
+        snapshot: WebDavConfigSnapshot,
+        relativePath: String
+    ): WebDav? {
+        if (!isCurrent(snapshot)) return null
+        if (relativePath.startsWith('/') || '\\' in relativePath
+            || relativePath.split('/').any { it == ".." }
+        ) return null
+        return appWebDav(
+            path = snapshot.rootUrl + relativePath,
+            authorization = snapshot.authorization,
+            allowInsecure = snapshot.allowInsecure
+        )
+    }
+
     private fun updateOperationStatus(snapshot: WebDavConfigSnapshot, error: Throwable) {
         if (isCurrent(snapshot)) {
             _status.value = statusFor(error)
@@ -309,7 +338,7 @@ object AppWebDav {
         )
     }
 
-    private val monitoringStarted = AtomicReference(false)
+    private val monitoringStarted = AtomicBoolean(false)
     private val monitoringScope = CoroutineScope(SupervisorJob() + IO)
     private val recheckJob = AtomicReference<Job?>(null)
     private val lastSuccessfulCheckAt = AtomicLong(0)
@@ -383,11 +412,56 @@ object AppWebDav {
      * - 书籍导出目录
      * - 背景图片目录
      */
-    suspend fun upConfig() = withContext(IO) {
-        val requestId = checkRequestId.incrementAndGet()
-        val currentJob = currentCoroutineContext()[Job]
-        configJob.getAndSet(currentJob)?.takeUnless { it === currentJob }?.cancel()
-        val previousStatus = _status.value
+    suspend fun upConfig() {
+        val (checkTask, previousTask) = synchronized(configRequestLock) {
+            val requestId = checkRequestId.incrementAndGet()
+            val previousStatus = _status.value
+            val newTask = configCheckScope.async(start = CoroutineStart.LAZY) {
+                runConfigCheck(requestId, previousStatus)
+            }
+            newTask to configJob.getAndSet(newTask)
+        }
+
+        try {
+            previousTask?.takeUnless { it === checkTask }?.cancelAndJoin()
+            checkTask.start()
+            awaitLatestConfigCheck(checkTask)
+        } catch (e: CancellationException) {
+            if (currentCoroutineContext()[Job]?.isActive == false) {
+                withContext(NonCancellable) {
+                    checkTask.cancelAndJoin()
+                }
+            }
+            throw e
+        } finally {
+            configJob.compareAndSet(checkTask, null)
+        }
+    }
+
+    private suspend fun awaitLatestConfigCheck(initialTask: Deferred<Unit>) {
+        var task = initialTask
+        while (true) {
+            currentCoroutineContext().ensureActive()
+            try {
+                task.await()
+                return
+            } catch (_: CancellationException) {
+                // Cancellation of the caller is distinct from a task replaced by a newer check.
+                currentCoroutineContext().ensureActive()
+                val latestTask = synchronized(configRequestLock) { configJob.get() }
+                if (latestTask != null && latestTask !== task) {
+                    task = latestTask
+                    continue
+                }
+                // The deferred was cancelled while this caller remained active. That only
+                // happens when this check was superseded (or its owner cancelled it); never
+                // leak that internal cancellation to a caller that was not cancelled.
+                return
+            }
+        }
+    }
+
+    private suspend fun runConfigCheck(requestId: Long, previousStatus: WebDavStatus) {
         val config = readConfig()
 
         if (!config.isConfigured) {
@@ -396,8 +470,7 @@ object AppWebDav {
                 // An empty credential is an explicit user configuration change.
                 _activeConfig.value = null
             }
-            configJob.compareAndSet(currentJob, null)
-            return@withContext
+            return
         }
 
         val rootUrl = rootWebDavUrl(config)
@@ -411,8 +484,7 @@ object AppWebDav {
         if (!config.allowInsecure && !rootUrl.startsWith("https://", true)) {
             appCtx.toastOnUi(R.string.webdav_https_required)
             updateStatus(requestId, WebDavStatus.SERVER_ERROR, candidateIdentity)
-            configJob.compareAndSet(currentJob, null)
-            return@withContext
+            return
         }
         if (config.allowInsecure) {
             appCtx.toastOnUi(R.string.webdav_insecure_warning)
@@ -488,8 +560,6 @@ object AppWebDav {
         } catch (e: Exception) {
             updateStatus(requestId, statusFor(e), candidateIdentity)
             AppLog.put("WebDav配置检查失败", e)
-        } finally {
-            configJob.compareAndSet(currentJob, null)
         }
     }
 

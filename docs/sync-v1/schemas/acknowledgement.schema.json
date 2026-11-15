@@ -1,0 +1,219 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://legadom-ink.invalid/sync-v1/schemas/acknowledgement.schema.json",
+  "title": "Sync v1 immutable terminal event acknowledgement",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "protocol_version",
+    "schema_version",
+    "normalization_version",
+    "device_id",
+    "event_id",
+    "payload_sha256",
+    "status",
+    "acknowledged_at",
+    "recovery_action",
+    "reason_code"
+  ],
+  "properties": {
+    "protocol_version": { "const": "sync-v1" },
+    "schema_version": { "const": "1.0.0" },
+    "normalization_version": { "const": "normalization-v1" },
+    "device_id": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "work_id": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "payload_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "receipt_payload_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "status": {
+      "enum": [
+        "applied",
+        "stale_progress",
+        "rejected",
+        "event_id_conflict",
+        "stale_toc",
+        "bound",
+        "ambiguous",
+        "not_found"
+      ]
+    },
+    "acknowledged_at": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?Z$"
+    },
+    "current_progress_revision": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "current_toc_revision": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "recovery_action": {
+      "enum": [
+        "none",
+        "download_catalog",
+        "download_chapters",
+        "download_progress_state",
+        "select_binding_candidate",
+        "stop_sync",
+        "manual_review"
+      ]
+    },
+    "reason_code": {
+      "type": ["string", "null"],
+      "enum": [
+        "stale_progress",
+        "stale_toc",
+        "invalid_event",
+        "unsupported_schema",
+        "event_id_conflict",
+        "ambiguous",
+        "not_found",
+        null
+      ]
+    },
+    "candidates": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 20,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["work_id", "title"],
+        "properties": {
+          "work_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+          },
+          "title": { "type": "string", "minLength": 1, "maxLength": 512 },
+          "authors": {
+            "type": "array",
+            "maxItems": 10,
+            "items": { "type": "string", "maxLength": 256 }
+          }
+        }
+      }
+    }
+  },
+  "oneOf": [
+    {
+      "properties": {
+        "status": { "const": "applied" },
+        "recovery_action": { "const": "none" },
+        "reason_code": { "type": "null" },
+        "work_id": {},
+        "receipt_payload_sha256": false,
+        "current_progress_revision": false,
+        "current_toc_revision": false,
+        "candidates": false
+      },
+      "required": ["work_id"]
+    },
+    {
+      "properties": {
+        "status": { "const": "stale_progress" },
+        "recovery_action": { "const": "download_progress_state" },
+        "reason_code": { "const": "stale_progress" },
+        "work_id": {},
+        "current_progress_revision": {},
+        "receipt_payload_sha256": false,
+        "current_toc_revision": false,
+        "candidates": false
+      },
+      "required": ["work_id", "current_progress_revision"]
+    },
+    {
+      "properties": {
+        "status": { "const": "rejected" },
+        "recovery_action": { "const": "manual_review" },
+        "reason_code": { "enum": ["invalid_event", "unsupported_schema"] },
+        "work_id": false,
+        "receipt_payload_sha256": false,
+        "current_progress_revision": false,
+        "current_toc_revision": false,
+        "candidates": false
+      }
+    },
+    {
+      "properties": {
+        "status": { "const": "event_id_conflict" },
+        "recovery_action": { "const": "stop_sync" },
+        "reason_code": { "const": "event_id_conflict" },
+        "receipt_payload_sha256": {},
+        "work_id": false,
+        "current_progress_revision": false,
+        "current_toc_revision": false,
+        "candidates": false
+      },
+      "required": ["receipt_payload_sha256"]
+    },
+    {
+      "properties": {
+        "status": { "const": "stale_toc" },
+        "recovery_action": { "const": "download_chapters" },
+        "reason_code": { "const": "stale_toc" },
+        "work_id": {},
+        "current_toc_revision": {},
+        "receipt_payload_sha256": false,
+        "current_progress_revision": false,
+        "candidates": false
+      },
+      "required": ["work_id", "current_toc_revision"]
+    },
+    {
+      "properties": {
+        "status": { "const": "bound" },
+        "recovery_action": { "const": "none" },
+        "reason_code": { "type": "null" },
+        "work_id": {},
+        "receipt_payload_sha256": false,
+        "current_progress_revision": false,
+        "current_toc_revision": false,
+        "candidates": false
+      },
+      "required": ["work_id"]
+    },
+    {
+      "properties": {
+        "status": { "const": "ambiguous" },
+        "recovery_action": { "const": "select_binding_candidate" },
+        "reason_code": { "const": "ambiguous" },
+        "candidates": {},
+        "work_id": false,
+        "receipt_payload_sha256": false,
+        "current_progress_revision": false,
+        "current_toc_revision": false
+      },
+      "required": ["candidates"]
+    },
+    {
+      "properties": {
+        "status": { "const": "not_found" },
+        "recovery_action": { "enum": ["download_catalog", "manual_review"] },
+        "reason_code": { "const": "not_found" },
+        "work_id": false,
+        "receipt_payload_sha256": false,
+        "current_progress_revision": false,
+        "current_toc_revision": false,
+        "candidates": false
+      }
+    }
+  ]
+}

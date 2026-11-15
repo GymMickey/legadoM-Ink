@@ -96,6 +96,10 @@ object BackupConfig {
         PreferKey.webServiceWakeLock,
     )
 
+    /** Fixed device preferences are excluded from new backups regardless of restore-ignore choices. */
+    fun shouldBackupPreference(key: String): Boolean =
+        shouldBackupPreferenceKey(key, ignorePrefKeys.asList())
+
     // ==================== 分类配置Key ====================
 
     /** 阅读相关配置Key列表 */
@@ -219,3 +223,8 @@ object BackupConfig {
     }
 
 }
+
+internal fun shouldBackupPreferenceKey(
+    key: String,
+    fixedDeviceKeys: Collection<String>
+): Boolean = key !in fixedDeviceKeys

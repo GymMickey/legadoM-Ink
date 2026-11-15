@@ -1,0 +1,20 @@
+{
+  "protocol_version": "sync-v1",
+  "schema_version": "1.0.0",
+  "normalization_version": "normalization-v1",
+  "work_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+  "toc_revision": 7,
+  "progress_revision": 12,
+  "chapter_title": "第一章",
+  "local_toc_index": 0,
+  "visible_char_offset": 4,
+  "visible_char_count": 6,
+  "chapter_fraction": 0.6667,
+  "chapter_fraction_is_estimated": true,
+  "chapter_text_fingerprint": "68b7792d389672f0dc7262fc5b9db6333e4a85c08817d600910d87e9f49c4ec4",
+  "locator_confidence": "high",
+  "source_event_id": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+  "updated_by_device_id": "22222222-2222-4222-8222-222222222222",
+  "updated_at": "2026-01-02T03:04:05Z",
+  "snapshot_id": "88888888-8888-4888-8888-888888888883"
+}

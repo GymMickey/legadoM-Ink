@@ -11,6 +11,7 @@ import io.legado.app.exception.NoStackTraceException
 import io.legado.app.help.AppWebDav
 import io.legado.app.help.DirectLinkUpload
 import io.legado.app.help.WebDavUploadResult
+import io.legado.app.lib.webdav.WebDavStatus
 import io.legado.app.help.config.AppConfig
 import io.legado.app.help.config.LocalConfig
 import io.legado.app.help.config.ReadBookConfig
@@ -518,8 +519,11 @@ object Backup {
         onProgress: ((String) -> Unit)? = null
     ): BackupResult {
         var webDavResult: WebDavUploadResult = WebDavUploadResult.NotConfigured
+        var backgroundUploadFailure: WebDavStatus? = null
         return try {
             LogUtils.d(TAG, "开始备份 path:$path")
+            // Preserve the legacy meaning: this records the latest backup attempt.
+            LocalConfig.lastBackup = System.currentTimeMillis()
             val aes = BackupAES()
             FileUtils.delete(backupPath)
 
@@ -794,22 +798,17 @@ object Backup {
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
+            backgroundUploadFailure = AppWebDav.status.value
             AppLog.put("WebDav背景图片上传失败", e)
         }
 
         // Keep lastBackup as the legacy local-backup timestamp.  The homepage
         // uses the separate timestamp that is written only after upload success.
-        val completedAt = System.currentTimeMillis()
-        LocalConfig.lastBackup = completedAt
-        if (webDavResult is WebDavUploadResult.Uploaded) {
-            LocalConfig.lastWebDavBackupTime = completedAt
-        }
-        when (webDavResult) {
-            WebDavUploadResult.Uploaded -> BackupResult.Success(WebDavUploadResult.Uploaded)
-            WebDavUploadResult.NotConfigured -> BackupResult.LocalOnly(WebDavUploadResult.NotConfigured)
-            WebDavUploadResult.NotVerified -> BackupResult.PartialSuccess(WebDavUploadResult.NotVerified)
-            is WebDavUploadResult.Failed -> BackupResult.PartialSuccess(webDavResult)
-        }
+        completeWebDavBackup(
+            webDavResult,
+            System.currentTimeMillis(),
+            backgroundUploadFailure
+        )
     } catch (e: CancellationException) {
         throw e
     } catch (e: Exception) {
@@ -818,11 +817,44 @@ object Backup {
     } finally {
         // Temporary files must be removed even when export, upload, or the
         // coroutine itself fails.
-        onProgress?.invoke(BackupInfoHelper.getDisplayName("clearBackupCache"))
-        FileUtils.delete(backupPath)
-        FileUtils.delete(zipFilePath)
-        FileUtils.delete(zipFilePath.replace("tmp_", ""))
+        runCatching { FileUtils.delete(backupPath) }
+        runCatching { FileUtils.delete(zipFilePath) }
+        runCatching { FileUtils.delete(zipFilePath.replace("tmp_", "")) }
+        runCatching {
+            onProgress?.invoke(BackupInfoHelper.getDisplayName("clearBackupCache"))
+        }
     }
+    }
+
+    /** Record only a confirmed ZIP upload and return the user-facing outcome. */
+    internal fun completeWebDavBackup(
+        webDavResult: WebDavUploadResult,
+        completedAt: Long,
+        backgroundUploadFailure: WebDavStatus? = null
+    ): BackupResult {
+        val result = when {
+            webDavResult is WebDavUploadResult.Uploaded && backgroundUploadFailure != null ->
+                BackupResult.PartialSuccess(WebDavUploadResult.Failed(backgroundUploadFailure))
+
+            webDavResult is WebDavUploadResult.Uploaded ->
+                BackupResult.Success(WebDavUploadResult.Uploaded)
+
+            webDavResult is WebDavUploadResult.NotConfigured ->
+                BackupResult.LocalOnly(WebDavUploadResult.NotConfigured)
+
+            webDavResult is WebDavUploadResult.NotVerified ->
+                BackupResult.PartialSuccess(WebDavUploadResult.NotVerified)
+
+            webDavResult is WebDavUploadResult.Failed ->
+                BackupResult.PartialSuccess(webDavResult)
+
+            else -> error("Unknown WebDAV upload result")
+        }
+        return result.also {
+            if (webDavResult is WebDavUploadResult.Uploaded) {
+                LocalConfig.lastWebDavBackupTime = completedAt
+            }
+        }
     }
 
     /**

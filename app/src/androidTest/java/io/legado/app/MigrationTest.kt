@@ -75,7 +75,7 @@ class MigrationTest {
             close()
         }
 
-        // 打开当前 Schema 版本 102 的数据库
+                // 打开当前 Schema 版本 102 的数据库
         Room.databaseBuilder(
             InstrumentationRegistry.getInstrumentation().targetContext,
             AppDatabase::class.java,

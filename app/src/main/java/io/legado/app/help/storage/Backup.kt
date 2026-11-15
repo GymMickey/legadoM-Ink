@@ -80,6 +80,14 @@ data class BookCacheIndex(
     val chapters: List<ChapterCacheInfo> = emptyList()  // 章节信息列表
 )
 
+class ReadBackgroundBackupPlan(
+    private val namesByReference: Map<String, String>,
+    val filesByBackupName: Map<String, File>
+) {
+    fun backupName(reference: String): String =
+        namesByReference[reference] ?: FileUtils.getName(reference)
+}
+
 /**
  * 备份管理类
  * 
@@ -148,6 +156,7 @@ object Backup {
             HighlightRuleStore.backupFileName,
             "readRecord.json",
             "readRecordDetail.json",
+            "readRecordSession.json",
             "searchHistory.json",
             "txtTocRule.json",
             "httpTTS.json",
@@ -232,6 +241,60 @@ object Backup {
         }.distinctBy { it.absolutePath }
     }
 
+    private fun resolveReadBackgroundFile(path: String): File? {
+        val file = if (File(path).isAbsolute || path.contains(File.separator)) {
+            File(path)
+        } else {
+            appCtx.externalFiles.getFile(READ_BG_DIR, path)
+        }
+        return file.takeIf { it.exists() && it.isFile }
+    }
+
+    private fun backgroundPaths(config: ReadBookConfig.Config): List<String> = buildList {
+        if (config.bgType == 2) add(config.bgStr)
+        if (config.bgTypeNight == 2) add(config.bgStrNight)
+        if (config.bgTypeEInk == 2) add(config.bgStrEInk)
+    }
+
+    private fun isReadConfigSelected(selectedFiles: Collection<String>): Boolean =
+        ReadBackgroundBackupPolicy.readConfigFileName in selectedFiles
+
+    private fun isReadShareConfigSelected(selectedFiles: Collection<String>): Boolean =
+        ReadBackgroundBackupPolicy.shareConfigFileName in
+            ReadBackgroundBackupPolicy.selectedReadConfigNames(selectedFiles)
+
+    internal fun createReadBackgroundBackupPlan(
+        selectedFiles: Collection<String>
+    ): ReadBackgroundBackupPlan {
+        val references = linkedSetOf<String>()
+        if (selectedFiles.contains("bg")) {
+            references.addAll(ReadBookConfig.getAllPicBgStr())
+        } else {
+            if (isReadConfigSelected(selectedFiles)) {
+                ReadBookConfig.configList.forEach { references.addAll(backgroundPaths(it)) }
+            }
+            if (isReadShareConfigSelected(selectedFiles)) {
+                runCatching { ReadBookConfig.shareConfig }
+                    .getOrNull()
+                    ?.let { references.addAll(backgroundPaths(it)) }
+            }
+        }
+
+        val sourceEntries = references.mapNotNull { reference ->
+            resolveReadBackgroundFile(reference)?.let { reference to it }
+        }
+        val namesBySource = ReadBackgroundBackupPolicy.assignBackupNames(
+            sourceEntries.map { it.second.absolutePath }
+        )
+        val namesByReference = sourceEntries.associate { (reference, file) ->
+            reference to namesBySource.getValue(file.absolutePath)
+        }
+        val filesByBackupName = sourceEntries.associate { (_, file) ->
+            namesBySource.getValue(file.absolutePath) to file
+        }
+        return ReadBackgroundBackupPlan(namesByReference, filesByBackupName)
+    }
+
     private fun resolveThemeBackgroundFile(path: String, prefKey: String): File? {
         val file = when {
             path.startsWith("http") -> {
@@ -262,11 +325,19 @@ object Backup {
             .writeText(GSON.toJson(runtimeCaches))
     }
 
-    fun stageBackgroundImageFiles(rootPath: String) {
-        // 阅读界面背景图片：直接复制到暂存根目录
-        getReadBackgroundImageFiles().forEach { bgFile ->
-            bgFile.copyTo(File(rootPath, bgFile.name), overwrite = true)
+    fun stageBackgroundImageFiles(
+        rootPath: String,
+        readPlan: ReadBackgroundBackupPlan = createReadBackgroundBackupPlan(setOf("bg")),
+        includeThemeBackgrounds: Boolean = true
+    ) {
+        // 阅读界面背景图片统一放入 bg/，并只复制所选配置实际引用的文件。
+        val readBgDir = File(rootPath, ReadBackgroundBackupPolicy.backupDirectoryName)
+            .createFolderIfNotExist()
+        readPlan.filesByBackupName.forEach { (backupName, bgFile) ->
+            bgFile.copyTo(File(readBgDir, backupName), overwrite = true)
         }
+        if (!includeThemeBackgrounds) return
+
         // 防御性清理：删除已有的 bgImage/bgImageN 子目录，
         // 避免因上次备份清理不彻底导致残留的已删除图片被一并打包
         val themePrefKeys = listOf(PreferKey.bgImage, PreferKey.bgImageN)
@@ -453,6 +524,13 @@ object Backup {
             FileUtils.delete(backupPath)
 
         val selectedFiles = BackupSelectorConfig.getSelectedFileNames()
+        val readBackgroundPlan = if (
+            isReadConfigSelected(selectedFiles) || isReadShareConfigSelected(selectedFiles)
+        ) {
+            createReadBackgroundBackupPlan(selectedFiles)
+        } else {
+            null
+        }
 
         // 导出数据库数据到JSON文件
         if (selectedFiles.contains("bookshelf.json")) {
@@ -490,11 +568,15 @@ object Backup {
             FileUtils.createFileIfNotExist(backupPath + File.separator + HighlightRuleStore.backupFileName)
                 .writeText(GSON.toJson(HighlightRuleStore.createBackupData(appCtx)))
         }
-        if (selectedFiles.contains("readRecord.json")) {
+        if (BackupFileMappingPolicy.readRecordFileNames.any(selectedFiles::contains)) {
             writeListToJson(appDb.readRecordDao.all, "readRecord.json", backupPath, onProgress)
-        }
-        if (selectedFiles.contains("readRecordDetail.json")) {
             writeListToJson(appDb.readRecordDao.getAllDetailsList(), "readRecordDetail.json", backupPath, onProgress)
+            writeListToJson(
+                appDb.readRecordDao.getAllSessionsList(),
+                "readRecordSession.json",
+                backupPath,
+                onProgress
+            )
         }
         if (selectedFiles.contains("searchHistory.json")) {
             writeListToJson(appDb.searchKeywordDao.all, "searchHistory.json", backupPath, onProgress)
@@ -540,14 +622,18 @@ object Backup {
         // 导出阅读配置
         if (selectedFiles.contains(ReadBookConfig.configFileName)) {
             onProgress?.invoke(BackupInfoHelper.getDisplayName(ReadBookConfig.configFileName))
-            GSON.toJson(ReadBookConfig.getBackupConfigList()).let {
+            GSON.toJson(
+                ReadBookConfig.getBackupConfigList(readBackgroundPlan?.let { it::backupName } ?: FileUtils::getName)
+            ).let {
                 FileUtils.createFileIfNotExist(backupPath + File.separator + ReadBookConfig.configFileName)
                     .writeText(it)
             }
         }
-        if (selectedFiles.contains(ReadBookConfig.shareConfigFileName)) {
+        if (isReadShareConfigSelected(selectedFiles)) {
             onProgress?.invoke(BackupInfoHelper.getDisplayName(ReadBookConfig.shareConfigFileName))
-            GSON.toJson(ReadBookConfig.getBackupShareConfig()).let {
+            GSON.toJson(
+                ReadBookConfig.getBackupShareConfig(readBackgroundPlan?.let { it::backupName } ?: FileUtils::getName)
+            ).let {
                 FileUtils.createFileIfNotExist(backupPath + File.separator + ReadBookConfig.shareConfigFileName)
                     .writeText(it)
             }
@@ -609,7 +695,7 @@ object Backup {
                 val edit = sp.edit()
                 edit.clear()
                 appCtx.defaultSharedPreferences.all.forEach { (key, value) ->
-                    if (BackupConfig.keyIsNotIgnore(key)) {
+                    if (BackupConfig.shouldBackupPreference(key)) {
                         when (key) {
                             // WebDav密码需要加密存储
                             PreferKey.webDavPassword -> {
@@ -637,9 +723,13 @@ object Backup {
         currentCoroutineContext().ensureActive()
 
         // 打包成ZIP文件
-        if (selectedFiles.contains("bg")) {
+        if (selectedFiles.contains("bg") || readBackgroundPlan != null) {
             onProgress?.invoke(BackupInfoHelper.getDisplayName("backgroundImages"))
-            stageBackgroundImageFiles(backupPath)
+            stageBackgroundImageFiles(
+                rootPath = backupPath,
+                readPlan = readBackgroundPlan ?: createReadBackgroundBackupPlan(selectedFiles),
+                includeThemeBackgrounds = selectedFiles.contains("bg")
+            )
         }
         if (selectedFiles.contains(HighlightRuleStore.backupFileName)) {
             stageHighlightRuleBackgroundFiles(backupPath)

@@ -106,6 +106,7 @@ class RemoteBookViewModel(application: Application) : BaseViewModel(application)
                     AppConfig.remoteServerId,
                     allowInsecure = AppConfig.unsafeWebDav
                 )
+                remoteBookWebDav?.ensureRootDirectory()
                 return@execute
             }
             isDefaultWebdav = true

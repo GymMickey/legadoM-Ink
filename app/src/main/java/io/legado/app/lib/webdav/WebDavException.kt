@@ -8,4 +8,9 @@ open class WebDavException(msg: String) : Exception(msg) {
 
 }
 
+class WebDavHttpException(
+    val code: Int,
+    msg: String
+) : WebDavException(msg)
+
 class ObjectNotFoundException(msg: String) : WebDavException(msg)

@@ -10,6 +10,7 @@ import android.app.Application
 import androidx.lifecycle.viewModelScope
 import io.legado.app.R
 import io.legado.app.base.BaseViewModel
+import io.legado.app.constant.AppLog
 import io.legado.app.data.appDb
 import io.legado.app.data.entities.Book
 import io.legado.app.data.repository.ReadRecordRepository
@@ -18,6 +19,8 @@ import io.legado.app.help.AppWebDav
 import io.legado.app.help.book.BookMatcher
 import io.legado.app.help.config.LocalConfig
 import io.legado.app.help.storage.Backup
+import io.legado.app.help.storage.Restore
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Dispatchers.Default
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -27,7 +30,9 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -58,7 +63,14 @@ class HomepageViewModel(application: Application) : BaseViewModel(application) {
     val effects = _effects.asSharedFlow()
 
     private val _isBackingUp = MutableStateFlow(false)
+    private val _restoreUiState = MutableStateFlow(HomepageRestoreUiState())
+    private val homepageRefreshSignal = MutableStateFlow(0L)
     private val readRecordRepository = ReadRecordRepository(appDb.readRecordDao)
+
+    private data class HomepageRestoreUiState(
+        val isRestoring: Boolean = false,
+        val phase: HomepageRestorePhase? = null,
+    )
 
     private data class HomepageStats(
         val totalBooksRead: Int = 0,
@@ -71,22 +83,27 @@ class HomepageViewModel(application: Application) : BaseViewModel(application) {
         val isLoaded: Boolean = false
     )
 
-    private val homepageBooksState: StateFlow<HomepageBookSelectionState> = combine(
-        appDb.bookDao.flowHomepageBooks(HOMEPAGE_CANDIDATE_LIMIT),
-        appDb.readRecordDao.observeHomepageReadBookKeys(HOMEPAGE_CANDIDATE_LIMIT)
-    ) { summaries, readBookKeys ->
-        withContext(Default) {
-            val readKeySet = readBookKeys.map {
-                "${BookMatcher.normalize(it.bookName)}|${BookMatcher.normalize(it.bookAuthor)}"
-            }.toSet()
-            val selection = selectHomepageBooks(summaries, readKeySet)
-            HomepageBookSelectionState(
-                lastReadBook = selection.lastReadBook?.toBook(),
-                recentBooks = selection.recentBooks.map { it.toBook() },
-                isLoaded = true
-            )
+    private val homepageBooksState: StateFlow<HomepageBookSelectionState> = homepageRefreshSignal
+        .flatMapLatest {
+            combine(
+                appDb.bookDao.flowHomepageBooks(HOMEPAGE_CANDIDATE_LIMIT),
+                appDb.readRecordDao.observeHomepageReadBookKeys(HOMEPAGE_CANDIDATE_LIMIT)
+            ) { summaries, readBookKeys -> summaries to readBookKeys }
         }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), HomepageBookSelectionState())
+        .mapLatest { (summaries, readBookKeys) ->
+            withContext(Default) {
+                val readKeySet = readBookKeys.map {
+                    "${BookMatcher.normalize(it.bookName)}|${BookMatcher.normalize(it.bookAuthor)}"
+                }.toSet()
+                val selection = selectHomepageBooks(summaries, readKeySet)
+                HomepageBookSelectionState(
+                    lastReadBook = selection.lastReadBook?.toBook(),
+                    recentBooks = selection.recentBooks.map { it.toBook() },
+                    isLoaded = true
+                )
+            }
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), HomepageBookSelectionState())
 
     private val homepageStatsState: StateFlow<HomepageStats> = combine(
         readRecordRepository.getTotalReadTime(),
@@ -104,8 +121,9 @@ class HomepageViewModel(application: Application) : BaseViewModel(application) {
         homepageBooksState,
         homepageStatsState,
         webDavConfiguredState,
-        _isBackingUp
-    ) { books, stats, webDavConfigured, backingUp ->
+        _isBackingUp,
+        _restoreUiState
+    ) { books, stats, webDavConfigured, backingUp, restoreState ->
         HomepageDashboardState(
             lastReadBook = books.lastReadBook,
             totalBooksRead = stats.totalBooksRead,
@@ -113,6 +131,8 @@ class HomepageViewModel(application: Application) : BaseViewModel(application) {
             recentBooks = books.recentBooks,
             webDavConfigured = webDavConfigured,
             isBackingUp = backingUp,
+            isRestoring = restoreState.isRestoring,
+            restorePhase = restoreState.phase,
             lastBackupTime = LocalConfig.lastBackup,
             isBooksLoaded = books.isLoaded
         )
@@ -154,6 +174,47 @@ class HomepageViewModel(application: Application) : BaseViewModel(application) {
                 ))
             }
         }
+    }
+
+    fun restoreFromWebDav(backupName: String) {
+        if (_restoreUiState.value.isRestoring) return
+        _restoreUiState.value = HomepageRestoreUiState(
+            isRestoring = true,
+            phase = HomepageRestorePhase.DOWNLOADING_BACKUP
+        )
+        viewModelScope.launch {
+            try {
+                withContext(Dispatchers.IO) {
+                    AppWebDav.downloadAndUnzipBackup(backupName)
+                }
+                _restoreUiState.value = HomepageRestoreUiState(
+                    isRestoring = true,
+                    phase = HomepageRestorePhase.RESTORING
+                )
+                withContext(Dispatchers.IO) {
+                    Restore.restoreLocked(Backup.backupPath)
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                AppLog.put("WebDAV restore failed (${e.javaClass.simpleName})")
+                val reason = e.localizedMessage
+                    ?.takeIf(String::isNotBlank)
+                    ?.take(160)
+                    ?: e.javaClass.simpleName
+                _effects.emit(
+                    HomepageEffect.ShowSnackbar(
+                        context.getString(R.string.homepage_webdav_restore_failed, reason)
+                    )
+                )
+            } finally {
+                _restoreUiState.value = HomepageRestoreUiState()
+            }
+        }
+    }
+
+    fun refreshReadingProgress() {
+        homepageRefreshSignal.value += 1L
     }
 
     fun onBookClick(book: Book) {

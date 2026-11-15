@@ -82,7 +82,6 @@ fun HomepageScreen(
     onWebDavSettingsClick: () -> Unit,
     onReadRecordClick: () -> Unit = {},
     onBookshelfClick: () -> Unit = {},
-    onRestoreConfirm: (backupName: String) -> Unit = {},
 ) {
     val state by viewModel.dashboardState.collectAsStateWithLifecycle()
     val context = LocalContext.current
@@ -183,6 +182,14 @@ fun HomepageScreen(
                     WebDavCard(
                         isConfigured = state.webDavConfigured,
                         isBackingUp = state.isBackingUp,
+                        isRestoring = state.isRestoring,
+                        restoreStatus = when (state.restorePhase) {
+                            HomepageRestorePhase.DOWNLOADING_BACKUP ->
+                                stringResource(R.string.homepage_webdav_downloading_backup)
+                            HomepageRestorePhase.RESTORING ->
+                                stringResource(R.string.homepage_webdav_restoring)
+                            null -> null
+                        },
                         lastBackupTime = state.lastBackupTime,
                         onBackup = { viewModel.onBackup() },
                         onRestore = { viewModel.onRestore() },
@@ -207,7 +214,7 @@ fun HomepageScreen(
                 confirmButton = {
                     TextButton(onClick = {
                         restoreDialogName = null
-                        onRestoreConfirm(name)
+                        viewModel.restoreFromWebDav(name)
                     }) {
                         Text(stringResource(android.R.string.ok))
                     }
@@ -491,6 +498,8 @@ private fun RecentBookItem(book: Book, onClick: () -> Unit) {
 private fun WebDavCard(
     isConfigured: Boolean,
     isBackingUp: Boolean,
+    isRestoring: Boolean,
+    restoreStatus: String?,
     lastBackupTime: Long,
     onBackup: () -> Unit,
     onRestore: () -> Unit,
@@ -549,6 +558,14 @@ private fun WebDavCard(
                     )
                 }
             }
+            restoreStatus?.let { status ->
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = status,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = pageSecondaryTextColor()
+                )
+            }
             if (isConfigured) {
                 Spacer(modifier = Modifier.height(12.dp))
                 Row(
@@ -567,6 +584,7 @@ private fun WebDavCard(
                     }
                     TextButton(
                         onClick = onRestore,
+                        enabled = !isRestoring,
                         modifier = Modifier.weight(1f)
                     ) {
                         Text(stringResource(R.string.homepage_webdav_restore))

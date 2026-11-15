@@ -2072,6 +2072,9 @@
     <string name="homepage_webdav_settings">Settings</string>
     <string name="homepage_webdav_configure">Set up WebDAV backup</string>
     <string name="homepage_webdav_restore_confirm">Will restore backup \"%s\". Current data will be overwritten. Confirm?</string>
+    <string name="homepage_webdav_downloading_backup">Downloading backup…</string>
+    <string name="homepage_webdav_restoring">Restoring…</string>
+    <string name="homepage_webdav_restore_failed">WebDAV restore failed: %1$s</string>
     <string name="homepage_webdav_no_backup">No backup files found on WebDAV</string>
     <string name="homepage_backup_done">Backup completed</string>
     <string name="homepage_backup_failed">Backup failed: %1$s</string>

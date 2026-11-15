@@ -1192,7 +1192,7 @@ object ReadBook : CoroutineScope by MainScope() {
         saveRead()
     }
 
-    fun saveRead(pageChanged: Boolean = false) {
+    fun saveRead(pageChanged: Boolean = false, notifyHomepage: Boolean = false) {
         val book = book ?: return
         executor.execute {
             kotlin.runCatching {
@@ -1213,6 +1213,9 @@ object ReadBook : CoroutineScope by MainScope() {
                     }
                 }
                 book.update()
+                if (notifyHomepage) {
+                    postEvent(EventBus.HOMEPAGE_READING_PROGRESS_UPDATED, book.bookUrl)
+                }
             }.onFailure {
                 AppLog.put("保存书籍阅读进度信息出错\n$it", it)
             }

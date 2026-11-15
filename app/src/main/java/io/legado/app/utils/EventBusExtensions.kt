@@ -17,6 +17,7 @@ package io.legado.app.utils
 
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LifecycleService
 import androidx.lifecycle.Observer
 import com.jeremyliao.liveeventbus.LiveEventBus
@@ -99,6 +100,20 @@ inline fun <reified EVENT> Fragment.observeEvent(
     }
     tags.forEach {
         eventObservable<EVENT>(it).observe(this, o)
+    }
+}
+
+/** 在指定生命周期内订阅 Fragment 事件，例如绑定到 viewLifecycleOwner。 */
+inline fun <reified EVENT> Fragment.observeEvent(
+    lifecycleOwner: LifecycleOwner,
+    vararg tags: String,
+    noinline observer: (EVENT) -> Unit
+) {
+    val o = Observer<EVENT> {
+        observer(it)
+    }
+    tags.forEach {
+        eventObservable<EVENT>(it).observe(lifecycleOwner, o)
     }
 }
 

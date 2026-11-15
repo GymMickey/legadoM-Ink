@@ -11,6 +11,8 @@ import android.view.ViewGroup
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.viewModels
+import io.legado.app.constant.EventBus
 import io.legado.app.help.config.ThemeConfig
 import io.legado.app.data.appDb
 import io.legado.app.ui.book.info.BookInfoActivity
@@ -18,18 +20,13 @@ import io.legado.app.ui.config.ConfigActivity
 import io.legado.app.ui.config.ConfigTag
 import io.legado.app.ui.main.MainFragmentInterface
 import io.legado.app.R
-import io.legado.app.help.AppWebDav
 import io.legado.app.ui.book.readRecord.ReadRecordActivity
 import io.legado.app.utils.startActivity
 import io.legado.app.help.config.AppConfig
 import io.legado.app.ui.rss.read.ReadRssActivity
 import io.legado.app.ui.wifi.WifiTransferDialogFragment
-import kotlinx.coroutines.DelicateCoroutinesApi
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import io.legado.app.ui.theme.LegadoThemeWithBackground
+import io.legado.app.utils.observeEvent
 import splitties.init.appCtx
 
 /**
@@ -41,6 +38,8 @@ import splitties.init.appCtx
  */
 class HomepageFragment() : Fragment(), MainFragmentInterface {
 
+    private val viewModel: HomepageViewModel by viewModels()
+
     constructor(position: Int) : this() {
         val bundle = Bundle()
         bundle.putInt("position", position)
@@ -48,6 +47,13 @@ class HomepageFragment() : Fragment(), MainFragmentInterface {
     }
 
     override val position: Int? get() = arguments?.getInt("position")
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        observeEvent<String>(viewLifecycleOwner, EventBus.HOMEPAGE_READING_PROGRESS_UPDATED) {
+            viewModel.refreshReadingProgress()
+        }
+    }
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -75,24 +81,8 @@ class HomepageFragment() : Fragment(), MainFragmentInterface {
                     LegadoThemeWithBackground(
                         backgroundDrawable = backgroundDrawable
                     ) {
-                        @OptIn(DelicateCoroutinesApi::class)
-                        val onRestoreConfirm: (String) -> Unit = { backupName ->
-                            GlobalScope.launch(Dispatchers.Main) {
-                                try {
-                                    withContext(Dispatchers.IO) {
-                                        AppWebDav.restoreWebDav(backupName)
-                                    }
-                                    // 成功 Toast 已由 Restore.restore() 内部弹出，避免重复
-                                } catch (e: Exception) {
-                                    android.widget.Toast.makeText(
-                                        appCtx,
-                                        appCtx.getString(R.string.restore_fail, e.message),
-                                        android.widget.Toast.LENGTH_SHORT
-                                    ).show()
-                                }
-                            }
-                        }
                         HomepageScreen(
+                        viewModel = viewModel,
                         onReadRecordClick = {
                             startActivity<ReadRecordActivity>()
                         },
@@ -134,7 +124,6 @@ class HomepageFragment() : Fragment(), MainFragmentInterface {
                             }
                             startActivity(intent)
                         },
-                        onRestoreConfirm = onRestoreConfirm,
                     )
                 }
             }

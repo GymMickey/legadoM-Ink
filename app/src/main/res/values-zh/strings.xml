@@ -2065,6 +2065,11 @@
     <string name="homepage_webdav_restore">恢复</string>
     <string name="homepage_webdav_settings">设置</string>
     <string name="homepage_webdav_configure">设置 WebDAV 备份</string>
+    <string name="homepage_webdav_restore_confirm">将恢复备份“%s”，当前数据会被覆盖。确认继续吗？</string>
+    <string name="homepage_webdav_downloading_backup">正在下载备份…</string>
+    <string name="homepage_webdav_restoring">正在恢复…</string>
+    <string name="homepage_webdav_restore_failed">WebDAV 恢复失败：%1$s</string>
+    <string name="homepage_webdav_no_backup">WebDAV 上没有找到备份文件</string>
     <string name="homepage_backup_done">备份完成</string>
     <string name="homepage_backup_failed">备份失败：%1$s</string>
 

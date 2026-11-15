@@ -390,7 +390,7 @@ class ReadBookActivity : BaseReadBookActivity(),
         autoPageStop()
         backupJob?.cancel()
         ReadBook.upReadTime()
-        ReadBook.saveRead()
+        ReadBook.saveRead(notifyHomepage = true)
         ReadBook.cancelPreDownloadTask()
         unregisterReceiver(timeBatteryReceiver)
         upSystemUiVisibility()

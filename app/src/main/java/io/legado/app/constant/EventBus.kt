@@ -19,6 +19,9 @@ object EventBus {
     const val WEB_SERVICE = "webService"                    // Web 服务状态变�?
     const val DEBUG_MODE_CHANGED = "debugModeChanged"       // 调试模式开关变�?
 
+    // ── 首页 ──
+    const val HOMEPAGE_READING_PROGRESS_UPDATED = "homepageReadingProgressUpdated"
+
     // ── 书架 ──
     const val UP_BOOKSHELF = "upBookToc"                    // 书籍目录更新
     const val BOOKSHELF_REFRESH = "bookshelfRefresh"        // 书架列表刷新

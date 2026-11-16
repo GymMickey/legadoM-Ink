@@ -56,12 +56,12 @@
     },
     "current_progress_revision": {
       "type": "integer",
-      "minimum": 0,
+      "minimum": 1,
       "maximum": 9007199254740991
     },
     "current_toc_revision": {
       "type": "integer",
-      "minimum": 0,
+      "minimum": 1,
       "maximum": 9007199254740991
     },
     "recovery_action": {

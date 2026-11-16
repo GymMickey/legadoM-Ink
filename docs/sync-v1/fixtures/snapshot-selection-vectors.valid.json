@@ -46,8 +46,8 @@
           "path": "android/progress/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/5-77777777-7777-4777-8777-000000000003.json",
           "device_id": "11111111-1111-4111-8111-111111111111",
           "work_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
-          "payload_utf8": "{\"protocol_version\":\"sync-v1\",\"schema_version\":\"1.0.0\",\"normalization_version\":\"normalization-v1\",\"work_id\":\"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa\",\"toc_revision\":7,\"progress_revision\":5,\"snapshot_id\":\"77777777-7777-4777-8777-000000000003\",\"chapter_title\":\"第一章\",\"local_toc_index\":0,\"visible_char_offset\":null,\"visible_char_count\":null,\"chapter_fraction\":null,\"chapter_fraction_is_estimated\":true,\"chapter_text_fingerprint\":null,\"locator_confidence\":\"chapter\",\"source_event_id\":null,\"updated_by_device_id\":\"11111111-1111-4111-8111-111111111111\",\"updated_at\":\"2026-11-10T08:00:00Z\"}",
-          "payload_sha256": "5072e5e67f493994cef693fff1ba29fb1c00f5de89334332c42d3d23d05a6774"
+          "payload_utf8": "{\"protocol_version\":\"sync-v1\",\"schema_version\":\"1.0.0\",\"normalization_version\":\"normalization-v1\",\"work_id\":\"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa\",\"toc_revision\":7,\"progress_revision\":5,\"snapshot_id\":\"77777777-7777-4777-8777-000000000003\",\"chapter_title\":\"第一章\",\"local_toc_index\":0,\"visible_char_offset\":null,\"visible_char_count\":null,\"chapter_fraction_ppm\":null,\"chapter_fraction_is_estimated\":true,\"chapter_text_fingerprint\":null,\"locator_confidence\":\"chapter\",\"source_event_id\":null,\"updated_by_device_id\":\"11111111-1111-4111-8111-111111111111\",\"updated_at\":\"2026-11-10T08:00:00Z\"}",
+          "payload_sha256": "c1947a40f09959fde17ec4033161593992fc16652625409951d05f6948dbee1e"
         },
         {
           "revision": 5,
@@ -57,8 +57,8 @@
           "path": "android/progress/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/5-77777777-7777-4777-8777-000000000003.json",
           "device_id": "11111111-1111-4111-8111-111111111111",
           "work_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
-          "payload_utf8": "{\"protocol_version\":\"sync-v1\",\"schema_version\":\"1.0.0\",\"normalization_version\":\"normalization-v1\",\"work_id\":\"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa\",\"toc_revision\":7,\"progress_revision\":5,\"snapshot_id\":\"77777777-7777-4777-8777-000000000003\",\"chapter_title\":\"第一章\",\"local_toc_index\":0,\"visible_char_offset\":null,\"visible_char_count\":null,\"chapter_fraction\":null,\"chapter_fraction_is_estimated\":true,\"chapter_text_fingerprint\":null,\"locator_confidence\":\"chapter\",\"source_event_id\":null,\"updated_by_device_id\":\"11111111-1111-4111-8111-111111111111\",\"updated_at\":\"2026-11-10T08:00:00Z\"}",
-          "payload_sha256": "5072e5e67f493994cef693fff1ba29fb1c00f5de89334332c42d3d23d05a6774"
+          "payload_utf8": "{\"protocol_version\":\"sync-v1\",\"schema_version\":\"1.0.0\",\"normalization_version\":\"normalization-v1\",\"work_id\":\"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa\",\"toc_revision\":7,\"progress_revision\":5,\"snapshot_id\":\"77777777-7777-4777-8777-000000000003\",\"chapter_title\":\"第一章\",\"local_toc_index\":0,\"visible_char_offset\":null,\"visible_char_count\":null,\"chapter_fraction_ppm\":null,\"chapter_fraction_is_estimated\":true,\"chapter_text_fingerprint\":null,\"locator_confidence\":\"chapter\",\"source_event_id\":null,\"updated_by_device_id\":\"11111111-1111-4111-8111-111111111111\",\"updated_at\":\"2026-11-10T08:00:00Z\"}",
+          "payload_sha256": "c1947a40f09959fde17ec4033161593992fc16652625409951d05f6948dbee1e"
         }
       ],
       "expected_outcome": "selected",
@@ -108,8 +108,8 @@
           "path": "android/progress/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/9-77777777-7777-4777-8777-000000000006.json",
           "device_id": "11111111-1111-4111-8111-111111111111",
           "work_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
-          "payload_utf8": "{\"protocol_version\":\"sync-v1\",\"schema_version\":\"1.0.0\",\"normalization_version\":\"normalization-v1\",\"work_id\":\"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa\",\"toc_revision\":7,\"progress_revision\":9,\"snapshot_id\":\"77777777-7777-4777-8777-000000000006\",\"chapter_title\":\"第一章\",\"local_toc_index\":0,\"visible_char_offset\":null,\"visible_char_count\":null,\"chapter_fraction\":null,\"chapter_fraction_is_estimated\":true,\"chapter_text_fingerprint\":null,\"locator_confidence\":\"chapter\",\"source_event_id\":null,\"updated_by_device_id\":\"11111111-1111-4111-8111-111111111111\",\"updated_at\":\"2026-11-10T08:00:00Z\"}",
-          "payload_sha256": "3d717704f9fb6dc2424473aa3095702cc80a49485ede73b5766b34ec967399e0"
+          "payload_utf8": "{\"protocol_version\":\"sync-v1\",\"schema_version\":\"1.0.0\",\"normalization_version\":\"normalization-v1\",\"work_id\":\"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa\",\"toc_revision\":7,\"progress_revision\":9,\"snapshot_id\":\"77777777-7777-4777-8777-000000000006\",\"chapter_title\":\"第一章\",\"local_toc_index\":0,\"visible_char_offset\":null,\"visible_char_count\":null,\"chapter_fraction_ppm\":null,\"chapter_fraction_is_estimated\":true,\"chapter_text_fingerprint\":null,\"locator_confidence\":\"chapter\",\"source_event_id\":null,\"updated_by_device_id\":\"11111111-1111-4111-8111-111111111111\",\"updated_at\":\"2026-11-10T08:00:00Z\"}",
+          "payload_sha256": "4537c262677a9a8c4e1ab8696ada4f341632c07b90f07cbe45a879099187d85a"
         },
         {
           "revision": 9,
@@ -119,8 +119,8 @@
           "path": "android/progress/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/9-77777777-7777-4777-8777-000000000006.json",
           "device_id": "11111111-1111-4111-8111-111111111111",
           "work_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
-          "payload_utf8": "{\"protocol_version\":\"sync-v1\",\"schema_version\":\"1.0.0\",\"normalization_version\":\"normalization-v1\",\"work_id\":\"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa\",\"toc_revision\":7,\"progress_revision\":9,\"snapshot_id\":\"77777777-7777-4777-8777-000000000006\",\"chapter_title\":\"第二章\",\"local_toc_index\":0,\"visible_char_offset\":null,\"visible_char_count\":null,\"chapter_fraction\":null,\"chapter_fraction_is_estimated\":true,\"chapter_text_fingerprint\":null,\"locator_confidence\":\"chapter\",\"source_event_id\":null,\"updated_by_device_id\":\"11111111-1111-4111-8111-111111111111\",\"updated_at\":\"2026-11-10T08:00:00Z\"}",
-          "payload_sha256": "251dd3fdae633842c26e4e53bbd294de000238f5fd28aadce7eb8eab10e2e409"
+          "payload_utf8": "{\"protocol_version\":\"sync-v1\",\"schema_version\":\"1.0.0\",\"normalization_version\":\"normalization-v1\",\"work_id\":\"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa\",\"toc_revision\":7,\"progress_revision\":9,\"snapshot_id\":\"77777777-7777-4777-8777-000000000006\",\"chapter_title\":\"第二章\",\"local_toc_index\":0,\"visible_char_offset\":null,\"visible_char_count\":null,\"chapter_fraction_ppm\":null,\"chapter_fraction_is_estimated\":true,\"chapter_text_fingerprint\":null,\"locator_confidence\":\"chapter\",\"source_event_id\":null,\"updated_by_device_id\":\"11111111-1111-4111-8111-111111111111\",\"updated_at\":\"2026-11-10T08:00:00Z\"}",
+          "payload_sha256": "f433f5a63a391a48817b7b73b94a4f073b8fc3ab817e6a1c1deeb47cb0ce161a"
         }
       ],
       "expected_outcome": "revision_conflict",
@@ -159,7 +159,7 @@
       "selected_snapshot_id": "77777777-7777-4777-8777-000000000008"
     },
     {
-      "case_id": "highest-valid-not-highest-invalid",
+      "case_id": "highest-invalid-forbids-fallback",
       "projection_kind": "catalog",
       "candidates": [
         {
@@ -185,9 +185,9 @@
           "payload_sha256": "2127ba73266c58b62c794a61de191aac25f483bd940074ba24439d423d866241"
         }
       ],
-      "expected_outcome": "selected",
-      "selected_revision": 2,
-      "selected_snapshot_id": "77777777-7777-4777-8777-000000000009"
+      "expected_outcome": "no_valid_candidate",
+      "selected_revision": null,
+      "selected_snapshot_id": null
     },
     {
       "case_id": "no-valid-path-candidate",
@@ -201,8 +201,8 @@
           "path": "android/progress/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/4-77777777-7777-4777-8777-000000000011.json",
           "device_id": "11111111-1111-4111-8111-111111111111",
           "work_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
-          "payload_utf8": "{\"protocol_version\":\"sync-v1\",\"schema_version\":\"1.0.0\",\"normalization_version\":\"normalization-v1\",\"work_id\":\"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa\",\"toc_revision\":7,\"progress_revision\":4,\"snapshot_id\":\"77777777-7777-4777-8777-000000000011\",\"chapter_title\":\"第一章\",\"local_toc_index\":0,\"visible_char_offset\":null,\"visible_char_count\":null,\"chapter_fraction\":null,\"chapter_fraction_is_estimated\":true,\"chapter_text_fingerprint\":null,\"locator_confidence\":\"chapter\",\"source_event_id\":null,\"updated_by_device_id\":\"11111111-1111-4111-8111-111111111111\",\"updated_at\":\"2026-11-10T08:00:00Z\"}",
-          "payload_sha256": "6ae7e5000efe8d12d3377db53854093dadb756ce7a6183950750e9e5d46dd7f3"
+          "payload_utf8": "{\"protocol_version\":\"sync-v1\",\"schema_version\":\"1.0.0\",\"normalization_version\":\"normalization-v1\",\"work_id\":\"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa\",\"toc_revision\":7,\"progress_revision\":4,\"snapshot_id\":\"77777777-7777-4777-8777-000000000011\",\"chapter_title\":\"第一章\",\"local_toc_index\":0,\"visible_char_offset\":null,\"visible_char_count\":null,\"chapter_fraction_ppm\":null,\"chapter_fraction_is_estimated\":true,\"chapter_text_fingerprint\":null,\"locator_confidence\":\"chapter\",\"source_event_id\":null,\"updated_by_device_id\":\"11111111-1111-4111-8111-111111111111\",\"updated_at\":\"2026-11-10T08:00:00Z\"}",
+          "payload_sha256": "e6c05eed1da14113823cf8a3f6cee4f273a2b8e14c5ea6136405ce72a8bc540b"
         }
       ],
       "expected_outcome": "no_valid_candidate",

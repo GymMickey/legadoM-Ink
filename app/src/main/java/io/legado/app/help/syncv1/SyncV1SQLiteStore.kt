@@ -5,18 +5,24 @@ import android.content.Context
 import android.database.Cursor
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
+import com.google.gson.GsonBuilder
+import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.Dispatchers.IO
 import kotlinx.coroutines.withContext
 import java.util.UUID
 
 internal const val SYNC_V1_DATABASE_NAME = "legadoM_ink_sync.db"
+private const val MAX_SYNC_V1_ACK_PUT_ATTEMPTS = 2
+private fun syncV1AckRemotePath(deviceId: String, eventId: String) =
+    "legadom_ink_sync/v1/acks/$deviceId/$eventId.json"
 
 /** Independent, lazily opened storage. It is not part of AppDatabase or backup/restore. */
 class SyncV1SQLiteStore(
     context: Context,
     databaseName: String = SYNC_V1_DATABASE_NAME
-) : SyncV1Store, SyncV1CatalogStore, SyncV1ChaptersStore {
+) : SyncV1Store, SyncV1CatalogStore, SyncV1ChaptersStore, SyncV1BindingStore {
     private val helper = SyncV1DatabaseHelper(context.applicationContext, databaseName)
+    private val bindingGson = GsonBuilder().disableHtmlEscaping().create()
 
     override suspend fun androidPublisherDeviceId(uuidProvider: () -> UUID): String = withContext(IO) {
         val db = helper.writableDatabase
@@ -213,6 +219,223 @@ class SyncV1SQLiteStore(
             "SELECT 1 FROM sync_state WHERE processing_status = 'ready' AND remote_status = 'ready' AND create_mode IS NOT NULL LIMIT 1",
             null
         ).use { it.moveToFirst() }
+    }
+
+    override suspend fun readyDeviceIds(
+        serviceIdentity: String,
+        rootIdentity: String
+    ): List<String> = withContext(IO) {
+        helper.readableDatabase.rawQuery(
+            """
+            SELECT s.device_id, s.highest_confirmed_state_revision, i.raw_json_bytes
+            FROM sync_state s
+            JOIN device_state_publication_intent i ON i.device_id = s.device_id
+            WHERE s.processing_status = 'ready' AND s.remote_status = 'ready'
+                AND s.create_mode IS NOT NULL
+                AND i.service_identity = ? AND i.root_identity = ?
+                AND i.publication_status = 'published'
+                AND i.state_revision = s.highest_confirmed_state_revision
+            ORDER BY i.state_revision DESC
+            """.trimIndent(),
+            arrayOf(serviceIdentity, rootIdentity)
+        ).use { cursor ->
+            val seen = HashSet<String>()
+            buildList {
+                while (cursor.moveToNext()) {
+                    val deviceId = cursor.getString(0)
+                    if (!seen.add(deviceId)) continue
+                    val state = SyncV1Protocol.parseDeviceState(cursor.getBlob(2)) ?: continue
+                    if (state.deviceId == deviceId
+                        && state.status == "ready"
+                        && state.createMode == SYNC_V1_CREATE_MODE
+                    ) add(deviceId)
+                }
+            }
+        }
+    }
+
+    override suspend fun importReceipt(eventId: String): SyncV1ImportReceipt? = withContext(IO) {
+        helper.readableDatabase.rawQuery(
+            "SELECT * FROM sync_import_receipt WHERE event_id = ?",
+            arrayOf(eventId)
+        ).use { cursor -> if (cursor.moveToFirst()) cursor.toImportReceipt() else null }
+    }
+
+    override suspend fun contentBinding(
+        deviceId: String,
+        counterEpoch: String,
+        contentId: String
+    ): SyncV1KindleContentBinding? = withContext(IO) {
+        helper.readableDatabase.rawQuery(
+            "SELECT device_id, counter_epoch, content_id, work_id, created_at, updated_at FROM kindle_content_binding WHERE device_id = ? AND counter_epoch = ? AND content_id = ?",
+            arrayOf(deviceId, counterEpoch, contentId)
+        ).use { cursor -> if (cursor.moveToFirst()) cursor.toContentBinding() else null }
+    }
+
+    override suspend fun persistBindingOutcome(
+        receipt: SyncV1ImportReceipt,
+        intent: SyncV1AckPublicationIntent,
+        binding: SyncV1KindleContentBinding?
+    ): SyncV1BindingPersistResult = withContext(IO) {
+        validateAckIntent(receipt, intent)
+        if (binding != null && (binding.deviceId != receipt.deviceId
+                || binding.counterEpoch != receipt.counterEpoch
+                || binding.contentId != receipt.contentId
+                || binding.workId != receipt.workId)
+        ) throw SyncV1Failure(SyncV1ErrorCode.INVALID_EVENT)
+
+        val db = helper.writableDatabase
+        db.beginTransaction()
+        try {
+            val existingReceipt = db.rawQuery(
+                "SELECT * FROM sync_import_receipt WHERE event_id = ?",
+                arrayOf(receipt.eventId)
+            ).use { cursor -> if (cursor.moveToFirst()) cursor.toImportReceipt() else null }
+            if (existingReceipt != null) {
+                db.setTransactionSuccessful()
+                return@withContext if (existingReceipt.deviceId == receipt.deviceId
+                    && existingReceipt.payloadSha256 == receipt.payloadSha256
+                ) SyncV1BindingPersistResult.Existing(existingReceipt)
+                else SyncV1BindingPersistResult.EventIdConflict
+            }
+
+            val existingBinding = if (binding == null) null else db.rawQuery(
+                "SELECT work_id FROM kindle_content_binding WHERE device_id = ? AND counter_epoch = ? AND content_id = ?",
+                arrayOf(binding.deviceId, binding.counterEpoch, binding.contentId)
+            ).use { cursor -> if (cursor.moveToFirst()) cursor.getString(0) else null }
+            if (existingBinding != null && existingBinding != binding?.workId) {
+                db.setTransactionSuccessful()
+                return@withContext SyncV1BindingPersistResult.BindingConflict
+            }
+
+            if (binding != null && existingBinding == null) {
+                db.insertOrThrow(
+                    "kindle_content_binding",
+                    null,
+                    ContentValues().apply {
+                        put("device_id", binding.deviceId)
+                        put("counter_epoch", binding.counterEpoch)
+                        put("content_id", binding.contentId)
+                        put("work_id", binding.workId)
+                        put("created_at", binding.createdAt)
+                        put("updated_at", binding.updatedAt)
+                    }
+                )
+            }
+            insertImportReceipt(db, receipt)
+            insertAckIntent(db, intent)
+            db.setTransactionSuccessful()
+            SyncV1BindingPersistResult.Stored
+        } finally {
+            db.endTransaction()
+        }
+    }
+
+    override suspend fun ensureAckIntent(
+        receipt: SyncV1ImportReceipt,
+        serviceIdentity: String,
+        rootIdentity: String
+    ): SyncV1AckPublicationIntent = withContext(IO) {
+        if (SyncV1Protocol.sha256(receipt.ackRawJsonBytes) != receipt.ackSha256) {
+            throw SyncV1Failure(SyncV1ErrorCode.ACK_CONFLICT)
+        }
+        val path = syncV1AckRemotePath(receipt.deviceId, receipt.eventId)
+        val db = helper.writableDatabase
+        db.beginTransaction()
+        try {
+            val existing = db.rawQuery(
+                "SELECT * FROM ack_publication_intent WHERE service_identity = ? AND root_identity = ? AND remote_path = ?",
+                arrayOf(serviceIdentity, rootIdentity, path)
+            ).use { cursor -> if (cursor.moveToFirst()) cursor.toAckIntent() else null }
+            if (existing != null) {
+                if (existing.eventId != receipt.eventId
+                    || existing.rawSha256 != receipt.ackSha256
+                    || !existing.rawJsonBytes.contentEquals(receipt.ackRawJsonBytes)
+                ) throw SyncV1Failure(SyncV1ErrorCode.ACK_CONFLICT)
+                db.setTransactionSuccessful()
+                return@withContext existing
+            }
+            val now = System.currentTimeMillis()
+            val intent = SyncV1AckPublicationIntent(
+                deviceId = receipt.deviceId,
+                eventId = receipt.eventId,
+                remotePath = path,
+                rawJsonBytes = receipt.ackRawJsonBytes,
+                rawSha256 = receipt.ackSha256,
+                putAttemptCount = 0,
+                serviceIdentity = serviceIdentity,
+                rootIdentity = rootIdentity,
+                publicationStatus = "pending",
+                createdAt = now,
+                updatedAt = now
+            )
+            insertAckIntent(db, intent)
+            db.setTransactionSuccessful()
+            intent
+        } finally {
+            db.endTransaction()
+        }
+    }
+
+    override suspend fun pendingAckIntents(
+        serviceIdentity: String,
+        rootIdentity: String
+    ): List<SyncV1AckPublicationIntent> = withContext(IO) {
+        helper.readableDatabase.rawQuery(
+            "SELECT * FROM ack_publication_intent WHERE publication_status = 'pending' AND service_identity = ? AND root_identity = ? ORDER BY created_at, event_id",
+            arrayOf(serviceIdentity, rootIdentity)
+        ).use { cursor -> buildList { while (cursor.moveToNext()) add(cursor.toAckIntent()) } }
+    }
+
+    override suspend fun incrementAckPutAttempt(
+        intent: SyncV1AckPublicationIntent,
+        now: Long
+    ): Int = withContext(IO) {
+        val db = helper.writableDatabase
+        db.beginTransaction()
+        try {
+            val count = db.rawQuery(
+                "SELECT put_attempt_count FROM ack_publication_intent WHERE service_identity = ? AND root_identity = ? AND remote_path = ? AND raw_sha256 = ? AND publication_status = 'pending'",
+                arrayOf(intent.serviceIdentity, intent.rootIdentity, intent.remotePath, intent.rawSha256)
+            ).use { cursor ->
+                if (!cursor.moveToFirst()) throw SyncV1Failure(SyncV1ErrorCode.RETRY_LIMIT)
+                cursor.getInt(0)
+            }
+            if (count >= MAX_SYNC_V1_ACK_PUT_ATTEMPTS) throw SyncV1Failure(SyncV1ErrorCode.RETRY_LIMIT)
+            db.update(
+                "ack_publication_intent",
+                ContentValues().apply {
+                    put("put_attempt_count", count + 1)
+                    put("updated_at", now)
+                },
+                "service_identity = ? AND root_identity = ? AND remote_path = ? AND raw_sha256 = ? AND publication_status = 'pending'",
+                arrayOf(intent.serviceIdentity, intent.rootIdentity, intent.remotePath, intent.rawSha256)
+            )
+            db.setTransactionSuccessful()
+            count + 1
+        } finally {
+            db.endTransaction()
+        }
+    }
+
+    override suspend fun markAckPublished(intent: SyncV1AckPublicationIntent, now: Long) = withContext(IO) {
+        val updated = helper.writableDatabase.update(
+            "ack_publication_intent",
+            ContentValues().apply {
+                put("publication_status", "published")
+                put("updated_at", now)
+            },
+            "service_identity = ? AND root_identity = ? AND remote_path = ? AND raw_sha256 = ? AND publication_status = 'pending'",
+            arrayOf(intent.serviceIdentity, intent.rootIdentity, intent.remotePath, intent.rawSha256)
+        )
+        if (updated != 1) throw SyncV1Failure(SyncV1ErrorCode.ACK_CONFLICT)
+    }
+
+    override suspend fun pendingAckCount(serviceIdentity: String, rootIdentity: String): Int = withContext(IO) {
+        helper.readableDatabase.rawQuery(
+            "SELECT COUNT(*) FROM ack_publication_intent WHERE publication_status = 'pending' AND service_identity = ? AND root_identity = ?",
+            arrayOf(serviceIdentity, rootIdentity)
+        ).use { cursor -> cursor.moveToFirst(); cursor.getInt(0) }
     }
 
     override suspend fun pendingCatalogIntent(
@@ -792,6 +1015,124 @@ class SyncV1SQLiteStore(
         db.insertWithOnConflict("sync_state", null, values, SQLiteDatabase.CONFLICT_REPLACE)
     }
 
+    private fun validateAckIntent(receipt: SyncV1ImportReceipt, intent: SyncV1AckPublicationIntent) {
+        if (intent.deviceId != receipt.deviceId
+            || intent.eventId != receipt.eventId
+            || intent.remotePath != syncV1AckRemotePath(receipt.deviceId, receipt.eventId)
+            || intent.rawSha256 != receipt.ackSha256
+            || !intent.rawJsonBytes.contentEquals(receipt.ackRawJsonBytes)
+            || intent.serviceIdentity != receipt.serviceIdentity
+            || intent.rootIdentity != receipt.rootIdentity
+            || SyncV1Protocol.sha256(intent.rawJsonBytes) != intent.rawSha256
+        ) throw SyncV1Failure(SyncV1ErrorCode.ACK_CONFLICT)
+    }
+
+    private fun insertImportReceipt(db: SQLiteDatabase, receipt: SyncV1ImportReceipt) {
+        db.insertOrThrow(
+            "sync_import_receipt",
+            null,
+            ContentValues().apply {
+                put("event_id", receipt.eventId)
+                put("device_id", receipt.deviceId)
+                put("event_type", receipt.eventType)
+                put("payload_sha256", receipt.payloadSha256)
+                put("counter_epoch", receipt.counterEpoch)
+                put("sequence", receipt.sequence)
+                put("content_id", receipt.contentId)
+                put("title", receipt.title)
+                put("author", receipt.author)
+                put("local_toc_count", receipt.localTocCount)
+                put("toc_candidates_json", bindingGson.toJson(receipt.tocCandidates))
+                put("terminal_status", receipt.terminalStatus)
+                put("reason_code", receipt.reasonCode)
+                put("recovery_action", receipt.recoveryAction)
+                put("work_id", receipt.workId)
+                put("candidates_json", bindingGson.toJson(receipt.candidates))
+                put("acknowledged_at", receipt.acknowledgedAt)
+                put("ack_raw_json_bytes", receipt.ackRawJsonBytes)
+                put("ack_sha256", receipt.ackSha256)
+                put("service_identity", receipt.serviceIdentity)
+                put("root_identity", receipt.rootIdentity)
+                put("created_at", System.currentTimeMillis())
+            }
+        )
+    }
+
+    private fun insertAckIntent(db: SQLiteDatabase, intent: SyncV1AckPublicationIntent) {
+        db.insertOrThrow(
+            "ack_publication_intent",
+            null,
+            ContentValues().apply {
+                put("service_identity", intent.serviceIdentity)
+                put("root_identity", intent.rootIdentity)
+                put("remote_path", intent.remotePath)
+                put("device_id", intent.deviceId)
+                put("event_id", intent.eventId)
+                put("raw_json_bytes", intent.rawJsonBytes)
+                put("raw_sha256", intent.rawSha256)
+                put("put_attempt_count", intent.putAttemptCount)
+                put("publication_status", intent.publicationStatus)
+                put("created_at", intent.createdAt)
+                put("updated_at", intent.updatedAt)
+            }
+        )
+    }
+
+    private fun Cursor.toImportReceipt(): SyncV1ImportReceipt {
+        val tocType = object : TypeToken<List<SyncV1BindingTocCandidate>>() {}.type
+        val candidateType = object : TypeToken<List<SyncV1BindingCandidate>>() {}.type
+        val tocCandidates: List<SyncV1BindingTocCandidate> =
+            bindingGson.fromJson(getString(getColumnIndexOrThrow("toc_candidates_json")), tocType) ?: emptyList()
+        val candidates: List<SyncV1BindingCandidate> =
+            bindingGson.fromJson(getString(getColumnIndexOrThrow("candidates_json")), candidateType) ?: emptyList()
+        return SyncV1ImportReceipt(
+            eventId = getString(getColumnIndexOrThrow("event_id")),
+            deviceId = getString(getColumnIndexOrThrow("device_id")),
+            eventType = nullableString("event_type"),
+            payloadSha256 = getString(getColumnIndexOrThrow("payload_sha256")),
+            counterEpoch = nullableString("counter_epoch"),
+            sequence = nullableLong("sequence"),
+            contentId = nullableString("content_id"),
+            title = nullableString("title"),
+            author = nullableString("author"),
+            localTocCount = nullableLong("local_toc_count"),
+            tocCandidates = tocCandidates,
+            terminalStatus = getString(getColumnIndexOrThrow("terminal_status")),
+            reasonCode = nullableString("reason_code"),
+            recoveryAction = getString(getColumnIndexOrThrow("recovery_action")),
+            workId = nullableString("work_id"),
+            candidates = candidates,
+            acknowledgedAt = getString(getColumnIndexOrThrow("acknowledged_at")),
+            ackRawJsonBytes = getBlob(getColumnIndexOrThrow("ack_raw_json_bytes")),
+            ackSha256 = getString(getColumnIndexOrThrow("ack_sha256")),
+            serviceIdentity = getString(getColumnIndexOrThrow("service_identity")),
+            rootIdentity = getString(getColumnIndexOrThrow("root_identity"))
+        )
+    }
+
+    private fun Cursor.toContentBinding() = SyncV1KindleContentBinding(
+        deviceId = getString(getColumnIndexOrThrow("device_id")),
+        counterEpoch = getString(getColumnIndexOrThrow("counter_epoch")),
+        contentId = getString(getColumnIndexOrThrow("content_id")),
+        workId = getString(getColumnIndexOrThrow("work_id")),
+        createdAt = getLong(getColumnIndexOrThrow("created_at")),
+        updatedAt = getLong(getColumnIndexOrThrow("updated_at"))
+    )
+
+    private fun Cursor.toAckIntent() = SyncV1AckPublicationIntent(
+        deviceId = getString(getColumnIndexOrThrow("device_id")),
+        eventId = getString(getColumnIndexOrThrow("event_id")),
+        remotePath = getString(getColumnIndexOrThrow("remote_path")),
+        rawJsonBytes = getBlob(getColumnIndexOrThrow("raw_json_bytes")),
+        rawSha256 = getString(getColumnIndexOrThrow("raw_sha256")),
+        putAttemptCount = getInt(getColumnIndexOrThrow("put_attempt_count")),
+        serviceIdentity = getString(getColumnIndexOrThrow("service_identity")),
+        rootIdentity = getString(getColumnIndexOrThrow("root_identity")),
+        publicationStatus = getString(getColumnIndexOrThrow("publication_status")),
+        createdAt = getLong(getColumnIndexOrThrow("created_at")),
+        updatedAt = getLong(getColumnIndexOrThrow("updated_at"))
+    )
+
     private fun Cursor.toIntent(): DeviceStatePublicationIntent = DeviceStatePublicationIntent(
         deviceId = getString(getColumnIndexOrThrow("device_id")),
         stateRevision = getLong(getColumnIndexOrThrow("state_revision")),
@@ -915,6 +1256,11 @@ class SyncV1SQLiteStore(
     private fun Cursor.nullableString(index: Int): String? {
         return if (isNull(index)) null else getString(index)
     }
+
+    private fun Cursor.nullableLong(column: String): Long? {
+        val index = getColumnIndexOrThrow(column)
+        return if (isNull(index)) null else getLong(index)
+    }
 }
 
 private class SyncV1DatabaseHelper(context: Context, databaseName: String) :
@@ -928,6 +1274,7 @@ private class SyncV1DatabaseHelper(context: Context, databaseName: String) :
         createVersionOneSchema(db)
         createVersionTwoSchema(db)
         createVersionThreeSchema(db)
+        createVersionFourSchema(db)
     }
 
     private fun createVersionOneSchema(db: SQLiteDatabase) {
@@ -1086,13 +1433,80 @@ private class SyncV1DatabaseHelper(context: Context, databaseName: String) :
         )
     }
 
+    private fun createVersionFourSchema(db: SQLiteDatabase) {
+        db.execSQL(
+            """CREATE TABLE sync_import_receipt (
+                event_id TEXT PRIMARY KEY NOT NULL,
+                device_id TEXT NOT NULL,
+                event_type TEXT,
+                payload_sha256 TEXT NOT NULL,
+                counter_epoch TEXT,
+                sequence INTEGER,
+                content_id TEXT,
+                title TEXT,
+                author TEXT,
+                local_toc_count INTEGER,
+                toc_candidates_json TEXT NOT NULL,
+                terminal_status TEXT NOT NULL,
+                reason_code TEXT,
+                recovery_action TEXT NOT NULL,
+                work_id TEXT,
+                candidates_json TEXT NOT NULL,
+                acknowledged_at TEXT NOT NULL,
+                ack_raw_json_bytes BLOB NOT NULL,
+                ack_sha256 TEXT NOT NULL,
+                service_identity TEXT NOT NULL,
+                root_identity TEXT NOT NULL,
+                created_at INTEGER NOT NULL
+            )""".trimIndent()
+        )
+        db.execSQL(
+            "CREATE INDEX sync_v1_receipt_content ON sync_import_receipt(device_id, counter_epoch, content_id)"
+        )
+        db.execSQL(
+            """CREATE TABLE kindle_content_binding (
+                device_id TEXT NOT NULL,
+                counter_epoch TEXT NOT NULL,
+                content_id TEXT NOT NULL,
+                work_id TEXT NOT NULL REFERENCES work_identity(work_id) ON DELETE RESTRICT,
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL,
+                PRIMARY KEY(device_id, counter_epoch, content_id)
+            )""".trimIndent()
+        )
+        db.execSQL(
+            "CREATE INDEX sync_v1_binding_work ON kindle_content_binding(work_id)"
+        )
+        db.execSQL(
+            """CREATE TABLE ack_publication_intent (
+                service_identity TEXT NOT NULL,
+                root_identity TEXT NOT NULL,
+                remote_path TEXT NOT NULL,
+                device_id TEXT NOT NULL,
+                event_id TEXT NOT NULL REFERENCES sync_import_receipt(event_id) ON DELETE RESTRICT,
+                raw_json_bytes BLOB NOT NULL,
+                raw_sha256 TEXT NOT NULL,
+                put_attempt_count INTEGER NOT NULL CHECK (put_attempt_count BETWEEN 0 AND 2),
+                publication_status TEXT NOT NULL,
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL,
+                PRIMARY KEY(service_identity, root_identity, remote_path),
+                UNIQUE(service_identity, root_identity, event_id)
+            )""".trimIndent()
+        )
+        db.execSQL(
+            "CREATE INDEX sync_v1_pending_ack ON ack_publication_intent(service_identity, root_identity, publication_status, created_at)"
+        )
+    }
+
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
         if (oldVersion < 1) createVersionOneSchema(db)
         if (oldVersion < 2) createVersionTwoSchema(db)
         if (oldVersion < 3) createVersionThreeSchema(db)
+        if (oldVersion < 4) createVersionFourSchema(db)
     }
 
     private companion object {
-        const val DATABASE_VERSION = 3
+        const val DATABASE_VERSION = 4
     }
 }

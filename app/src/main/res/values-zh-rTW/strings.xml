@@ -1103,6 +1103,13 @@
     <string name="sync_v1_chapters_success">成功</string>
     <string name="sync_v1_chapters_partial_success">部分成功</string>
     <string name="sync_v1_chapters_error">失敗</string>
+    <string name="sync_v1_process_bindings">處理 Sync-v1 書籍綁定請求</string>
+    <string name="sync_v1_process_bindings_summary">掃描已就緒裝置的綁定請求並發布不可變確認</string>
+    <string name="sync_v1_processing_bindings">正在處理 Sync-v1 綁定請求…</string>
+    <string name="sync_v1_binding_state_title">Sync-v1 綁定狀態</string>
+    <string name="sync_v1_bindings_not_processed">尚未處理綁定請求</string>
+    <string name="sync_v1_bindings_running">正在掃描就緒裝置並發布確認…</string>
+    <string name="sync_v1_bindings_result">裝置 %1$d · 事件 %2$d · 已綁定 %3$d · 待選擇 %4$d · 找不到 %5$d · 已拒絕 %6$d · 未處理 %7$d · 確認已發布 %8$d · 待發布 %9$d · 事件衝突 %10$d · 錯誤碼 %11$s</string>
     <string name="web_service_wake_lock">WebService喚醒鎖</string>
     <string name="web_service_wake_lock_summary">開啟web服務的時候啟用喚醒鎖，有些手機開啟喚醒鎖會被殺後台</string>
 <string name="change_search_scope">切換搜尋範圍</string>

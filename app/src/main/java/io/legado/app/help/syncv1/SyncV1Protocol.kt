@@ -19,6 +19,8 @@ import java.time.format.DateTimeParseException
 import java.util.UUID
 
 internal const val SYNC_V1_MAX_OBJECT_BYTES = 64 * 1024
+internal const val SYNC_V1_MAX_BINDING_EVENT_BYTES = 256 * 1024
+internal const val SYNC_V1_MAX_BINDING_CANDIDATES = 20
 internal const val SYNC_V1_MAX_CATALOG_BYTES = 1024 * 1024
 internal const val SYNC_V1_MAX_CATALOG_WORKS = 2500
 internal const val SYNC_V1_MAX_CHAPTERS_BYTES = 2 * 1024 * 1024
@@ -142,6 +144,14 @@ internal object SyncV1Protocol {
         "snapshot_id", "generated_at", "chapters"
     )
     private val chapterKeys = setOf("chapter_key", "title", "local_toc_index")
+    private val bindingRequestRequiredKeys = setOf(
+        "protocol_version", "schema_version", "normalization_version", "event_type", "event_id",
+        "device_id", "counter_epoch", "sequence", "created_at", "content_id", "title", "author",
+        "local_toc_count"
+    )
+    private val bindingRequestAllowedKeys = bindingRequestRequiredKeys + setOf(
+        "toc_candidates", "selected_work_id", "selection_from_event_id"
+    )
     private val registrationResults = setOf(
         "registration_verified",
         "registration_recovered",
@@ -152,6 +162,166 @@ internal object SyncV1Protocol {
     )
 
     fun isUuidV4(value: String): Boolean = uuidV4Pattern.matches(value)
+
+    fun eventType(rawBytes: ByteArray): String? = try {
+        (parseStrictJson(rawBytes) as? JsonObject)?.string("event_type")
+    } catch (_: Exception) {
+        null
+    }
+
+    fun parseBindingRequest(
+        pathDeviceId: String,
+        pathEventId: String,
+        rawBytes: ByteArray
+    ): SyncV1BindingRequestParseResult {
+        if (rawBytes.size > SYNC_V1_MAX_BINDING_EVENT_BYTES) {
+            return SyncV1BindingRequestParseResult.Invalid(
+                errorCode = SyncV1ErrorCode.SIZE_EXCEEDED,
+                reasonCode = "unsupported_schema",
+                eventType = null,
+                deviceId = null,
+                counterEpoch = null,
+                sequence = null,
+                contentId = null,
+                title = null,
+                author = null
+            )
+        }
+        var root: JsonObject? = null
+        try {
+            root = parseStrictJson(rawBytes) as? JsonObject
+        } catch (_: Exception) {
+            // Malformed JSON is an invalid binding event; the immutable event path still
+            // supplies the identifiers needed to publish a terminal rejected acknowledgement.
+        }
+        val event = root
+        val type = event?.string("event_type")
+        if (type != null && type != "binding_request") {
+            return SyncV1BindingRequestParseResult.NotBindingRequest
+        }
+        fun invalid(
+            code: SyncV1ErrorCode,
+            reason: String,
+            value: JsonObject? = event
+        ) = SyncV1BindingRequestParseResult.Invalid(
+            errorCode = code,
+            reasonCode = reason,
+            eventType = value?.string("event_type"),
+            deviceId = value?.string("device_id"),
+            counterEpoch = value?.string("counter_epoch"),
+            sequence = value?.safeLong("sequence"),
+            contentId = value?.string("content_id"),
+            title = value?.string("title"),
+            author = value?.string("author")
+        )
+
+        if (event == null) return invalid(SyncV1ErrorCode.INVALID_JSON, "unsupported_schema", null)
+        if (!event.keySet().containsAll(bindingRequestRequiredKeys)
+            || event.keySet().any { it !in bindingRequestAllowedKeys }
+        ) return invalid(SyncV1ErrorCode.UNSUPPORTED_SCHEMA, "unsupported_schema")
+        val hasSelectedWork = event.has("selected_work_id")
+        val hasSelectionSource = event.has("selection_from_event_id")
+        if (hasSelectedWork != hasSelectionSource) {
+            return invalid(SyncV1ErrorCode.UNSUPPORTED_SCHEMA, "unsupported_schema")
+        }
+        if (event.string("protocol_version") != "sync-v1"
+            || event.string("schema_version") != "1.0.0"
+            || event.string("normalization_version") != "normalization-v1"
+            || type != "binding_request"
+        ) return invalid(SyncV1ErrorCode.UNSUPPORTED_SCHEMA, "unsupported_schema")
+
+        val eventId = event.string("event_id")?.takeIf(::isUuidV4)
+            ?: return invalid(SyncV1ErrorCode.INVALID_EVENT, "invalid_event")
+        val deviceId = event.string("device_id")?.takeIf(::isUuidV4)
+            ?: return invalid(SyncV1ErrorCode.INVALID_EVENT, "invalid_event")
+        val counterEpoch = event.string("counter_epoch")?.takeIf(::isUuidV4)
+            ?: return invalid(SyncV1ErrorCode.INVALID_EVENT, "invalid_event")
+        if (eventId != pathEventId || deviceId != pathDeviceId
+            || !isUuidV4(pathEventId) || !isUuidV4(pathDeviceId)
+        ) return invalid(SyncV1ErrorCode.INVALID_EVENT, "invalid_event")
+
+        val sequence = event.safeLong("sequence")
+            ?: return invalid(SyncV1ErrorCode.INVALID_EVENT, "invalid_event")
+        val createdAt = event.string("created_at")?.takeIf(::isUtcDateTime)
+            ?: return invalid(SyncV1ErrorCode.INVALID_EVENT, "invalid_event")
+        val contentId = event.string("content_id")?.takeIf { isValidScalarString(it, 1, 512) }
+            ?: return invalid(SyncV1ErrorCode.INVALID_EVENT, "invalid_event")
+        val title = event.string("title")?.takeIf { isValidScalarString(it, 1, 512) }
+            ?: return invalid(SyncV1ErrorCode.INVALID_EVENT, "invalid_event")
+        val author = event.string("author")?.takeIf { isValidScalarString(it, 0, 512) }
+            ?: return invalid(SyncV1ErrorCode.INVALID_EVENT, "invalid_event")
+        val localTocCount = event.safeLong("local_toc_count")
+            ?: return invalid(SyncV1ErrorCode.INVALID_EVENT, "invalid_event")
+
+        val tocCandidates = ArrayList<SyncV1BindingTocCandidate>()
+        if (event.has("toc_candidates")) {
+            val array = event.get("toc_candidates")
+                ?.takeIf { it.isJsonArray }
+                ?.asJsonArray
+                ?: return invalid(SyncV1ErrorCode.UNSUPPORTED_SCHEMA, "unsupported_schema")
+            if (array.size() > SYNC_V1_MAX_BINDING_CANDIDATES) {
+                return invalid(SyncV1ErrorCode.UNSUPPORTED_SCHEMA, "unsupported_schema")
+            }
+            for (element in array) {
+                val candidate = element.takeIf { it.isJsonObject }?.asJsonObject
+                    ?: return invalid(SyncV1ErrorCode.UNSUPPORTED_SCHEMA, "unsupported_schema")
+                if (candidate.keySet() != setOf("local_toc_index", "title")) {
+                    return invalid(SyncV1ErrorCode.UNSUPPORTED_SCHEMA, "unsupported_schema")
+                }
+                val index = candidate.safeLong("local_toc_index")
+                    ?: return invalid(SyncV1ErrorCode.INVALID_EVENT, "invalid_event")
+                val candidateTitle = candidate.string("title")
+                    ?.takeIf { isValidScalarString(it, 1, 256) }
+                    ?: return invalid(SyncV1ErrorCode.INVALID_EVENT, "invalid_event")
+                tocCandidates += SyncV1BindingTocCandidate(index, candidateTitle)
+            }
+        }
+
+        val selectedWorkId = if (hasSelectedWork) {
+            event.string("selected_work_id")?.takeIf(::isUuidV4)
+                ?: return invalid(SyncV1ErrorCode.INVALID_EVENT, "invalid_event")
+        } else null
+        val selectionFromEventId = if (hasSelectionSource) {
+            event.string("selection_from_event_id")?.takeIf(::isUuidV4)
+                ?: return invalid(SyncV1ErrorCode.INVALID_EVENT, "invalid_event")
+        } else null
+
+        return SyncV1BindingRequestParseResult.Valid(
+            ParsedSyncV1BindingRequest(
+                eventId = eventId,
+                deviceId = deviceId,
+                counterEpoch = counterEpoch,
+                sequence = sequence,
+                createdAt = createdAt,
+                contentId = contentId,
+                title = title,
+                author = author,
+                localTocCount = localTocCount,
+                tocCandidates = tocCandidates,
+                selectedWorkId = selectedWorkId,
+                selectionFromEventId = selectionFromEventId
+            )
+        )
+    }
+
+    private fun isValidScalarString(value: String, min: Int, max: Int): Boolean {
+        var index = 0
+        var count = 0
+        while (index < value.length) {
+            val current = value[index]
+            when {
+                Character.isHighSurrogate(current) -> {
+                    if (index + 1 >= value.length || !Character.isLowSurrogate(value[index + 1])) return false
+                    index += 2
+                }
+                Character.isLowSurrogate(current) -> return false
+                else -> index++
+            }
+            count++
+            if (count > max) return false
+        }
+        return count >= min
+    }
 
     fun sha256(bytes: ByteArray): String = MessageDigest.getInstance("SHA-256")
         .digest(bytes)

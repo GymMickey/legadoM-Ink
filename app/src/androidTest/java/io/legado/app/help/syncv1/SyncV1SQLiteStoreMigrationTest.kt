@@ -16,7 +16,7 @@ import java.util.UUID
 
 @RunWith(AndroidJUnit4::class)
 class SyncV1SQLiteStoreMigrationTest {
-    private val databaseName = "syncv1-a3-migration-test.db"
+    private val databaseName = "syncv1-a4-migration-test.db"
     private val deviceId = "22222222-2222-4222-8222-222222222222"
     private val publisherId = "11111111-1111-4111-8111-111111111111"
     private val workId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
@@ -79,7 +79,7 @@ class SyncV1SQLiteStoreMigrationTest {
 
             val migrated = SQLiteDatabase.openDatabase(file.absolutePath, null, SQLiteDatabase.OPEN_READONLY)
             try {
-                assertEquals(3, migrated.version)
+                assertEquals(4, migrated.version)
                 assertTrue(tableExists(migrated, "device_registration_record"))
                 assertTrue(tableExists(migrated, "sync_state"))
                 assertTrue(tableExists(migrated, "work_identity"))
@@ -87,12 +87,83 @@ class SyncV1SQLiteStoreMigrationTest {
                 assertTrue(tableExists(migrated, "catalog_publication_intent"))
                 assertTrue(tableExists(migrated, "chapter_publication_state"))
                 assertTrue(tableExists(migrated, "chapter_publication_intent"))
+                assertTrue(tableExists(migrated, "sync_import_receipt"))
+                assertTrue(tableExists(migrated, "kindle_content_binding"))
+                assertTrue(tableExists(migrated, "ack_publication_intent"))
                 assertEquals(1, rowCount(migrated, "device_registration_record"))
             } finally {
                 migrated.close()
             }
         } finally {
             context.deleteDatabase(databaseName)
+        }
+    }
+
+    @Test
+    fun versionThreeUpgradePreservesA1A2A3RowsAndCreatesA4Tables() = runBlocking {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val file = context.getDatabasePath(databaseName)
+        context.deleteDatabase(databaseName)
+        file.parentFile?.mkdirs()
+        createVersionThreeDatabase(context)
+        try {
+            val store = SyncV1SQLiteStore(context, databaseName)
+            assertEquals(SyncV1LocalStatus.READY, store.readState(deviceId)?.localStatus)
+            assertEquals(workId, store.workAliases().single().workId)
+            assertEquals(mapOf(workId to 7L), store.confirmedChapterRevisions("service", "root"))
+            assertTrue(store.isChapterCatalogDirty("service", "root"))
+
+            val migrated = SQLiteDatabase.openDatabase(file.absolutePath, null, SQLiteDatabase.OPEN_READONLY)
+            try {
+                assertEquals(4, migrated.version)
+                assertEquals(1, rowCount(migrated, "device_registration_record"))
+                assertEquals(1, rowCount(migrated, "sync_state"))
+                assertEquals(1, rowCount(migrated, "work_identity"))
+                assertEquals(1, rowCount(migrated, "work_alias"))
+                assertEquals(1, rowCount(migrated, "chapter_publication_intent"))
+                assertEquals(1, rowCount(migrated, "chapter_publication_state"))
+                assertEquals(1, rowCount(migrated, "chapter_catalog_publication_state"))
+                assertTrue(tableExists(migrated, "sync_import_receipt"))
+                assertTrue(tableExists(migrated, "kindle_content_binding"))
+                assertTrue(tableExists(migrated, "ack_publication_intent"))
+                assertEquals(0, rowCount(migrated, "sync_import_receipt"))
+            } finally {
+                migrated.close()
+            }
+        } finally {
+            context.deleteDatabase(databaseName)
+        }
+    }
+
+    private fun createVersionThreeDatabase(context: Context) {
+        createVersionTwoDatabase(context)
+        val db = context.openOrCreateDatabase(databaseName, Context.MODE_PRIVATE, null)
+        try {
+            db.execSQL("CREATE TABLE chapter_publication_intent (service_identity TEXT NOT NULL, root_identity TEXT NOT NULL, work_id TEXT NOT NULL, toc_revision INTEGER NOT NULL CHECK (toc_revision > 0), snapshot_id TEXT NOT NULL, remote_path TEXT NOT NULL, raw_json_bytes BLOB NOT NULL, raw_sha256 TEXT NOT NULL, semantic_sha256 TEXT NOT NULL, put_attempt_count INTEGER NOT NULL CHECK (put_attempt_count BETWEEN 0 AND 2), config_identity TEXT NOT NULL, publication_status TEXT NOT NULL, publication_stage TEXT NOT NULL DEFAULT 'prepared', created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, PRIMARY KEY(service_identity, root_identity, remote_path))")
+            db.execSQL("CREATE INDEX sync_v1_pending_chapters ON chapter_publication_intent(service_identity, root_identity, publication_status, created_at)")
+            db.execSQL("CREATE TABLE chapter_publication_state (service_identity TEXT NOT NULL, root_identity TEXT NOT NULL, work_id TEXT NOT NULL, toc_revision INTEGER NOT NULL CHECK (toc_revision > 0), snapshot_id TEXT NOT NULL, remote_path TEXT NOT NULL, raw_json_bytes BLOB NOT NULL, raw_sha256 TEXT NOT NULL, semantic_sha256 TEXT NOT NULL, confirmed_at INTEGER NOT NULL, PRIMARY KEY(service_identity, root_identity, work_id))")
+            db.execSQL("CREATE TABLE chapter_catalog_publication_state (service_identity TEXT NOT NULL, root_identity TEXT NOT NULL, catalog_dirty INTEGER NOT NULL, PRIMARY KEY(service_identity, root_identity))")
+            val chapterIntentId = "99999999-9999-4999-8999-999999999999"
+            val bytes = "a3-pending".toByteArray()
+            db.insertOrThrow("chapter_publication_intent", null, ContentValues().apply {
+                put("service_identity", "service"); put("root_identity", "root"); put("work_id", workId)
+                put("toc_revision", 8); put("snapshot_id", chapterIntentId); put("remote_path", "chapters/$workId/8-$chapterIntentId.json")
+                put("raw_json_bytes", bytes); put("raw_sha256", SyncV1Protocol.sha256(bytes)); put("semantic_sha256", "a".repeat(64))
+                put("put_attempt_count", 1); put("config_identity", "config"); put("publication_status", "pending")
+                put("publication_stage", "put_attempted"); put("created_at", timestamp); put("updated_at", timestamp)
+            })
+            db.insertOrThrow("chapter_publication_state", null, ContentValues().apply {
+                put("service_identity", "service"); put("root_identity", "root"); put("work_id", workId)
+                put("toc_revision", 7); put("snapshot_id", snapshotId); put("remote_path", "chapters/$workId/7-$snapshotId.json")
+                put("raw_json_bytes", byteArrayOf(5)); put("raw_sha256", "a".repeat(64)); put("semantic_sha256", "b".repeat(64))
+                put("confirmed_at", timestamp)
+            })
+            db.insertOrThrow("chapter_catalog_publication_state", null, ContentValues().apply {
+                put("service_identity", "service"); put("root_identity", "root"); put("catalog_dirty", 1)
+            })
+            db.version = 3
+        } finally {
+            db.close()
         }
     }
 

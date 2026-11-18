@@ -199,6 +199,11 @@ class BackupConfigFragment : PreferenceFragment(),
                 viewModel.syncV1ChaptersUiState.collect(::renderSyncV1ChaptersState)
             }
         }
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.syncV1BindingUiState.collect(::renderSyncV1BindingState)
+            }
+        }
         if (!LocalConfig.backupHelpVersionIsLast) {
             showHelp("webDavHelp")
         }
@@ -304,6 +309,10 @@ class BackupConfigFragment : PreferenceFragment(),
                 viewModel.publishSyncV1Chapters()
                 return true
             }
+            "sync_v1_process_bindings" -> {
+                viewModel.processSyncV1BindingRequests()
+                return true
+            }
             "import_old" -> restoreOld.launch()
             "viewBackupInfo" -> showBackupInfo()
             "viewRestoreInfo" -> showRestoreInfo()
@@ -372,6 +381,35 @@ class BackupConfigFragment : PreferenceFragment(),
                         else -> R.string.sync_v1_chapters_success
                     }
                 )
+            )
+        }
+    }
+
+    private fun renderSyncV1BindingState(state: io.legado.app.help.syncv1.SyncV1BindingUiState) {
+        val action = findPreference<Preference>("sync_v1_process_bindings") ?: return
+        val status = findPreference<Preference>("sync_v1_binding_state") ?: return
+        action.isEnabled = !state.isRunning
+        action.title = getString(
+            if (state.isRunning) R.string.sync_v1_processing_bindings
+            else R.string.sync_v1_process_bindings
+        )
+        val outcome = state.outcome
+        status.summary = if (outcome == null) {
+            getString(if (state.isRunning) R.string.sync_v1_bindings_running else R.string.sync_v1_bindings_not_processed)
+        } else {
+            getString(
+                R.string.sync_v1_bindings_result,
+                outcome.scannedDevices,
+                outcome.discoveredEvents,
+                outcome.bound,
+                outcome.ambiguous,
+                outcome.notFound,
+                outcome.rejected,
+                outcome.unprocessed,
+                outcome.ackPublished,
+                outcome.ackPending,
+                outcome.eventIdConflicts,
+                outcome.errorCode?.name?.lowercase() ?: "—"
             )
         }
     }

@@ -24,6 +24,9 @@ import io.legado.app.help.syncv1.SyncV1ChaptersOutcome
 import io.legado.app.help.syncv1.SyncV1ChaptersPhase
 import io.legado.app.help.syncv1.SyncV1ChaptersUiState
 import io.legado.app.help.syncv1.SyncV1CatalogUiState
+import io.legado.app.help.syncv1.SyncV1BindingRepository
+import io.legado.app.help.syncv1.SyncV1BindingUiState
+import io.legado.app.help.syncv1.SyncV1BindingOutcome
 import io.legado.app.help.syncv1.SyncV1DeviceOutcome
 import io.legado.app.help.syncv1.SyncV1ErrorCode
 import io.legado.app.help.syncv1.SyncV1RegistrationRepository
@@ -76,6 +79,16 @@ class ConfigViewModel(application: Application) : BaseViewModel(application) {
     private val _syncV1ChaptersUiState = MutableStateFlow(SyncV1ChaptersUiState())
     val syncV1ChaptersUiState = _syncV1ChaptersUiState.asStateFlow()
     private var syncV1ChaptersJob: Job? = null
+    private val syncV1BindingRepository by lazy {
+        SyncV1BindingRepository(
+            store = SyncV1SQLiteStore(context),
+            catalogProvider = syncV1CatalogRepository::latestRemoteCatalog,
+            sessionProvider = AppWebDavSyncV1SessionFactory()::create
+        )
+    }
+    private val _syncV1BindingUiState = MutableStateFlow(SyncV1BindingUiState())
+    val syncV1BindingUiState = _syncV1BindingUiState.asStateFlow()
+    private var syncV1BindingJob: Job? = null
     fun upWebDavConfig() {
         webDavUpdateJob?.cancel()
         webDavUpdateJob = viewModelScope.launch(Dispatchers.IO) {
@@ -84,7 +97,7 @@ class ConfigViewModel(application: Application) : BaseViewModel(application) {
     }
 
     fun processSyncV1Registration() {
-        if (syncV1Job?.isActive == true) return
+        if (syncV1Job?.isActive == true || syncV1BindingJob?.isActive == true) return
         _syncV1UiState.value = SyncV1UiState(
             isRunning = true,
             currentPhase = SyncV1UiPhase.SCANNING
@@ -123,6 +136,7 @@ class ConfigViewModel(application: Application) : BaseViewModel(application) {
     }
 
     fun publishSyncV1Catalog() {
+        if (syncV1BindingJob?.isActive == true) return
         if (syncV1ChaptersJob?.isActive == true) return
         if (syncV1CatalogJob?.isActive == true) return
         _syncV1CatalogUiState.value = SyncV1CatalogUiState(isRunning = true)
@@ -150,6 +164,7 @@ class ConfigViewModel(application: Application) : BaseViewModel(application) {
     }
 
     fun publishSyncV1Chapters() {
+        if (syncV1BindingJob?.isActive == true) return
         if (syncV1CatalogJob?.isActive == true || syncV1Job?.isActive == true) return
         if (syncV1ChaptersJob?.isActive == true) return
         _syncV1ChaptersUiState.value = SyncV1ChaptersUiState(isRunning = true)
@@ -196,6 +211,29 @@ class ConfigViewModel(application: Application) : BaseViewModel(application) {
                 )
             } finally {
                 _syncV1ChaptersUiState.update { it.copy(isRunning = false) }
+            }
+        }
+    }
+
+    fun processSyncV1BindingRequests() {
+        if (syncV1BindingJob?.isActive == true
+            || syncV1Job?.isActive == true
+            || syncV1CatalogJob?.isActive == true
+            || syncV1ChaptersJob?.isActive == true
+        ) return
+        _syncV1BindingUiState.value = SyncV1BindingUiState(isRunning = true)
+        syncV1BindingJob = viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val outcome = syncV1BindingRepository.processRequests()
+                _syncV1BindingUiState.value = SyncV1BindingUiState(outcome = outcome)
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                _syncV1BindingUiState.value = SyncV1BindingUiState(
+                    outcome = SyncV1BindingOutcome(errorCode = SyncV1ErrorCode.NETWORK_UNKNOWN)
+                )
+            } finally {
+                _syncV1BindingUiState.update { it.copy(isRunning = false) }
             }
         }
     }

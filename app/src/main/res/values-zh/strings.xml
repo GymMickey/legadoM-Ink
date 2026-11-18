@@ -1320,6 +1320,13 @@
     <string name="sync_v1_chapters_success">成功</string>
     <string name="sync_v1_chapters_partial_success">部分成功</string>
     <string name="sync_v1_chapters_error">失败</string>
+    <string name="sync_v1_process_bindings">处理 Sync-v1 书籍绑定请求</string>
+    <string name="sync_v1_process_bindings_summary">扫描已就绪设备的绑定请求并发布不可变确认</string>
+    <string name="sync_v1_processing_bindings">正在处理 Sync-v1 绑定请求…</string>
+    <string name="sync_v1_binding_state_title">Sync-v1 绑定状态</string>
+    <string name="sync_v1_bindings_not_processed">尚未处理绑定请求</string>
+    <string name="sync_v1_bindings_running">正在扫描就绪设备并发布确认…</string>
+    <string name="sync_v1_bindings_result">设备 %1$d · 事件 %2$d · 已绑定 %3$d · 待选择 %4$d · 未找到 %5$d · 已拒绝 %6$d · 未处理 %7$d · 确认已发布 %8$d · 待发布 %9$d · 事件冲突 %10$d · 错误码 %11$s</string>
     <string name="web_service_wake_lock">WebService唤醒锁</string>
     <string name="web_service_wake_lock_summary">开启web服务的时候启用唤醒锁,有些手机开启唤醒锁会被杀后台</string>
     <string name="unsafe_ssl_title">跳过SSL验证</string>

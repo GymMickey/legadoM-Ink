@@ -98,6 +98,22 @@
             app:allowDividerBelow="false"
             app:iconSpaceReserved="false" />
 
+        <io.legado.app.lib.prefs.Preference
+            android:key="sync_v1_process_bindings"
+            android:summary="@string/sync_v1_process_bindings_summary"
+            android:title="@string/sync_v1_process_bindings"
+            app:allowDividerAbove="false"
+            app:allowDividerBelow="false"
+            app:iconSpaceReserved="false" />
+
+        <io.legado.app.lib.prefs.Preference
+            android:key="sync_v1_binding_state"
+            android:summary="@string/sync_v1_bindings_not_processed"
+            android:title="@string/sync_v1_binding_state_title"
+            app:allowDividerAbove="false"
+            app:allowDividerBelow="false"
+            app:iconSpaceReserved="false" />
+
         <io.legado.app.lib.prefs.SwitchPreference
             android:defaultValue="true"
             android:key="syncBookProgress"

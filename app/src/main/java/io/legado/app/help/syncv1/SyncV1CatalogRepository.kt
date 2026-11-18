@@ -237,6 +237,11 @@ internal class SyncV1CatalogRepository(
         return result
     }
 
+    internal suspend fun latestRemoteCatalog(session: SyncV1Session): ParsedCatalog? {
+        requireCurrent(session)
+        return scanRemoteCatalogs(session).latest?.catalog
+    }
+
     private suspend fun resolveAndBuildWorks(
         books: List<SyncV1CatalogBook>,
         aliasOwners: Map<String, Set<String>>,

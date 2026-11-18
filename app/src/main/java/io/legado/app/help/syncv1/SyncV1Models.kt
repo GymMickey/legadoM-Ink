@@ -35,7 +35,12 @@ enum class SyncV1ErrorCode {
     CHAPTERS_LIMIT_EXCEEDED,
     CHAPTERS_TOO_LARGE,
     CHAPTER_TITLE_INVALID,
-    CHAPTER_DIRECTORY_UNAVAILABLE
+    CHAPTER_DIRECTORY_UNAVAILABLE,
+    INVALID_EVENT,
+    UNSUPPORTED_SCHEMA,
+    EVENT_ID_CONFLICT,
+    ACK_CONFLICT,
+    BINDING_CONFLICT
 }
 
 class SyncV1Failure(
@@ -89,6 +94,11 @@ data class SyncV1CatalogUiState(
 data class SyncV1ChaptersUiState(
     val isRunning: Boolean = false,
     val outcome: SyncV1ChaptersOutcome? = null
+)
+
+data class SyncV1BindingUiState(
+    val isRunning: Boolean = false,
+    val outcome: SyncV1BindingOutcome? = null
 )
 
 data class SyncV1HttpResponse(
@@ -382,3 +392,154 @@ interface SyncV1CatalogStore {
     suspend fun incrementCatalogPutAttempt(intent: SyncV1CatalogPublicationIntent, now: Long): Int
     suspend fun markCatalogIntentPublished(intent: SyncV1CatalogPublicationIntent)
 }
+
+data class SyncV1BindingTocCandidate(
+    val localTocIndex: Long,
+    val title: String
+)
+
+data class ParsedSyncV1BindingRequest(
+    val eventId: String,
+    val deviceId: String,
+    val counterEpoch: String,
+    val sequence: Long,
+    val createdAt: String,
+    val contentId: String,
+    val title: String,
+    val author: String,
+    val localTocCount: Long,
+    val tocCandidates: List<SyncV1BindingTocCandidate>,
+    val selectedWorkId: String?,
+    val selectionFromEventId: String?
+)
+
+sealed interface SyncV1BindingRequestParseResult {
+    data object NotBindingRequest : SyncV1BindingRequestParseResult
+    data class Valid(val request: ParsedSyncV1BindingRequest) : SyncV1BindingRequestParseResult
+    data class Invalid(
+        val errorCode: SyncV1ErrorCode,
+        val reasonCode: String,
+        val eventType: String?,
+        val deviceId: String?,
+        val counterEpoch: String?,
+        val sequence: Long?,
+        val contentId: String?,
+        val title: String?,
+        val author: String?
+    ) : SyncV1BindingRequestParseResult
+}
+
+data class SyncV1BindingCandidate(
+    val workId: String,
+    val title: String,
+    val authors: List<String>
+)
+
+data class SyncV1KindleContentBinding(
+    val deviceId: String,
+    val counterEpoch: String,
+    val contentId: String,
+    val workId: String,
+    val createdAt: Long,
+    val updatedAt: Long
+)
+
+class SyncV1ImportReceipt(
+    val eventId: String,
+    val deviceId: String,
+    val eventType: String?,
+    val payloadSha256: String,
+    val counterEpoch: String?,
+    val sequence: Long?,
+    val contentId: String?,
+    val title: String?,
+    val author: String?,
+    val localTocCount: Long?,
+    val tocCandidates: List<SyncV1BindingTocCandidate>,
+    val terminalStatus: String,
+    val reasonCode: String?,
+    val recoveryAction: String,
+    val workId: String?,
+    val candidates: List<SyncV1BindingCandidate>,
+    val acknowledgedAt: String,
+    ackRawJsonBytes: ByteArray,
+    val ackSha256: String,
+    val serviceIdentity: String,
+    val rootIdentity: String
+) {
+    val ackRawJsonBytes: ByteArray = ackRawJsonBytes.copyOf()
+
+    override fun toString(): String =
+        "SyncV1ImportReceipt(eventId=$eventId, deviceId=$deviceId, eventType=$eventType, " +
+            "payloadSha256=$payloadSha256, terminalStatus=$terminalStatus, workId=$workId, " +
+            "ackBytes=${ackRawJsonBytes.size}, ackSha256=$ackSha256)"
+}
+
+class SyncV1AckPublicationIntent(
+    val deviceId: String,
+    val eventId: String,
+    val remotePath: String,
+    rawJsonBytes: ByteArray,
+    val rawSha256: String,
+    val putAttemptCount: Int,
+    val serviceIdentity: String,
+    val rootIdentity: String,
+    val publicationStatus: String,
+    val createdAt: Long,
+    val updatedAt: Long
+) {
+    val rawJsonBytes: ByteArray = rawJsonBytes.copyOf()
+
+    override fun toString(): String =
+        "SyncV1AckPublicationIntent(deviceId=$deviceId, eventId=$eventId, remotePath=$remotePath, " +
+            "rawBytes=${rawJsonBytes.size}, rawSha256=$rawSha256, putAttemptCount=$putAttemptCount, " +
+            "publicationStatus=$publicationStatus)"
+}
+
+sealed interface SyncV1BindingPersistResult {
+    data object Stored : SyncV1BindingPersistResult
+    data class Existing(val receipt: SyncV1ImportReceipt) : SyncV1BindingPersistResult
+    data object EventIdConflict : SyncV1BindingPersistResult
+    data object BindingConflict : SyncV1BindingPersistResult
+}
+
+interface SyncV1BindingStore {
+    suspend fun readyDeviceIds(serviceIdentity: String, rootIdentity: String): List<String>
+    suspend fun importReceipt(eventId: String): SyncV1ImportReceipt?
+    suspend fun contentBinding(
+        deviceId: String,
+        counterEpoch: String,
+        contentId: String
+    ): SyncV1KindleContentBinding?
+    suspend fun persistBindingOutcome(
+        receipt: SyncV1ImportReceipt,
+        intent: SyncV1AckPublicationIntent,
+        binding: SyncV1KindleContentBinding?
+    ): SyncV1BindingPersistResult
+    suspend fun ensureAckIntent(
+        receipt: SyncV1ImportReceipt,
+        serviceIdentity: String,
+        rootIdentity: String
+    ): SyncV1AckPublicationIntent
+    suspend fun pendingAckIntents(
+        serviceIdentity: String,
+        rootIdentity: String
+    ): List<SyncV1AckPublicationIntent>
+    suspend fun incrementAckPutAttempt(intent: SyncV1AckPublicationIntent, now: Long): Int
+    suspend fun markAckPublished(intent: SyncV1AckPublicationIntent, now: Long)
+    suspend fun pendingAckCount(serviceIdentity: String, rootIdentity: String): Int
+}
+
+data class SyncV1BindingOutcome(
+    val scannedDevices: Int = 0,
+    val discoveredEvents: Int = 0,
+    val bound: Int = 0,
+    val ambiguous: Int = 0,
+    val notFound: Int = 0,
+    val rejected: Int = 0,
+    val unprocessed: Int = 0,
+    val eventIdConflicts: Int = 0,
+    val ackPublished: Int = 0,
+    val ackPending: Int = 0,
+    val errorCode: SyncV1ErrorCode? = null
+)

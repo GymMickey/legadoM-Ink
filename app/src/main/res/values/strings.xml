@@ -1331,6 +1331,13 @@
     <string name="sync_v1_chapters_success">success</string>
     <string name="sync_v1_chapters_partial_success">partial_success</string>
     <string name="sync_v1_chapters_error">error</string>
+    <string name="sync_v1_process_bindings">Process Sync-v1 book binding requests</string>
+    <string name="sync_v1_process_bindings_summary">Scan ready devices for binding requests and publish immutable acknowledgements</string>
+    <string name="sync_v1_processing_bindings">Processing Sync-v1 binding requests…</string>
+    <string name="sync_v1_binding_state_title">Sync-v1 binding status</string>
+    <string name="sync_v1_bindings_not_processed">No binding requests processed</string>
+    <string name="sync_v1_bindings_running">Scanning ready devices and publishing acknowledgements…</string>
+    <string name="sync_v1_bindings_result">Devices %1$d · events %2$d · bound %3$d · ambiguous %4$d · not found %5$d · rejected %6$d · unprocessed %7$d · ack published %8$d · pending %9$d · event conflicts %10$d · code %11$s</string>
     <string name="web_service_wake_lock">WebService Wake up Lock</string>
     <string name="web_service_wake_lock_summary">The wake-up lock is enabled when the web service is enabled, and some phones will be killed when the wake-up lock is enabled.</string>
     <string name="unsafe_ssl_title">Skip SSL Verification</string>

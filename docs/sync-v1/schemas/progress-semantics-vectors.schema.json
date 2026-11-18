@@ -1,0 +1,386 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://legadom-ink.invalid/sync-v1/schemas/progress-semantics-vectors.schema.json",
+  "title": "Sync v1 progress semantic vectors",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "protocol_version",
+    "schema_version",
+    "normalization_version",
+    "progress_state_max_raw_bytes",
+    "baseline_cases",
+    "selection_cases",
+    "ppm_cases",
+    "chapter_only_cases",
+    "stale_cases",
+    "recovery_cases"
+  ],
+  "properties": {
+    "protocol_version": {
+      "const": "sync-v1"
+    },
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "normalization_version": {
+      "const": "normalization-v1"
+    },
+    "progress_state_max_raw_bytes": {
+      "const": 65536
+    },
+    "baseline_cases": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": [
+          "case_id",
+          "status",
+          "progress_revision",
+          "scope_matches",
+          "authoritative_zero",
+          "expected",
+          "allow_k2",
+          "allow_k4"
+        ],
+        "properties": {
+          "case_id": {
+            "type": "string"
+          },
+          "status": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "zero_confirmed",
+              "available",
+              "unavailable",
+              null
+            ]
+          },
+          "progress_revision": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "state_exists": {
+            "type": "boolean"
+          },
+          "scope_matches": {
+            "type": "boolean"
+          },
+          "authoritative_zero": {
+            "type": "boolean"
+          },
+          "expected": {
+            "type": "string"
+          },
+          "allow_k2": {
+            "type": "boolean"
+          },
+          "allow_k4": {
+            "type": "boolean"
+          },
+          "state_toc_revision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "current_toc_revision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "apply_to_current_toc": {
+            "type": "boolean"
+          },
+          "revision_zero_file_exists": {
+            "type": "boolean"
+          },
+          "catalog_references_state": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "selection_cases": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "case_id",
+          "baseline",
+          "catalog_revision",
+          "candidates",
+          "expected"
+        ],
+        "properties": {
+          "case_id": {
+            "type": "string"
+          },
+          "baseline": {
+            "enum": [
+              "zero_confirmed",
+              "legacy_unknown",
+              "unavailable",
+              "available"
+            ]
+          },
+          "catalog_revision": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "candidates": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "revision",
+                "snapshot_id",
+                "raw_sha256",
+                "valid",
+                "work_id"
+              ],
+              "properties": {
+                "revision": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "snapshot_id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "raw_sha256": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                },
+                "valid": {
+                  "type": "boolean"
+                },
+                "work_id": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "expected": {
+            "type": "string"
+          },
+          "selected_revision": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      }
+    },
+    "ppm_cases": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "case_id",
+          "position",
+          "total",
+          "expected"
+        ],
+        "properties": {
+          "case_id": {
+            "type": "string"
+          },
+          "position": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "total": {
+            "type": "number"
+          },
+          "expected": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 1000000
+          }
+        }
+      }
+    },
+    "chapter_only_cases": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "case_id",
+          "visible_char_offset",
+          "visible_char_count",
+          "chapter_text_fingerprint",
+          "reported_locator_confidence",
+          "chapter_fraction_ppm",
+          "chapter_fraction_is_estimated",
+          "valid"
+        ],
+        "properties": {
+          "case_id": {
+            "type": "string"
+          },
+          "visible_char_offset": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "visible_char_count": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "chapter_text_fingerprint": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "reported_locator_confidence": {
+            "enum": [
+              "high",
+              "estimated",
+              "chapter"
+            ]
+          },
+          "chapter_fraction_ppm": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 1000000
+          },
+          "chapter_fraction_is_estimated": {
+            "const": true
+          },
+          "valid": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "stale_cases": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "case_id",
+          "kind",
+          "dependencies_confirmed",
+          "expected"
+        ],
+        "properties": {
+          "case_id": {
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "stale_progress",
+              "stale_toc"
+            ]
+          },
+          "dependencies_confirmed": {
+            "type": "boolean"
+          },
+          "current_revision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "old_event_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "old_sequence": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "new_event_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "new_sequence": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "new_payload_sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "expected": {
+            "type": "string"
+          },
+          "old_payload_sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "both_revisions_mismatch": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "recovery_cases": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "case_id",
+          "crash_point",
+          "expected_next",
+          "ledger_delta",
+          "revision_delta",
+          "intent_exists",
+          "receipt_exists"
+        ],
+        "properties": {
+          "case_id": {
+            "type": "string"
+          },
+          "crash_point": {
+            "type": "string"
+          },
+          "expected_next": {
+            "type": "string"
+          },
+          "ledger_delta": {
+            "const": 0
+          },
+          "revision_delta": {
+            "const": 0
+          },
+          "intent_exists": {
+            "type": "boolean"
+          },
+          "receipt_exists": {
+            "type": "boolean"
+          }
+        }
+      }
+    }
+  }
+}

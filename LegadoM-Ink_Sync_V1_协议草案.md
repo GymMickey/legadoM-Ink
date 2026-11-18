@@ -10,9 +10,11 @@ Sync v1 在现有 WebDAV 能力上增加轻量目录、不可变事件、确认�
 
 协议版本固定为 `protocol_version: "sync-v1"`，当前 JSON 结构版本为 `schema_version: "1.0.0"`。不兼容字段变化必须提升 `schema_version`；改变行为或语义须另行评审协议版本。
 
+本次进度对象字段冻结发生在 Android A5 与 Kindle K4-B 首次发布 progress event/state 之前；此前只有草案样例，没有线上旧格式进度对象。因此 `1.0.0` 是首个发布进度对象的结构，不构成已发布对象的 schema 兼容升级。catalog 新增字段保持可选以兼容已发布 A3 catalog；所有首发 progress 对象均使用本次冻结结构。后续一旦某类对象已发布，不兼容字段变化仍必须提升 `schema_version`。
+
 ## 2. 兼容旧用户与隐私边界
 
-- 现有 Book 表、AppDatabase schema、`bookshelf.json` 和原备份格式保持不变。Sync v1 数据只写入独立数据库 `legadoM_ink_sync.db`。
+- 现有 Book 表、AppDatabase schema、`bookshelf.json` 和原备份格式保持不变。Sync v1 数据只写入独立数据库 `legadom_ink_sync.db`。
 - 老用户升级后按需生成稳定 `work_id`，无需清空书架或重新导入。首次生成与后续重建须由 Android 的身份映射事务保证稳定。
 - `WorkAlias` 在 Android 本地把一个或多个 `bookUrl` 映射到同一 `work_id`。换源只增加/更新别名，不新建作品身份。同步目录只发布 `book_url_sha256`，不发布原始 `bookUrl`。
 - 若独立同步库丢失或用户恢复旧版备份，Android 只读既有 Book 的 `bookUrl`，计算可发布的别名摘要并与 catalog 匹配，以恢复 `WorkAlias/work_id`；未匹配项才按需分配新 `work_id`。不得要求改 Book 表、`bookshelf.json` 或旧备份。含凭据 URL 的摘要不发布，因此这类别名跨库丢失后的自动恢复规则仍待双方确认。
@@ -61,7 +63,7 @@ legadom_ink_sync/v1/
 | `android/device-state/<device_id>/<state_revision>-<snapshot_id>.json` | Android | Android、对应 Kindle | 不可覆盖 | 第一份 device-state 固定按 `uuid_verified` 发布，用它告知协商结果；Kindle 验证 `ready` 后，后续 device-state 与其他对象才按已选模式创建。每次决策先持久化 revision、snapshot、路径、原始字节及摘要。 |
 | `android/catalog/<catalog_revision>-<snapshot_id>.json` | Android | Android、Kindle | 不可覆盖 | catalog 是带 revision 的不可变投影。路径 revision 与文件 `catalog_revision`、`snapshot_id` 必须相同。 |
 | `android/chapters/<work_id>/<toc_revision>-<snapshot_id>.json` | Android | Android、Kindle | 不可覆盖 | 每作品 TOC 是不可变投影；revision 和语义内容规则见 4.5。路径中的 work ID、revision 和 snapshot ID 必须与文件内容一致。 |
-| `android/progress/<work_id>/<progress_revision>-<snapshot_id>.json` | Android | Android、Kindle | 不可覆盖 | progress revision 只在 Android 成功应用新事件后递增；路径字段必须与绝对状态内容一致。 |
+| `android/progress/<work_id>/<progress_revision>-<snapshot_id>.json` | Android | Android、Kindle | 不可覆盖 | progress revision 可因初始导出、应用事件或安全 TOC 重投影递增；revision 与 snapshot 不可变，路径字段必须与绝对状态一致。 |
 | `events/<device_id>/<event_id>.json` | 事件来源设备 | Android、来源设备 | 不可覆盖 | 创建方式由已选 `create_mode` 决定。`create_mode` 不写入事件 payload。 |
 | `acks/<device_id>/<event_id>.json` | Android | Android、对应来源设备 | 不可覆盖 | Android 事务提交后才创建。ack 的创建方式由已选模式决定；`create_mode` 不写入 ack。 |
 | `snapshots/<device_id>/<snapshot_id>.json` | Android（快照生产者） | Android；Kindle 可选读取 | 不可覆盖 | 使用已选 `create_mode`；快照记录生成时已包含的最高来源 sequence，但不能用缺号阻塞事件导入。Kindle v1 不要求读取 snapshot，snapshot 不能作为增量事件导入。 |
@@ -129,27 +131,112 @@ Kindle 开发版曾创建旧格式注册文件。协议仅允许预发布开发�
 - 同一 `event_id` 与相同摘要再次到达时，Android 必须逐字段重放 `SyncImportReceipt` 保存的原终态 ack，不创建 `duplicate` 或任何新状态；`status`、`acknowledged_at`、恢复动作及所有可选字段都复用原值。事件不会重复增加阅读时间、应用进度或重新绑定。
 - 若同一 `event_id` 再次到达但 `payload_sha256` 不同，必须返回 `event_id_conflict`，其中 `payload_sha256` 是本次事件摘要、`receipt_payload_sha256` 是 receipt 原摘要，两者必须不同，恢复动作是 `stop_sync`。比较 ack 是否相同，必须计算 ack 完整原始字节自身的 SHA-256 并逐字节比较；不能用 ack 的 `payload_sha256` 代替。Kindle 若发现已下载 ack 的 `payload_sha256` 与本地 outbox 事件摘要不同，必须立即停止同步。
 - sequence 缺号不阻塞任何其他事件。实现可按接收顺序处理，或用时间/sequence 辅助诊断；不能等待缺失事件才能推进水位。
-- 阅读时间的 `duration_delta_ms` 是事件载荷中的正整数毫秒增量；零增量不生成事件。创建事件前必须原子递增并持久化 `sequence`。sequence 可以缺号，不能等待补号；设备重启不更换 `counter_epoch`，只有插件持久状态丢失或用户明确重置时才更换。`session_id` 只用于诊断，不是账本正确性的前提。应用必须在同一数据库事务中先插入唯一账本记录并仅在首次成功插入时更新聚合值。禁止没有幂等保护地直接 `+= delta_ms`。
+- 阅读时间的 `duration_delta_ms` 是事件载荷中的正整数毫秒增量；零增量不生成事件。创建事件前必须原子递增并持久化 `sequence`。sequence 可以缺号，不能等待补号；设备重启不更换 `counter_epoch`，只有插件持久状态丢失或用户明确重置时才更换。`session_id` 是一次 KOReader 文档打开/阅读会话的小写 UUID v4；同一打开会话复用，关闭文档后或 KOReader 完整重启后允许更换。它仅用于诊断，不是幂等键或账本唯一键；丢失 session_id 不得更换 counter_epoch。应用必须在同一数据库事务中先插入唯一账本记录并仅在首次成功插入时更新聚合值。禁止没有幂等保护地直接 `+= delta_ms`。
 - Android 需在一个数据库事务中完成事件验证、`SyncImportReceipt(event_id, payload_sha256, terminal_ack)` 写入、`ReadingEventLedger` 唯一插入及进度/时长聚合更新；ledger 与聚合值必须原子提交。事务成功提交后才能上传 ack。网络失败不回滚本地事务。
-- ack 上传失败时，只能从 `SyncImportReceipt` 保存的完整终态 ack 逐字段重建相同对象，并以同一 ack 路径重试；`acknowledged_at` 也必须保持首次终态值。已存在 ack 文件时禁止覆盖，Android与Kindle都必须 GET 并核对摘要/内容。`applied` 仅表示原事务首次成功应用，receipt 命中不会产生新的状态。
+- ack 上传失败时，只能从 `SyncImportReceipt` 保存的完整终态 ack 原始字节重试；`acknowledged_at` 保持首次终态值。已存在 ack 文件时禁止覆盖，Android与Kindle都必须 GET 并核对摘要/内容。对 progress 的 `applied` ack，必须等其 progress-state 与引用 revision 的 catalog 均上传并回读确认后才可发布；receipt 命中不会产生新状态或重复投影。
 - v1 不删除事件文件。即使已存在 ack，事件仍须保留为恢复和审计来源；快照只是可重建的绝对投影，不代替事件账本。
 
-## 6. 进度冲突与绝对状态
+## 5.1 progress 导入与投影的原子恢复
 
-每个 progress event 至少包含：`based_on_toc_revision`、`based_on_progress_revision`、`chapter_title`、`local_toc_index`、`visible_char_offset`、`visible_char_count`、`chapter_fraction`、`chapter_text_fingerprint`、`reported_locator_confidence` 和 `normalization_version`；`previous_chapter_title`、`next_chapter_title` 为可选上下文，分别表示扁平 TOC 中向前/向后遇到的第一个“XPointer 有效、与当前 XPointer 不同且顺序有效”的章节标题。第一章或最后一章相应字段可以省略。事件的 `sequence` 表示设备事件顺序；不再定义 `observed_sequence`。
+本节补充第 5 节的一般幂等规则。事件解析、Schema/语义校验、候选绝对位置与候选状态计算必须在无数据库写、无 WebDAV、无文件系统访问的事务外完成；这些仅是候选。进入事务后必须重读并复核 event_id、payload_sha256、device_id、counter_epoch、work_id、两项 based_on revision、当前 TOC/progress revision、baseline 和 SyncImportReceipt。任一基线变化时丢弃事务外候选及由其生成的字节，基于新状态重新开始处理或留下待处理状态。每个 work 同一时刻最多有一个未确认的 progress 投影；已有 `projection_pending` 时，后续该 work 的 progress event 保持待处理，直到 state 与 catalog 确认后再复核基线，不得基于尚未发布的本地 revision 连续应用。
 
-- Android 每次成功应用一个新进度事件后递增该作品 `progress_revision`。重复事件不会递增。
-- 事件的 `based_on_progress_revision` 不是当前 revision 时，返回 `stale_progress` ack；不得根据设备时间或“最后写入者”静默覆盖。
-- `stale_progress` ack 必须携带服务端当前 `current_progress_revision`，并设置 `recovery_action: "download_progress_state"`；来源端下载该作品最新 progress-state 后再决定是否生成新事件，不能重用旧基线直接重试。
-- ack 的 `status` 为 `applied`、`stale_progress`、`stale_toc`、`event_id_conflict`、`bound`、`ambiguous`、`not_found` 或 `rejected`，不定义 `duplicate`。每个状态严格禁止无关字段：只有 `event_id_conflict` 可带 `receipt_payload_sha256`；只有 `stale_toc` 可带 `current_toc_revision`；只有 `stale_progress` 可带 `current_progress_revision`；只有 `ambiguous` 可带 `candidates`。`event_id_conflict` 的两个摘要必须不同。Schema 用 `oneOf` 约束各状态必需字段、恢复动作和禁止字段，Schema 无法比较两个摘要时由语义校验补足。
-- `based_on_toc_revision` 过期时，Android 必须返回 `stale_toc`，携带当前 `current_toc_revision` 并要求重新下载章节目录（`recovery_action: "download_chapters"`）；不得把过期索引当作当前目录索引继续应用。
-- Android 必须根据 TOC revision、`chapter_title` 与前后章节标题上下文、正文指纹重新判断 Kindle 报告的位置，不能直接信任 `reported_locator_confidence`。无法安全映射时返回 `stale_toc` 或 `rejected`，并说明原因。
-- 章节规范化指纹一致时，允许采用 `visible_char_offset`；指纹不一致但章节目录匹配时，只能降级到章节级位置，字符偏移不可信。
-- 事件字段 `reported_locator_confidence` 固定为 `high`、`estimated` 或 `chapter`，只表示 Kindle 的报告值。`high` 只有在 Android 根据当前目录、标题上下文和章节指纹独立确认后才可能用于字符定位；`estimated` 只供诊断/估值，绝不能当作精确字符位置。指纹不一致但章节匹配时，Android 必须降级到章节级，不得继续使用 `visible_char_offset`。`chapter` 表示只有章节级位置，其字符偏移、字符数和指纹必须为 `null`。Android 最终投影中的 `locator_confidence` 是 Android 判定结果，不是对事件报告值的原样复制。Schema 使用 `oneOf` 拒绝不合法组合。
-- 对非空字符位置必须满足 `visible_char_offset <= visible_char_count`；Draft 2020-12 标准关键字不能引用同一对象的另一个数值作为动态上限，因此越界要在事件语义校验阶段拒绝，不能静默截断。
-- `chapter_fraction` 永远是估算值，Schema 要求 `chapter_fraction_is_estimated: true`。它不能伪装为精确字符位置。
-- `visible_char_offset` 和 `visible_char_count` 是规范化文本中的 Unicode code point 数，0-based。不能使用 Kotlin UTF-16 `String.length` 或 UTF-8 字节数。
-- Kindle 应先下载 Android 最新 progress-state，再以该状态的两个 revision 为基线创建新事件；不能因设备时钟较新而绕过基线检查。
+所有同步真相——事件账本、SyncImportReceipt、绝对 progress 状态、progress-state/catalog intents、投影阶段和 ack 原始字节——必须在独立 `legadom_ink_sync.db` 中使用同一 Room 数据库事务保证一致性，不依赖跨数据库事务。该名称是协议边界，不要求本轮创建数据库实体。
+
+**原子接收事务。** 事务内最终裁定 applied、stale_progress、stale_toc、rejected 或 event_id_conflict。applied 时同一事务必须插入唯一事件账本、更新绝对进度、递增 progress_revision、确定性编码最终状态字节并保存不可变 progress-state intent（service/root/work、TOC/progress revision、snapshot/path、原始字节、SHA-256、create_mode、PUT 次数、发布阶段），确定性编码终态 ack 原始字节并保存 SyncImportReceipt；receipt 阶段置 `projection_pending`。编码纯内存、确定性，不得访问网络或文件；任一步失败则整个事务回滚。不需要新投影且依赖已确认的其他终态可进入 `ack_publishable`；stale ack 所引用的 revision/chapters 尚未发布时不能生成可发布终态。
+
+**发布状态机。**
+
+1. `projection_pending` 只从事务保存的 progress-state intent 发布；PUT 复用已保存路径/snapshot/字节/摘要，回读必须原始字节和摘要都一致。结果不明先 GET；仅 GET 404 时才可按原 intent 有限重试。不重序列化、不换 snapshot、不增加 revision。
+2. progress-state 确认后，在同步数据库事务内分配 catalog revision，并原子生成保存 catalog snapshot/path/完整字节/SHA-256/create_mode/PUT 次数。catalog 必须引用已经确认的 progress revision；事务内分配或保存失败时整体回滚，不能留下“revision 已增加但 intent 不存在”。事务提交后的上传失败保留原 catalog intent 供恢复，不重分 revision。随后上传并回读确认。
+3. progress-state 与 catalog 都确认后，在数据库事务将 receipt 置为 `projection_confirmed` 与 `ack_publishable`。只有此后可以上传 receipt 中保存的 ack 原始字节、路径、摘要、acknowledged_at 和终态字段。不得重生成 ack 或改变时间。
+
+**崩溃和重复恢复。** 事务提交前崩溃不能留下 receipt/账本/revision/intent；提交后从原 intent 继续，不重应用或重增 revision。progress-state 上传后崩溃则回读原 intent 后创建 catalog intent；catalog 上传后崩溃则回读原 intent 后推进 receipt 阶段；ack 结果不明先 GET，字节及摘要一致即成功，冲突即停止，404 才用原 intent 有限重试。duplicate 命中 `projection_pending` receipt 时只继续 state→catalog→ack，不重新插入账本、应用事件、增加 revision、重新序列化或提前发 ack。所有阶段不得使用当前数据库值重建已持久化字节。
+
+## 6. 进度基线、冲突与绝对状态（v1 冻结）
+
+Progress 是按 work 维护的 Android 绝对状态。所有 service/root 范围的判断均使用当前规范化的 `serviceIdentity + rootIdentity + work_id`；更换服务或根目录不得继承旧 baseline、缓存或发布状态。
+
+### 6.1 catalog baseline 状态
+
+catalog 每个 work 可包含 `progress_baseline_status`。线上可写值仅为 `zero_confirmed`、`available`、`unavailable`。Schema 保持该字段可选，以读取 A3 旧 catalog；Android A5 producer 对每个 work 必须写入，独立 producer 语义测试必须检查缺失即失败。
+
+旧 catalog 缺字段时，consumer 仅在本地派生 `legacy_unknown`：不得回写或推断 `zero_confirmed`；仍允许 K2 catalog/chapters 和 K3 binding，禁止 progress event 上传。该派生值绝不是线上枚举。
+
+状态组合必须符合以下规则，并由独立语义校验检查：
+
+| baseline | catalog progress_revision | 远端状态 | 行为 |
+|---|---:|---|---|
+| `zero_confirmed` | 0 | 当前 service/root/work 已权威确认无本地进度；永远不存在 revision 0 文件 | 可用 0 创建事件 |
+| `unavailable` | 0 | 无可发布基线，catalog 不引用 progress-state | 禁止上传；不得列举或猜测 `0-*.json` |
+| `available` | >=1 | 被引用 progress-state 已上传，原始字节与 SHA-256 回读验证通过 | 可读取并以该 revision 作并发基线 |
+| 字段缺失 | 任意旧值 | 仅旧 catalog 兼容 | 派生 `legacy_unknown`；允许 K2/K3，禁止 K4 |
+
+组合不合法即拒绝 catalog，不修正、不回退。revision 0 永远没有 progress-state 文件。短暂网络、认证、列表或超时故障不得将已确认的 `available` 降为 `unavailable`。Android 同步数据库丢失时，先扫描当前根目录并验证现存有效 progress-state，再恢复 baseline；不能仅凭本地库缺失清零。不能确认、映射失败或初始发布失败时置 `unavailable`，或保持尚未完成的旧状态。
+
+`progress_toc_stale` 是本地派生状态，不是线上字段。baseline 仍为 `available`；它表示存在的 progress-state.toc_revision 与当前最高有效 TOC 不同。可缓存并用于并发控制，但 Kindle 不得将其应用到当前 TOC，也不得跨 toc_revision 复用 local_toc_index。
+
+### 6.2 revision 0 的初始基线确认
+
+Android 在处理任何 `based_on_progress_revision=0` 的事件前，必须先检查当前 service/root/work：
+
+1. **发现可安全映射的 Android 本地进度**：先生成不可变初始 progress-state，`progress_revision=1`、`source_event_id=null`、`updated_by_device_id=Android publisher ID`；持久化 intent，上传并回读原始字节及 SHA-256；随后发布并回读 `progress_baseline_status=available, progress_revision=1` 的 catalog。完成后，原 revision 0 事件只能收到 `stale_progress`（current_progress_revision=1，recovery_action=download_progress_state）。禁止创建指向 revision 0 文件的 ack。
+2. **权威确认无本地进度**：在独立同步数据库持久化 zero baseline；发布并回读 `zero_confirmed, progress_revision=0` 的 catalog，之后才允许接受基于 0 的事件。
+3. **无法确认、无法映射或初始发布失败**：标记 `unavailable` 或保持未完成状态；事件继续待处理，不应用、不增 revision、不写终态 SyncImportReceipt、不生成 stale ack，也不生成 revision 0 下载动作。基线完成后再处理。
+
+Kindle 仅在 catalog baseline 为 `zero_confirmed` 或 `available` 时可上传；`legacy_unknown` 与 `unavailable` 必须阻止上传。零基线只是 catalog 声明，绝不对应远端 progress-state。
+
+### 6.3 TOC 与 progress revision 解耦
+
+progress_revision 可因以下任一动作递增：初次导出 Android 已有进度、首次成功应用新 progress event、TOC 变化后将旧位置安全重投影到新 TOC。TOC 变化重投影成功时生成新不可变状态：`progress_revision=previous+1`、`source_event_id=null`、publisher ID 为 Android、toc_revision 为当前 TOC revision，并按第 5.1 节事务发布流程发布新状态与 catalog。
+
+若 TOC 变化但不能安全重投影：保留旧 progress-state 和 progress_revision，不修改旧文件，不回退其他 revision；保留 baseline `available`，本地派生 `progress_toc_stale`。TOC 变化本身不等于 `revision_conflict`，也不得仅因 TOC 改变而在相同 progress_revision 下发布新内容。只有安全重投影成功后才可将新 TOC revision 写入新的 progress revision。
+
+### 6.4 事件 revision 基线与内容
+
+每个 progress event 包含独立的 `based_on_toc_revision` 与 `based_on_progress_revision`：
+
+- based_on_toc_revision 取自当前最高有效 catalog 所指定、已验证并缓存的 chapters TOC revision；
+- based_on_progress_revision 在 baseline=available 时取 catalog 引用且已确认的 progress-state revision，在 zero_confirmed 时为 0。
+
+创建事件前必须有当前有效绑定、有效 catalog/TOC、zero_confirmed 或 available baseline、当前 TOC 中安全定位的章节，以及未变化的 service/root identity。两个 revision 不要求同来自旧 progress-state。
+
+progress event 至少含以上两 revision、chapter_title、local_toc_index、字符位置字段、`chapter_fraction_ppm`、固定的 `chapter_fraction_is_estimated=true`、fingerprint、reported confidence 与 normalization_version。前后章节标题仍为可选上下文。event sequence 仅表设备事件顺序，不定义 observed_sequence。
+
+### 6.5 progress-state 发现、选择与字节限制
+
+progress-state 的解析前 UTF-8 原始字节上限精确为 **65,536 bytes**。必须先量取实际原始字节长度再解析 JSON：65,536 允许，65,537 以 `progress_state_too_large` 拒绝；不得截断、解析后估算或在超限时回退旧 revision。
+
+消费边界是最高有效 catalog：
+
+- zero_confirmed：确认 revision=0，不列举 `0-*.json`，按零基线处理。
+- unavailable/legacy_unknown：不下载或猜测状态，禁止上传。
+- available：只列 `android/progress/<work_id>/` 直接子项，候选文件名严格为 `<无前导零正整数revision>-<小写UUIDv4>.json`。先应用上述 64 KiB 原始长度门，再解析并验证 Schema、UTF-8、安全整数、work_id/revision/snapshot_id 与路径一致性、禁止额外字段；progress-state 的 toc_revision 与 progress_revision 都必须 >=1。
+
+catalog 引用的 revision 必须对应唯一有效对象。同 revision 多 snapshot、原始字节不一致或摘要不一致统一报 `revision_conflict`，不任选。冲突检查后，若 catalog 引用状态不存在，优先报 `progress_state_missing`；远端存在高于 catalog 引用值的有效 state 且引用状态存在时，报 `progress_catalog_pending`，刷新 catalog/等待 Android 完成发布，不直接采用。若格式上属于更高 revision 的候选内容非法，也不得静默回退旧 revision。普通陌生文件忽略并计入 ignored_entries；网络、认证、超限、Schema 或冲突失败时保留最后有效离线缓存并明确标记旧缓存，不得伪装刷新成功或用缓存绕过冲突。service/root 改变后缓存不可复用。
+
+### 6.6 ppm 估算值
+
+所有事件、progress-state 与 snapshot progress 投影使用整数比例成员 `chapter_fraction_ppm`：整数或 null，范围 0..1,000,000。0 表章首，1,000,000 表章末；它始终只是估算提示，不代表精确字符位置、不能替代 visible_char_offset/count，也不能提升 locator confidence。null 表 producer 没有可靠整数比例来源；即使 null，`chapter_fraction_is_estimated=true` 仍固定存在。
+
+只有 position_units、total_units 都是非负安全整数、total_units>0、position_units<=total_units，且全部中间整数不超过 9,007,199,254,740,991 时才能计算。纯整数 round-half-up：
+
+```text
+numerator = position_units * 1,000,000
+rounded = floor((numerator + floor(total_units / 2)) / total_units)
+chapter_fraction_ppm = clamp(rounded, 0, 1,000,000)
+```
+
+任何乘法或加法中间值越过安全整数范围、输入不是整数、position>total、total=0 或输入无效，一律输出 null。禁止浮点比例、默认浮点 JSON 序列化或字符串修补。consumer 不将 ppm 转为小数后再序列化。
+
+### 6.7 chapter_only
+
+Kindle capability 为 `chapter_only` 时 progress event 固定满足：`visible_char_offset=null`、`visible_char_count=null`、`chapter_text_fingerprint=null`、`reported_locator_confidence="chapter"`。local_toc_index 和 chapter_title 必须来自当前 TOC revision；前后章节标题可选。ppm 可为整数或 null，但 estimated 固定为 true，不能提升 chapter confidence、替代字符位置或覆盖 Android 精确位置。禁止读取或上传章节正文、生成 high/estimated 字符定位。Android 必须独立验证目录与标题。
+
+### 6.8 stale、重新基线与确认
+
+若 based_on_toc_revision 与 based_on_progress_revision 同时过期，优先返回 stale_toc，避免在旧目录位置尚未重映射时要求 Kindle重提；Kindle刷新当前 catalog 与 chapters 后同时取得两个新基线。否则，若 based_on_progress_revision 不等于 Android 当前 progress_revision，事件不得应用。只有当前 progress-state 与其 catalog 已上传并回读确认后，才可产生 `stale_progress` ack，包含 current_progress_revision、`recovery_action=download_progress_state`、`reason_code=stale_progress`。依赖投影未发布时事件保持待处理，不提前确认不可下载的状态。Kindle 下载最新 catalog/state 后由用户决定是否重新基线；新事件必须使用新 event_id、新 sequence、新基线和重新生成的原始字节，绝不按设备时间覆盖或复用旧事件。
+
+若 based_on_toc_revision 过期，只有当前 catalog 与 chapters 已上传并回读确认后才可返回 `stale_toc`（current_toc_revision、download_chapters、stale_toc）。Kindle 获取 TOC 后重算映射，以新 event_id/sequence 创建事件；不得跨 revision 复用 local_toc_index。chapter 标题及上下文、正文规范化指纹必须由 Android独立校验，不能信任 reported confidence。指纹一致才可考虑字符偏移；指纹不一致而章节目录匹配时只能降为章节级。非空字符位置要求 offset<=count，Schema 无法跨字段比较的由语义校验拒绝，不截断。
 
 ## 7.1 KOReader CREngine 文本边界
 
@@ -182,7 +269,7 @@ Android 与 Kindle 实现启动时必须读取规范化运行库明确报告的 
 
 ## 9. 独立数据库概念设计（不创建实体/迁移）
 
-事实来源为独立 `legadoM_ink_sync.db`：
+事实来源为独立 `legadom_ink_sync.db`（协议名称）：
 
 | 表 | 职责 |
 |---|---|
@@ -201,7 +288,7 @@ Schema 使用 JSON Schema Draft 2020-12。核心对象和嵌套对象默认 `add
 
 所有线上 JSON 整数（revision、sequence、索引、偏移、计数及毫秒时长）必须在 `0..9007199254740991`，即 IEEE-754 `Number.MAX_SAFE_INTEGER` 范围内；超限必须拒绝，避免 Lua/JSON 数字舍入。Kotlin 可用 `Long` 存储，但线上仍遵守此上限。所有 SHA-256 使用小写 64 位十六进制。`payload_sha256` 摘要对象是 WebDAV 实际收到的完整事件文件原始字节，必须在 JSON 解析前计算；禁止解析后重新序列化再计算。所有实现必须在解析前检查原始文件字节数，超限拒绝，不能截断后继续处理。
 
-所有文件上限都按解析前收到的 UTF-8 原始字节计算，必须先检查大小再解析；超限直接拒绝，禁止截断。设备注册和设备状态的硬上限均为 64 KiB。事件与 ack 的硬上限均为 256 KiB，正常事件建议不超过 16 KiB，正常 ack 建议不超过 64 KiB。catalog 硬上限为 1 MiB，单作品 chapters 原始 UTF-8 硬上限保持 2 MiB 不变；目标 Kindle 已真机完成约 2 MiB/6188 项解析。chapters Schema 固定最多 6000 项，超过时整个对象拒绝并返回 `chapters_limit_exceeded`，不得截断或重新编号。10000 章测试是 v1.1 可选性能扩展，不阻塞 v1 协议冻结或 Android A3 实现。Kindle 必须在后台解析，只向 UI/调用方返回摘要、状态或错误。Schema 限制 catalog 最多 2500 个作品、chapters 最多 6000 项、绑定 TOC 候选和 ack 候选各最多 20 项，并限制核心文本字段长度。Draft 2020-12 Schema 无法验证原始字节上限、catalog work_id 唯一性、chapters chapter_key/local_toc_index 唯一性、chapters 顺序、title Unicode 标量有效性、chapter_key 重算、路径字段与文件内容一致、同 revision 路径冲突、visible_char_offset 不超过 visible_char_count、两个冲突摘要不同等语义；这些都是实现层强制校验。
+所有文件上限均按解析前 UTF-8 原始字节计算，先检查长度再解析，超限拒绝且不截断。设备注册、device-state 和 progress-state 上限均为 65,536 bytes；progress-state 允许恰好 65,536，65,537 返回 `progress_state_too_large`，不能回退 revision。事件与 ack 上限均为 256 KiB（正常建议分别不超过 16 KiB 与 64 KiB），catalog 1 MiB，chapters 2 MiB 且最多 6000 项；超限章节整体拒绝并返回 `chapters_limit_exceeded`。10000 章是 v1.1 可选扩展。Kindle 后台解析，只向 UI 返回摘要/状态/错误。Schema 限制 catalog 最多 2500 works、chapters 最多 6000 项、绑定 TOC 与 ack 候选各最多 20 项及核心文本长度。Draft 2020-12 Schema 不能跨字段比较或检查：服务端 producer 对 baseline 字段的必填、baseline 与 revision 组合、路径与对象内容、状态文件存在性/唯一性/最高候选不可回退、revision 冲突、progress-state 字节数、catalog work_id 唯一性、chapters 的唯一/顺序/Unicode/chapter_key 重算、offset<=count、ppm整数算术溢出、stale 新事件身份、投影阶段和事务恢复；这些由独立语义测试和实现层强制校验。
 
 - `schemas/catalog.schema.json` — Android 轻量作品目录。
 - `schemas/chapters.schema.json` — 每个作品的章节目录。
@@ -216,6 +303,7 @@ Schema 使用 JSON Schema Draft 2020-12。核心对象和嵌套对象默认 `add
 - `schemas/binding-request.schema.json` — 不带 `work_id` 的首次绑定事件。
 - `schemas/create-mode-vectors.schema.json` — create mode 网络状态机测试向量。
 - `schemas/snapshot-selection-vectors.schema.json` — 不可变 revision/snapshot 选择测试向量。
+- `schemas/progress-semantics-vectors.schema.json` — progress baseline、state 选择、ppm、stale 与恢复语义向量。
 
 固定样例位于 `fixtures/`，文件名以 `.valid.json` 结尾。它们是规范样例，不含真实用户/服务器数据；ack 样例中的摘要必须与各自对应事件 fixture 的 Git blob 原始字节一致。
 
@@ -225,9 +313,24 @@ Schema 使用 JSON Schema Draft 2020-12。核心对象和嵌套对象默认 `add
 
 1. work_id 的首次分配与已有书籍去重规则，以及跨设备如何识别两个不同 bookUrl 是同一作品。
 2. bookUrl canonicalization/脱敏后 alias hash 方案；当前明确不发布含凭据 URL 的任何派生值。
-3. stale_progress 后的用户重新基线 UI；自动合并绝不使用设备时间。
+3. stale_progress 后的用户重新基线 UI 文案与交互；协议安全门已冻结，自动合并绝不使用设备时间。
 4. 其他 WebDAV 服务的 conditional_create 能力仍需按同一向量逐服务验证；当前目标服务已确认只能使用 uuid_verified。
 5. 快照生成频率和保留策略；Kindle v1 不要求读取 snapshot，snapshot 不能作为增量事件导入，且 v1 禁止删除原始事件。
 6. Android 与 Kindle 的 normalization-v1 实现能否满足未来正文指纹和字符偏移所需的 Unicode 15.1.0 数据版本；此要求不适用于 A3 chapter_key，chapter_key 使用原始 title 字节。
 
-A3 的 toc_revision、章节语义变更规则、local_toc_index 和 chapter_key 已冻结；本节只保留其他尚未共同确定的事项。在双方确认剩余语义并评审其 Schema 前，不应把其余草案条款解释为已上线协议或实现承诺。
+A3 的 toc_revision、章节语义、local_toc_index 和 chapter_key，以及本次进度 baseline、revision、ppm、state 选择和事务恢复规则构成 Sync-v1 EPUB 基础协议冻结范围。以上待确认项属于产品/部署策略，不阻止 Schema 与协议基线冻结；不得据此扩展 TXT、阅读时间同步或自动同步范围。
+
+
+## 12. 兼容部署顺序（冻结）
+
+为避免带新 baseline 字段的 Android catalog 影响旧 Kindle K2，部署顺序固定：
+
+1. 先部署 Kindle K4-A parser：接受可选 `progress_baseline_status`；缺失派生 `legacy_unknown`；K2 与 K3 正常工作，K4 上传关闭。
+2. 再部署 Android A5：完成每个 work 的 baseline 检查并发布带明确 baseline 字段的新 catalog。
+3. 最后才启用 Kindle K4-B progress event 上传。
+
+Android A5 不得在 Kindle 兼容 parser 尚未部署的联调环境中覆盖正常 K2/K3 验收。
+
+## 13. 本轮基础协议范围排除项
+
+本轮冻结仅覆盖 EPUB 基础进度协议。TXT、TXT 虚拟目录、目录插件生成身份、TXT 转 EPUB 身份继承、跨排版字符定位、阅读时间事件、自动同步、远端事件清理、Android 主数据库投影及 KOReader 自动跳转均不在此冻结范围。

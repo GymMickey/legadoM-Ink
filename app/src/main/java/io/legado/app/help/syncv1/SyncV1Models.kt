@@ -40,7 +40,15 @@ enum class SyncV1ErrorCode {
     UNSUPPORTED_SCHEMA,
     EVENT_ID_CONFLICT,
     ACK_CONFLICT,
-    BINDING_CONFLICT
+    BINDING_CONFLICT,
+    PROGRESS_STATE_INVALID,
+    PROGRESS_STATE_TOO_LARGE,
+    PROGRESS_EVENT_INVALID,
+    PROGRESS_EVENT_CONFLICT,
+    PROGRESS_CATALOG_PENDING,
+    PROGRESS_TOC_STALE,
+    PROGRESS_BASELINE_UNAVAILABLE,
+    PROGRESS_PROJECTION_PENDING
 }
 
 class SyncV1Failure(
@@ -131,8 +139,12 @@ data class SyncV1Session(
     val serviceIdentity: String,
     val rootIdentity: String,
     val transport: SyncV1WebDavTransport,
+    val compatibleConfigIdentities: Set<String> = setOf(configIdentity),
     val isCurrent: () -> Boolean
-)
+) {
+    /** Used only to validate persisted intents; new intents always store configIdentity. */
+    fun acceptsConfigIdentity(identity: String): Boolean = identity in compatibleConfigIdentities
+}
 
 data class DeviceRegistrationRecord(
     val deviceId: String,

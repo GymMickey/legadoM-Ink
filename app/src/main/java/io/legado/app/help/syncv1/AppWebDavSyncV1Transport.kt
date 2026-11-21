@@ -25,7 +25,12 @@ internal class AppWebDavSyncV1SessionFactory {
             serviceIdentity = sha256(origin),
             rootIdentity = sha256(snapshot.rootUrl),
             transport = AppWebDavSyncV1Transport(snapshot),
-            isCurrent = { AppWebDav.isSyncV1ConfigCurrent(snapshot) }
+            isCurrent = { AppWebDav.isSyncV1ConfigCurrent(snapshot) },
+            compatibleConfigIdentities = AppWebDav.compatibleWebDavConfigIdentities(
+                rootUrl = snapshot.rootUrl,
+                username = snapshot.authorization.username,
+                password = snapshot.authorization.password
+            )
         )
         return session
     }
@@ -78,10 +83,16 @@ internal class AppWebDavSyncV1Transport(
         } catch (cancelled: kotlinx.coroutines.CancellationException) {
             throw cancelled
         } catch (error: Exception) {
+            AppWebDav.recordSyncV1Failure(snapshot, error)
             throw SyncV1Failure(mapError(error))
         }
         if (!AppWebDav.isSyncV1ConfigCurrent(snapshot)) {
             throw SyncV1Failure(SyncV1ErrorCode.CONFIG_CHANGED)
+        }
+        if (result is SyncV1HttpResponse) {
+            AppWebDav.recordSyncV1HttpResult(snapshot, result.statusCode)
+        } else {
+            AppWebDav.recordSyncV1HttpResult(snapshot, 200)
         }
         return result
     }

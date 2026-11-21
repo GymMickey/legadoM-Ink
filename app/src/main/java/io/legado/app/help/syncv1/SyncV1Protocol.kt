@@ -55,7 +55,9 @@ internal data class ParsedCatalogWork(
     val bookUrlAliases: List<String>,
     val tocRevision: Long,
     val progressRevision: Long,
-    val updatedAt: String
+    val updatedAt: String,
+    /** Null is the read-only legacy representation for pre-A5 catalogs. */
+    val progressBaselineStatus: String? = null
 )
 
 internal data class ParsedCatalog(
@@ -130,7 +132,7 @@ internal object SyncV1Protocol {
         "generated_at",
         "works"
     )
-    private val catalogWorkKeys = setOf(
+    private val catalogWorkRequiredKeys = setOf(
         "work_id",
         "title",
         "authors",
@@ -485,7 +487,9 @@ internal object SyncV1Protocol {
         val works = ArrayList<ParsedCatalogWork>(worksJson.size())
         for (element in worksJson) {
             val obj = element.takeIf { it.isJsonObject }?.asJsonObject ?: return null
-            if (obj.keySet() != catalogWorkKeys) return null
+            if (!obj.keySet().containsAll(catalogWorkRequiredKeys)
+                || obj.keySet().any { it !in catalogWorkRequiredKeys && it != "progress_baseline_status" }
+            ) return null
             val workId = obj.string("work_id")?.takeIf(::isUuidV4) ?: return null
             if (!workIds.add(workId)) return null
             val title = obj.string("title") ?: return null
@@ -499,8 +503,16 @@ internal object SyncV1Protocol {
             val tocRevision = obj.safeLong("toc_revision") ?: return null
             val progressRevision = obj.safeLong("progress_revision") ?: return null
             val updatedAt = obj.string("updated_at")?.takeIf(::isUtcDateTime) ?: return null
+            val baseline = if (obj.has("progress_baseline_status")) {
+                obj.string("progress_baseline_status")?.takeIf {
+                    it in setOf("zero_confirmed", "available", "unavailable")
+                } ?: return null
+            } else null
+            if (baseline == "zero_confirmed" && progressRevision != 0L) return null
+            if (baseline == "unavailable" && progressRevision != 0L) return null
+            if (baseline == "available" && progressRevision < 1L) return null
             works += ParsedCatalogWork(
-                workId, title, authors, aliases, tocRevision, progressRevision, updatedAt
+                workId, title, authors, aliases, tocRevision, progressRevision, updatedAt, baseline
             )
         }
         return ParsedCatalog(deviceId, revision, snapshotId, generatedAt, works)

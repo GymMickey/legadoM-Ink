@@ -103,7 +103,6 @@ class SyncV1WebDavMockServerTest {
     private fun webDav() = WebDav(
         path = server.url("/root/").toString(),
         authorization = Authorization(TEST_USERNAME, TEST_PASSWORD),
-        allowInsecure = true
     )
 
     private fun sha256(bytes: ByteArray): String = MessageDigest.getInstance("SHA-256")

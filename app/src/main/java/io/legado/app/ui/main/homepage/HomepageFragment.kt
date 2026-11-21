@@ -11,6 +11,7 @@ import android.view.ViewGroup
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.viewModels
 import io.legado.app.help.config.ThemeConfig
 import io.legado.app.data.appDb
 import io.legado.app.ui.book.info.BookInfoActivity
@@ -18,19 +19,12 @@ import io.legado.app.ui.config.ConfigActivity
 import io.legado.app.ui.config.ConfigTag
 import io.legado.app.ui.main.MainFragmentInterface
 import io.legado.app.R
-import io.legado.app.help.AppWebDav
 import io.legado.app.ui.book.readRecord.ReadRecordActivity
 import io.legado.app.utils.startActivity
 import io.legado.app.help.config.AppConfig
 import io.legado.app.ui.rss.read.ReadRssActivity
 import io.legado.app.ui.wifi.WifiTransferDialogFragment
-import kotlinx.coroutines.DelicateCoroutinesApi
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import io.legado.app.ui.theme.LegadoThemeWithBackground
-import splitties.init.appCtx
 
 /**
  * 首页 Fragment（E-Ink 精简版）
@@ -40,6 +34,8 @@ import splitties.init.appCtx
  * 处理书籍点击（跳转 BookInfoActivity）和 WebDAV 设置（跳转 ConfigActivity）的导航逻辑。
  */
 class HomepageFragment() : Fragment(), MainFragmentInterface {
+
+    private val viewModel: HomepageViewModel by viewModels()
 
     constructor(position: Int) : this() {
         val bundle = Bundle()
@@ -75,24 +71,8 @@ class HomepageFragment() : Fragment(), MainFragmentInterface {
                     LegadoThemeWithBackground(
                         backgroundDrawable = backgroundDrawable
                     ) {
-                        @OptIn(DelicateCoroutinesApi::class)
-                        val onRestoreConfirm: (String) -> Unit = { backupName ->
-                            GlobalScope.launch(Dispatchers.Main) {
-                                try {
-                                    withContext(Dispatchers.IO) {
-                                        AppWebDav.restoreWebDav(backupName)
-                                    }
-                                    // 成功 Toast 已由 Restore.restore() 内部弹出，避免重复
-                                } catch (e: Exception) {
-                                    android.widget.Toast.makeText(
-                                        appCtx,
-                                        appCtx.getString(R.string.restore_fail, e.message),
-                                        android.widget.Toast.LENGTH_SHORT
-                                    ).show()
-                                }
-                            }
-                        }
                         HomepageScreen(
+                        viewModel = viewModel,
                         onReadRecordClick = {
                             startActivity<ReadRecordActivity>()
                         },
@@ -134,7 +114,6 @@ class HomepageFragment() : Fragment(), MainFragmentInterface {
                             }
                             startActivity(intent)
                         },
-                        onRestoreConfirm = onRestoreConfirm,
                     )
                 }
             }

@@ -204,6 +204,11 @@ class BackupConfigFragment : PreferenceFragment(),
                 viewModel.syncV1BindingUiState.collect(::renderSyncV1BindingState)
             }
         }
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.syncV1ProgressUiState.collect(::renderSyncV1ProgressState)
+            }
+        }
         if (!LocalConfig.backupHelpVersionIsLast) {
             showHelp("webDavHelp")
         }
@@ -241,8 +246,6 @@ class BackupConfigFragment : PreferenceFragment(),
                 upPreferenceSummary(key, appCtx.getPrefString(key))
                 viewModel.upWebDavConfig()
             }
-
-            PreferKey.unsafeWebDav -> viewModel.upWebDavConfig()
 
             PreferKey.webDavDeviceName -> upPreferenceSummary(key, getPrefString(key))
         }
@@ -311,6 +314,10 @@ class BackupConfigFragment : PreferenceFragment(),
             }
             "sync_v1_process_bindings" -> {
                 viewModel.processSyncV1BindingRequests()
+                return true
+            }
+            "sync_v1_process_progress" -> {
+                viewModel.initializeAndProcessSyncV1Progress()
                 return true
             }
             "import_old" -> restoreOld.launch()
@@ -412,6 +419,44 @@ class BackupConfigFragment : PreferenceFragment(),
                 outcome.errorCode?.name?.lowercase() ?: "—"
             )
         }
+    }
+
+    private fun renderSyncV1ProgressState(state: io.legado.app.help.syncv1.SyncV1ProgressUiState) {
+        val action = findPreference<Preference>("sync_v1_process_progress") ?: return
+        val status = findPreference<Preference>("sync_v1_progress_state") ?: return
+        action.isEnabled = !state.isRunning
+        action.title = getString(if (state.isRunning) R.string.sync_v1_processing_progress else R.string.sync_v1_process_progress)
+        if (state.initialization == null && state.events == null) {
+            status.summary = getString(if (state.isRunning) R.string.sync_v1_processing_progress else R.string.sync_v1_progress_not_processed)
+            return
+        }
+        val init = state.initialization
+        val events = state.events
+        val baselines = init?.workOutcomes.orEmpty().groupingBy { it.baseline.wireValue }.eachCount()
+            .entries.sortedBy { it.key }.joinToString(", ") { "${it.key}:${it.value}" }.ifEmpty { "—" }
+        val staleToc = init?.workOutcomes.orEmpty().count { it.progressTocStale }
+        val error = events?.errorCode ?: init?.errorCode
+        val phase = listOfNotNull(init?.phase?.name?.lowercase(), events?.phase?.name?.lowercase())
+            .distinct().joinToString("/")
+        status.summary = getString(
+            R.string.sync_v1_progress_result,
+            phase.ifEmpty { "—" },
+            baselines,
+            init?.initialStatesPublished ?: 0,
+            (init?.stateIntentsPending ?: 0) + (events?.stateIntentsPending ?: 0),
+            (init?.catalogIntentsPending ?: 0) + (events?.catalogIntentsPending ?: 0),
+            init?.failed ?: 0,
+            staleToc,
+            events?.scannedEvents ?: 0,
+            events?.applied ?: 0,
+            events?.staleToc ?: 0,
+            events?.staleProgress ?: 0,
+            events?.rejected ?: 0,
+            events?.eventsPending ?: 0,
+            events?.eventIdConflicts ?: 0,
+            events?.acknowledgementsPending ?: 0,
+            error?.name?.lowercase() ?: "—"
+        )
     }
 
     private fun renderSyncV1State(state: io.legado.app.help.syncv1.SyncV1UiState) {

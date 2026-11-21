@@ -37,14 +37,15 @@ internal class SyncV1CatalogRepository(
     private val sessionProvider: suspend () -> SyncV1Session,
     private val nowMillis: () -> Long = System::currentTimeMillis,
     private val uuidProvider: () -> UUID = UUID::randomUUID
-) {
+) : SyncV1ProgressCatalogGateway {
     private val operationMutex = Mutex()
     private val gson = GsonBuilder().disableHtmlEscaping().create()
 
-    suspend fun publish(
+    override suspend fun publish(
         books: List<SyncV1CatalogBook>,
-        confirmedTocRevisions: Map<String, Long>? = null,
-        sessionOverride: SyncV1Session? = null
+        confirmedTocRevisions: Map<String, Long>?,
+        sessionOverride: SyncV1Session?,
+        progressValuesOverride: Map<String, SyncV1ProgressCatalogValue>?
     ): SyncV1CatalogOutcome = operationMutex.withLock {
         try {
             if (!store.hasReadyDevice()) {
@@ -83,7 +84,8 @@ internal class SyncV1CatalogRepository(
             val rootScopedTocRevisions = confirmedTocRevisions ?: (store as? SyncV1ChaptersStore)
                 ?.confirmedChapterRevisions(session.serviceIdentity, session.rootIdentity)
             val semanticWorks = resolveAndBuildWorks(
-                books, aliasOwners, latestRemote?.catalog, rootScopedTocRevisions
+                books, aliasOwners, latestRemote?.catalog, rootScopedTocRevisions,
+                progressValuesOverride, session.serviceIdentity, session.rootIdentity
             )
             val semanticSha = catalogSemanticSha256(publisherDeviceId, semanticWorks)
             val persisted = store.catalogPublicationState(session.serviceIdentity, session.rootIdentity)
@@ -194,7 +196,7 @@ internal class SyncV1CatalogRepository(
     }
 
     /** Resume an existing immutable catalog intent without scanning books or allocating a revision. */
-    suspend fun resumePendingIntent(sessionOverride: SyncV1Session? = null): SyncV1CatalogOutcome? = operationMutex.withLock {
+    override suspend fun resumePendingIntent(sessionOverride: SyncV1Session?): SyncV1CatalogOutcome? = operationMutex.withLock {
         val session = sessionOverride ?: sessionProvider()
         requireCurrent(session)
         val pending = store.pendingCatalogIntent(session.serviceIdentity, session.rootIdentity) ?: return@withLock null
@@ -217,7 +219,7 @@ internal class SyncV1CatalogRepository(
     }
 
     /** Resolve A2 identities against the latest valid remote catalog before exporting per-work data. */
-    suspend fun resolveWorkIdentities(
+    override suspend fun resolveWorkIdentities(
         books: List<SyncV1CatalogBook>,
         session: SyncV1Session
     ): Map<String, String> {
@@ -237,7 +239,7 @@ internal class SyncV1CatalogRepository(
         return result
     }
 
-    internal suspend fun latestRemoteCatalog(session: SyncV1Session): ParsedCatalog? {
+    override suspend fun latestRemoteCatalog(session: SyncV1Session): ParsedCatalog? {
         requireCurrent(session)
         return scanRemoteCatalogs(session).latest?.catalog
     }
@@ -246,7 +248,10 @@ internal class SyncV1CatalogRepository(
         books: List<SyncV1CatalogBook>,
         aliasOwners: Map<String, Set<String>>,
         remoteCatalog: ParsedCatalog?,
-        confirmedTocRevisions: Map<String, Long>?
+        confirmedTocRevisions: Map<String, Long>?,
+        progressValuesOverride: Map<String, SyncV1ProgressCatalogValue>?,
+        serviceIdentity: String,
+        rootIdentity: String
     ): List<CatalogWork> {
         val uniqueBooks = books.distinctBy { it.bookUrl }
         val identityRepository = SyncV1WorkIdentityRepository(store, uuidProvider)
@@ -282,13 +287,17 @@ internal class SyncV1CatalogRepository(
             // A catalog is the current bookshelf identity directory. Only the current
             // WebDAV root's confirmed chapters state may contribute a positive revision.
             val tocRevision = confirmedTocRevisions?.get(workId) ?: 0L
-            val progressRevision = identity.progressRevision
-            val fieldsHash = workFieldsSha256(workId, title, authors, aliases, tocRevision, progressRevision)
+            val progressValue = progressValuesOverride?.get(workId)
+                ?: (store as? SyncV1ProgressStore)?.progressCatalogValue(serviceIdentity, rootIdentity, workId)
+                ?: SyncV1ProgressCatalogValue(SyncV1ProgressBaseline.UNAVAILABLE, 0L)
+            val progressRevision = progressValue.progressRevision
+            val baselineStatus = progressValue.status.wireValue
+            if (!SyncV1ProgressSemantics.isValidCatalogBaseline(progressValue.status, progressRevision)) {
+                throw SyncV1Failure(SyncV1ErrorCode.CATALOG_INVALID)
+            }
+            val fieldsHash = workFieldsSha256(workId, title, authors, aliases)
             val matchingRemote = remoteWorks[workId]?.takeIf {
-                workFieldsSha256(
-                    it.workId, it.title, it.authors, it.bookUrlAliases,
-                    it.tocRevision, it.progressRevision
-                ) == fieldsHash
+                workFieldsSha256(it.workId, it.title, it.authors, it.bookUrlAliases) == fieldsHash
             }
             val remoteUpdatedAt = matchingRemote?.updatedAt?.let {
                 runCatching { Instant.parse(it).toEpochMilli() }.getOrNull()
@@ -301,7 +310,8 @@ internal class SyncV1CatalogRepository(
                 aliases,
                 tocRevision,
                 progressRevision,
-                Instant.ofEpochMilli(stable.updatedAt).toString()
+                Instant.ofEpochMilli(stable.updatedAt).toString(),
+                baselineStatus
             )
         }
         return output
@@ -419,7 +429,7 @@ internal class SyncV1CatalogRepository(
     }
 
     private fun validateIntent(session: SyncV1Session, intent: SyncV1CatalogPublicationIntent) {
-        if (intent.configIdentity != session.configIdentity
+        if (!session.acceptsConfigIdentity(intent.configIdentity)
             || intent.serviceIdentity != session.serviceIdentity
             || intent.rootIdentity != session.rootIdentity
             || !session.isCurrent()
@@ -467,6 +477,7 @@ internal class SyncV1CatalogRepository(
         add("book_url_aliases", JsonArray().apply { aliases.forEach(::add) })
         addProperty("toc_revision", tocRevision)
         addProperty("progress_revision", progressRevision)
+        addProperty("progress_baseline_status", progressBaselineStatus)
         addProperty("updated_at", updatedAt)
     }
 
@@ -485,6 +496,7 @@ internal class SyncV1CatalogRepository(
                 addAll(work.aliases)
                 add(work.tocRevision.toString())
                 add(work.progressRevision.toString())
+                add(work.progressBaselineStatus)
                 add(work.updatedAt)
             }
         }
@@ -497,7 +509,8 @@ internal class SyncV1CatalogRepository(
             catalog.works.map {
                 CatalogWork(
                     it.workId, it.title, it.authors, it.bookUrlAliases,
-                    it.tocRevision, it.progressRevision, it.updatedAt
+                    it.tocRevision, it.progressRevision, it.updatedAt,
+                    it.progressBaselineStatus ?: "legacy_unknown"
                 )
             }
         )
@@ -506,9 +519,7 @@ internal class SyncV1CatalogRepository(
         workId: String,
         title: String,
         authors: List<String>,
-        aliases: List<String>,
-        tocRevision: Long,
-        progressRevision: Long
+        aliases: List<String>
     ): String = sha256LengthPrefixed(buildList {
         add(workId)
         add(title)
@@ -516,8 +527,6 @@ internal class SyncV1CatalogRepository(
         addAll(authors)
         add(aliases.size.toString())
         addAll(aliases)
-        add(tocRevision.toString())
-        add(progressRevision.toString())
     })
 
     private fun sha256LengthPrefixed(fields: List<String>): String {
@@ -576,7 +585,8 @@ internal class SyncV1CatalogRepository(
         val aliases: List<String>,
         val tocRevision: Long,
         val progressRevision: Long,
-        val updatedAt: String
+        val updatedAt: String,
+        val progressBaselineStatus: String
     )
 
     private data class CatalogPath(val revision: Long, val snapshotId: String, val path: String)

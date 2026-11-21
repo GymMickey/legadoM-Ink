@@ -8,7 +8,6 @@ import io.legado.app.exception.NoStackTraceException
 import io.legado.app.help.http.newCallResponse
 import io.legado.app.help.http.await
 import io.legado.app.help.http.getWebDavClient
-import io.legado.app.help.http.okHttpClient
 import io.legado.app.help.http.text
 import io.legado.app.model.analyzeRule.AnalyzeUrl
 import io.legado.app.model.analyzeRule.CustomUrl
@@ -50,15 +49,14 @@ import java.util.concurrent.TimeUnit
 open class WebDav(
     val path: String,
     val authorization: Authorization,
-    private val requireHttps: Boolean = false,
-    private val allowInsecure: Boolean = false,
+    private val authorizationOriginPath: String = path,
 ) {
     companion object {
 
-        fun fromPath(path: String, allowInsecure: Boolean = false): WebDav {
+        fun fromPath(path: String): WebDav {
             val id = AnalyzeUrl(path).serverID ?: throw WebDavException("没有serverID")
             val authorization = Authorization(id)
-            return WebDav(path, authorization, allowInsecure = allowInsecure)
+            return WebDav(path, authorization)
         }
 
         @SuppressLint("DateTimeFormatter")
@@ -93,36 +91,35 @@ open class WebDav(
 
 
     private val url: URL = URL(CustomUrl(path).getUrl())
-    private val httpsPath = url.protocol.equals("https", true)
-        || path.startsWith("https://", true)
-        || path.startsWith("davs://", true)
     private val httpUrl: String? by lazy {
         val raw = url.toString()
             .replace("davs://", "https://")
             .replace("dav://", "http://")
         val parsed = kotlin.runCatching { raw.toHttpUrl() }.getOrNull() ?: return@lazy null
-        if ((requireHttps || (!allowInsecure && httpsPath)) && !parsed.isHttps) {
-            throw WebDavException("应用同步和备份必须使用 HTTPS")
-        }
         return@lazy parsed.toString()
+    }
+    private val authorizationOrigin by lazy {
+        val raw = URL(CustomUrl(authorizationOriginPath).getUrl()).toString()
+            .replace("davs://", "https://")
+            .replace("dav://", "http://")
+        runCatching { raw.toHttpUrl() }.getOrNull()
     }
     private val webDavClient by lazy {
         val authInterceptor = Interceptor { chain ->
-            var request = chain.request()
-            if (request.url.host.equals(host, true)) {
-                request = request
-                    .newBuilder()
-                    .header(authorization.name, authorization.data)
-                    .build()
-            }
-            chain.proceed(request)
+            val request = chain.request()
+            val target = request.url
+            val configuredOrigin = authorizationOrigin
+            val sameOrigin = configuredOrigin != null
+                && target.scheme == configuredOrigin.scheme
+                && target.host.equals(configuredOrigin.host, ignoreCase = true)
+                && target.port == configuredOrigin.port
+            val builder = request.newBuilder()
+            if (sameOrigin) builder.header(authorization.name, authorization.data)
+            else builder.removeHeader(authorization.name)
+            chain.proceed(builder.build())
         }
-        (if (requireHttps || allowInsecure || httpsPath) {
-            getWebDavClient(allowInsecure)
-        } else okHttpClient)
-            .newBuilder().run {
+        getWebDavClient().newBuilder().run {
             callTimeout(0, TimeUnit.SECONDS)
-            interceptors().add(0, authInterceptor)
             addNetworkInterceptor(authInterceptor)
             build()
         }
@@ -135,15 +132,6 @@ open class WebDav(
             .retryOnConnectionFailure(false)
             .build()
     }
-    private val host: String?
-        get() = url.host?.let {
-            if (it.startsWith("[")) {
-                it.substring(1, it.lastIndex)
-            } else {
-                it
-            }
-        }
-
     /**
      * 获取当前url文件信息
      */
@@ -442,7 +430,7 @@ open class WebDav(
                     contentType = contentType,
                     resourceType = resourceType,
                     lastModify = lastModify,
-                    allowInsecure = allowInsecure
+                    authorizationOriginPath = authorizationOriginPath,
                 )
                 list.add(webDavFile)
             } catch (e: MalformedURLException) {

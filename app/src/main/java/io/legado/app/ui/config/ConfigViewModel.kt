@@ -30,6 +30,9 @@ import io.legado.app.help.syncv1.SyncV1BindingOutcome
 import io.legado.app.help.syncv1.SyncV1DeviceOutcome
 import io.legado.app.help.syncv1.SyncV1ErrorCode
 import io.legado.app.help.syncv1.SyncV1RegistrationRepository
+import io.legado.app.help.syncv1.SyncV1ProgressRepository
+import io.legado.app.help.syncv1.SyncV1ProgressUiState
+import io.legado.app.help.syncv1.SyncV1ProgressWorkInput
 import io.legado.app.help.syncv1.SyncV1SQLiteStore
 import io.legado.app.help.syncv1.SyncV1UiPhase
 import io.legado.app.help.syncv1.SyncV1UiState
@@ -89,6 +92,20 @@ class ConfigViewModel(application: Application) : BaseViewModel(application) {
     private val _syncV1BindingUiState = MutableStateFlow(SyncV1BindingUiState())
     val syncV1BindingUiState = _syncV1BindingUiState.asStateFlow()
     private var syncV1BindingJob: Job? = null
+    private val syncV1ProgressRepository by lazy {
+        val store = SyncV1SQLiteStore(context)
+        SyncV1ProgressRepository(
+            store = store,
+            catalogStore = store,
+            chaptersStore = store,
+            bindingStore = store,
+            catalogRepository = syncV1CatalogRepository,
+            sessionProvider = AppWebDavSyncV1SessionFactory()::create
+        )
+    }
+    private val _syncV1ProgressUiState = MutableStateFlow(SyncV1ProgressUiState())
+    val syncV1ProgressUiState = _syncV1ProgressUiState.asStateFlow()
+    private var syncV1ProgressJob: Job? = null
     fun upWebDavConfig() {
         webDavUpdateJob?.cancel()
         webDavUpdateJob = viewModelScope.launch(Dispatchers.IO) {
@@ -97,7 +114,9 @@ class ConfigViewModel(application: Application) : BaseViewModel(application) {
     }
 
     fun processSyncV1Registration() {
-        if (syncV1Job?.isActive == true || syncV1BindingJob?.isActive == true) return
+        if (syncV1Job?.isActive == true || syncV1BindingJob?.isActive == true || syncV1ProgressJob?.isActive == true
+            || syncV1CatalogJob?.isActive == true || syncV1ChaptersJob?.isActive == true
+        ) return
         _syncV1UiState.value = SyncV1UiState(
             isRunning = true,
             currentPhase = SyncV1UiPhase.SCANNING
@@ -136,7 +155,7 @@ class ConfigViewModel(application: Application) : BaseViewModel(application) {
     }
 
     fun publishSyncV1Catalog() {
-        if (syncV1BindingJob?.isActive == true) return
+        if (syncV1BindingJob?.isActive == true || syncV1Job?.isActive == true || syncV1ProgressJob?.isActive == true) return
         if (syncV1ChaptersJob?.isActive == true) return
         if (syncV1CatalogJob?.isActive == true) return
         _syncV1CatalogUiState.value = SyncV1CatalogUiState(isRunning = true)
@@ -164,7 +183,7 @@ class ConfigViewModel(application: Application) : BaseViewModel(application) {
     }
 
     fun publishSyncV1Chapters() {
-        if (syncV1BindingJob?.isActive == true) return
+        if (syncV1BindingJob?.isActive == true || syncV1ProgressJob?.isActive == true) return
         if (syncV1CatalogJob?.isActive == true || syncV1Job?.isActive == true) return
         if (syncV1ChaptersJob?.isActive == true) return
         _syncV1ChaptersUiState.value = SyncV1ChaptersUiState(isRunning = true)
@@ -220,6 +239,7 @@ class ConfigViewModel(application: Application) : BaseViewModel(application) {
             || syncV1Job?.isActive == true
             || syncV1CatalogJob?.isActive == true
             || syncV1ChaptersJob?.isActive == true
+            || syncV1ProgressJob?.isActive == true
         ) return
         _syncV1BindingUiState.value = SyncV1BindingUiState(isRunning = true)
         syncV1BindingJob = viewModelScope.launch(Dispatchers.IO) {
@@ -234,6 +254,47 @@ class ConfigViewModel(application: Application) : BaseViewModel(application) {
                 )
             } finally {
                 _syncV1BindingUiState.update { it.copy(isRunning = false) }
+            }
+        }
+    }
+
+    fun initializeAndProcessSyncV1Progress() {
+        if (syncV1ProgressJob?.isActive == true || syncV1Job?.isActive == true
+            || syncV1CatalogJob?.isActive == true || syncV1ChaptersJob?.isActive == true
+            || syncV1BindingJob?.isActive == true
+        ) return
+        _syncV1ProgressUiState.value = SyncV1ProgressUiState(isRunning = true)
+        syncV1ProgressJob = viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val inputs = appDb.bookDao.all.filterNot { it.isNotShelf }.map { book ->
+                    // Keep the persisted candidate intact; a negative/corrupt index must not be
+                    // silently remapped to chapter zero.
+                    val index = book.durChapterIndex.toLong()
+                    val title = book.durChapterTitle
+                    SyncV1ProgressWorkInput(
+                        bookUrl = book.bookUrl,
+                        title = book.name,
+                        author = book.author,
+                        currentIndex = index,
+                        currentTitle = title,
+                        hasLocalProgress = index != 0L || book.durChapterPos != 0 || !title.isNullOrBlank()
+                    )
+                }
+                val books = inputs.map { SyncV1CatalogBook(it.bookUrl, it.title, it.author) }
+                val initialization = syncV1ProgressRepository.initialize(inputs)
+                _syncV1ProgressUiState.update { it.copy(initialization = initialization) }
+                val events = syncV1ProgressRepository.processEvents(books)
+                _syncV1ProgressUiState.update { it.copy(events = events) }
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                val failure = io.legado.app.help.syncv1.SyncV1ProgressOutcome(
+                    phase = io.legado.app.help.syncv1.SyncV1ProgressPhase.FAILED,
+                    errorCode = SyncV1ErrorCode.NETWORK_UNKNOWN
+                )
+                _syncV1ProgressUiState.update { it.copy(initialization = it.initialization ?: failure, events = it.events ?: failure) }
+            } finally {
+                _syncV1ProgressUiState.update { it.copy(isRunning = false) }
             }
         }
     }

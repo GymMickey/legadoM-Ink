@@ -60,12 +60,39 @@ private val secureConnectionSpecs = listOf(
     ConnectionSpec.COMPATIBLE_TLS
 )
 
+private data class WebDavRedirectState(val hasUsedHttps: Boolean)
+
+internal fun installWebDavRedirectProtection(builder: OkHttpClient.Builder) {
+    builder.addInterceptor { chain ->
+        val request = chain.request()
+        val taggedRequest = request.takeIf { it.tag(WebDavRedirectState::class.java) != null }
+            ?: request.newBuilder()
+                .tag(WebDavRedirectState::class.java, WebDavRedirectState(request.url.isHttps))
+                .build()
+        chain.proceed(taggedRequest)
+    }
+    builder.addNetworkInterceptor { chain ->
+        val request = chain.request()
+        val state = request.tag(WebDavRedirectState::class.java)
+        if (state?.hasUsedHttps == true && !request.url.isHttps) {
+            throw IOException("WebDAV HTTPS redirect downgrade refused")
+        }
+        val securedRequest = if (state != null && !state.hasUsedHttps && request.url.isHttps) {
+            request.newBuilder()
+                .tag(WebDavRedirectState::class.java, state.copy(hasUsedHttps = true))
+                .build()
+        } else request
+        chain.proceed(securedRequest)
+    }
+}
+
 private fun buildHttpClient(
     specs: List<ConnectionSpec>,
     allowUnsafeSsl: Boolean,
     useCronet: Boolean,
     requireHttps: Boolean = false,
     followSslRedirects: Boolean = !requireHttps,
+    protectWebDavRedirects: Boolean = false,
 ): OkHttpClient {
 
     val builder = OkHttpClient.Builder()
@@ -138,6 +165,9 @@ private fun buildHttpClient(
     }
     builder.addInterceptor(DecompressInterceptor)
     builder.addInterceptor(UrlRecordInterceptor)
+    if (protectWebDavRedirects) {
+        installWebDavRedirectProtection(builder)
+    }
     return builder.build().apply {
         val okHttpName =
             OkHttpClient::class.java.name.removePrefix("okhttp3.").removeSuffix("Client")
@@ -185,16 +215,14 @@ val secureOkHttpClient: OkHttpClient by lazy {
     )
 }
 
-/**
- * WebDAV client with an explicit security boundary. It never follows an HTTPS redirect to HTTP.
- * The insecure variant is used only after the dedicated WebDAV option has been enabled.
- */
-fun getWebDavClient(allowInsecure: Boolean): OkHttpClient = buildHttpClient(
+/** WebDAV permits HTTP and always validates HTTPS with the system trust store. */
+fun getWebDavClient(): OkHttpClient = buildHttpClient(
     specs = sourceConnectionSpecs,
-    allowUnsafeSsl = allowInsecure,
+    allowUnsafeSsl = false,
     useCronet = false,
-    requireHttps = !allowInsecure,
-    followSslRedirects = false,
+    requireHttps = false,
+    followSslRedirects = true,
+    protectWebDavRedirects = true,
 )
 
 val okHttpClientManga by lazy {

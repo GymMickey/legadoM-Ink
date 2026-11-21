@@ -10,6 +10,7 @@ import android.app.Application
 import androidx.lifecycle.viewModelScope
 import io.legado.app.R
 import io.legado.app.base.BaseViewModel
+import io.legado.app.constant.AppLog
 import io.legado.app.data.appDb
 import io.legado.app.data.entities.Book
 import io.legado.app.data.repository.ReadRecordRepository
@@ -19,6 +20,7 @@ import io.legado.app.help.book.BookMatcher
 import io.legado.app.help.config.LocalConfig
 import io.legado.app.help.storage.BackupResult
 import io.legado.app.help.storage.Backup
+import io.legado.app.help.storage.Restore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Dispatchers.Default
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -60,10 +62,16 @@ class HomepageViewModel(application: Application) : BaseViewModel(application) {
     val effects = _effects.asSharedFlow()
 
     private val _isBackingUp = MutableStateFlow(false)
+    private val _restoreUiState = MutableStateFlow(HomepageRestoreUiState())
     private var backupJob: Job? = null
     private var backupRequestId = 0L
     private var restoreJob: Job? = null
     private val readRecordRepository = ReadRecordRepository(appDb.readRecordDao)
+
+    private data class HomepageRestoreUiState(
+        val isRestoring: Boolean = false,
+        val phase: HomepageRestorePhase? = null
+    )
 
     private data class HomepageStats(
         val totalBooksRead: Int = 0,
@@ -100,14 +108,19 @@ class HomepageViewModel(application: Application) : BaseViewModel(application) {
         HomepageStats(totalBooksRead = readBooksCount, totalReadTimeMs = totalTime)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), HomepageStats())
 
+    private val homepageOperationState = combine(_isBackingUp, _restoreUiState) { backingUp, restoreState ->
+        backingUp to restoreState
+    }
+
     /** Book cards are independent from the slower aggregate statistics query. */
     val dashboardState: StateFlow<HomepageDashboardState> = combine(
         homepageBooksState,
         homepageStatsState,
         AppWebDav.status,
         LocalConfig.lastWebDavBackupTimeFlow,
-        _isBackingUp
-    ) { books, stats, webDavStatus, lastBackupTime, backingUp ->
+        homepageOperationState
+    ) { books, stats, webDavStatus, lastBackupTime, operationState ->
+        val (backingUp, restoreState) = operationState
         HomepageDashboardState(
             lastReadBook = books.lastReadBook,
             totalBooksRead = stats.totalBooksRead,
@@ -115,6 +128,8 @@ class HomepageViewModel(application: Application) : BaseViewModel(application) {
             recentBooks = books.recentBooks,
             webDavStatus = webDavStatus,
             isBackingUp = backingUp,
+            isRestoring = restoreState.isRestoring,
+            restorePhase = restoreState.phase,
             lastBackupTime = lastBackupTime,
             isBooksLoaded = books.isLoaded
         )
@@ -158,6 +173,7 @@ class HomepageViewModel(application: Application) : BaseViewModel(application) {
     }
 
     fun onRestore() {
+        if (_restoreUiState.value.isRestoring) return
         restoreJob?.cancel()
         restoreJob = viewModelScope.launch {
             // 按 lastModify 取真正最新的备份，避免文件名字母序与时间序不一致
@@ -176,6 +192,37 @@ class HomepageViewModel(application: Application) : BaseViewModel(application) {
                 _effects.emit(HomepageEffect.ShowSnackbar(
                     context.getString(R.string.homepage_webdav_no_backup)
                 ))
+            }
+        }
+    }
+
+    fun restoreFromWebDav(backupName: String) {
+        if (_restoreUiState.value.isRestoring) return
+        _restoreUiState.value = HomepageRestoreUiState(
+            isRestoring = true,
+            phase = HomepageRestorePhase.DOWNLOADING_BACKUP
+        )
+        restoreJob = viewModelScope.launch {
+            try {
+                withContext(Dispatchers.IO) {
+                    AppWebDav.downloadAndUnzipBackup(backupName)
+                }
+                _restoreUiState.value = HomepageRestoreUiState(
+                    isRestoring = true,
+                    phase = HomepageRestorePhase.RESTORING
+                )
+                withContext(Dispatchers.IO) {
+                    Restore.restoreLocked(Backup.backupPath)
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                AppLog.put("WebDAV restore failed (${e.javaClass.simpleName})")
+                _effects.emit(
+                    HomepageEffect.ShowSnackbar(context.getString(R.string.homepage_webdav_restore_failed))
+                )
+            } finally {
+                _restoreUiState.value = HomepageRestoreUiState()
             }
         }
     }

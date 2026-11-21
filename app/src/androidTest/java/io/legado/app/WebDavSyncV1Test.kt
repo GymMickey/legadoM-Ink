@@ -65,7 +65,6 @@ class WebDavSyncV1Test {
         val authentication = WebDav(
             server.url("/dav/").toString(),
             Authorization("account", "password"),
-            allowInsecure = true
         ).check()
         assertEquals(WebDavCheckResult.AuthenticationFailed(401), authentication)
 
@@ -73,7 +72,6 @@ class WebDavSyncV1Test {
         val forbidden = WebDav(
             server.url("/dav/").toString(),
             Authorization("account", "password"),
-            allowInsecure = true
         ).check()
         assertEquals(WebDavCheckResult.AuthenticationFailed(403), forbidden)
 
@@ -81,7 +79,6 @@ class WebDavSyncV1Test {
         val serverError = WebDav(
             server.url("/dav/").toString(),
             Authorization("account", "password"),
-            allowInsecure = true
         ).check()
         assertEquals(WebDavCheckResult.ServerError(503), serverError)
     }
@@ -91,7 +88,6 @@ class WebDavSyncV1Test {
         val result = WebDav(
             "http://webdav-sync-v1.invalid/dav/",
             Authorization("account", "password"),
-            allowInsecure = true
         ).check()
         assertTrue(result is WebDavCheckResult.NetworkError)
     }
@@ -104,7 +100,7 @@ class WebDavSyncV1Test {
             PreferKey.webDavAccount to prefs.getString(PreferKey.webDavAccount, null),
             PreferKey.webDavPassword to prefs.getString(PreferKey.webDavPassword, null),
             PreferKey.webDavDir to prefs.getString(PreferKey.webDavDir, null),
-            PreferKey.unsafeWebDav to prefs.getBoolean(PreferKey.unsafeWebDav, false)
+            "unsafeWebDav" to prefs.getBoolean("unsafeWebDav", false)
         )
         try {
             prefs.edit()
@@ -112,7 +108,7 @@ class WebDavSyncV1Test {
                 .putString(PreferKey.webDavAccount, "account")
                 .putString(PreferKey.webDavPassword, "password")
                 .putString(PreferKey.webDavDir, "")
-                .putBoolean(PreferKey.unsafeWebDav, true)
+                .putBoolean("unsafeWebDav", true)
                 .commit()
 
             AppWebDav.upConfig()
@@ -148,7 +144,6 @@ class WebDavSyncV1Test {
         val result = WebDav(
             server.url("/dav/").toString(),
             Authorization("account", "password"),
-            allowInsecure = false
         ).check()
         assertTrue(result is WebDavCheckResult.NetworkError)
     }
@@ -165,7 +160,6 @@ class WebDavSyncV1Test {
             WebDav(
                 server.url("/dav/").toString(),
                 Authorization("account", "password"),
-                allowInsecure = true
             ).check()
         }
         delay(100)
@@ -181,7 +175,6 @@ class WebDavSyncV1Test {
             WebDav(
                 server.url("/dav/").toString(),
                 Authorization("account", "password"),
-                allowInsecure = true
             ).upload(byteArrayOf(1))
             fail("401 upload should fail")
         } catch (e: WebDavHttpException) {
@@ -193,7 +186,6 @@ class WebDavSyncV1Test {
             WebDav(
                 server.url("/dav/").toString(),
                 Authorization("account", "password"),
-                allowInsecure = true
             ).upload(byteArrayOf(1))
             fail("503 upload should fail")
         } catch (e: WebDavHttpException) {
@@ -209,7 +201,7 @@ class WebDavSyncV1Test {
             PreferKey.webDavAccount to prefs.getString(PreferKey.webDavAccount, null),
             PreferKey.webDavPassword to prefs.getString(PreferKey.webDavPassword, null),
             PreferKey.webDavDir to prefs.getString(PreferKey.webDavDir, null),
-            PreferKey.unsafeWebDav to prefs.getBoolean(PreferKey.unsafeWebDav, false)
+            "unsafeWebDav" to prefs.getBoolean("unsafeWebDav", false)
         )
         try {
             prefs.edit()
@@ -217,7 +209,7 @@ class WebDavSyncV1Test {
                 .putString(PreferKey.webDavAccount, "account")
                 .putString(PreferKey.webDavPassword, "password")
                 .putString(PreferKey.webDavDir, "legado")
-                .putBoolean(PreferKey.unsafeWebDav, true)
+                .putBoolean("unsafeWebDav", true)
                 .commit()
 
             repeat(5) { server.enqueue(MockResponse().setResponseCode(200)) }
@@ -252,7 +244,7 @@ class WebDavSyncV1Test {
                 .remove(PreferKey.webDavAccount)
                 .remove(PreferKey.webDavPassword)
                 .remove(PreferKey.webDavDir)
-                .putBoolean(PreferKey.unsafeWebDav, false)
+                .putBoolean("unsafeWebDav", false)
                 .commit()
             AppWebDav.upConfig()
             val editor = prefs.edit()
@@ -347,7 +339,7 @@ class WebDavSyncV1Test {
             PreferKey.webDavAccount to prefs.getString(PreferKey.webDavAccount, null),
             PreferKey.webDavPassword to prefs.getString(PreferKey.webDavPassword, null),
             PreferKey.webDavDir to prefs.getString(PreferKey.webDavDir, null),
-            PreferKey.unsafeWebDav to prefs.getBoolean(PreferKey.unsafeWebDav, false)
+            "unsafeWebDav" to prefs.getBoolean("unsafeWebDav", false)
         )
         val otherServer = MockWebServer()
         otherServer.start()
@@ -357,7 +349,7 @@ class WebDavSyncV1Test {
                 .putString(PreferKey.webDavAccount, "old-account")
                 .putString(PreferKey.webDavPassword, "old-password")
                 .putString(PreferKey.webDavDir, "old-dir")
-                .putBoolean(PreferKey.unsafeWebDav, true)
+                .putBoolean("unsafeWebDav", true)
                 .commit()
             repeat(5) { server.enqueue(MockResponse().setResponseCode(200)) }
             AppWebDav.upConfig()
@@ -394,7 +386,7 @@ class WebDavSyncV1Test {
                 .remove(PreferKey.webDavAccount)
                 .remove(PreferKey.webDavPassword)
                 .remove(PreferKey.webDavDir)
-                .putBoolean(PreferKey.unsafeWebDav, false)
+                .putBoolean("unsafeWebDav", false)
                 .commit()
             AppWebDav.upConfig()
             val editor = prefs.edit()
@@ -475,7 +467,7 @@ class WebDavSyncV1Test {
             PreferKey.webDavAccount to prefs.getString(PreferKey.webDavAccount, null),
             PreferKey.webDavPassword to prefs.getString(PreferKey.webDavPassword, null),
             PreferKey.webDavDir to prefs.getString(PreferKey.webDavDir, null),
-            PreferKey.unsafeWebDav to prefs.getBoolean(PreferKey.unsafeWebDav, false)
+            "unsafeWebDav" to prefs.getBoolean("unsafeWebDav", false)
         )
         val previousRemoteTime = LocalConfig.lastWebDavBackupTime
         val zipFile = File(Backup.zipFilePath)
@@ -487,14 +479,15 @@ class WebDavSyncV1Test {
                 .putString(PreferKey.webDavAccount, "account")
                 .putString(PreferKey.webDavPassword, "password")
                 .putString(PreferKey.webDavDir, "backup")
-                .putBoolean(PreferKey.unsafeWebDav, true)
+                .putBoolean("unsafeWebDav", true)
                 .commit()
             repeat(5) { server.enqueue(MockResponse().setResponseCode(200)) }
             AppWebDav.upConfig()
 
             server.enqueue(MockResponse().setResponseCode(503))
             val failed = AppWebDav.backUpWebDav("backup.zip")
-            assertEquals(WebDavUploadResult.Failed(WebDavStatus.SERVER_ERROR), failed)
+            assertTrue(failed is WebDavUploadResult.Failed)
+            assertEquals(WebDavStatus.SERVER_ERROR, (failed as WebDavUploadResult.Failed).status)
             assertEquals(previousRemoteTime, LocalConfig.lastWebDavBackupTime)
             assertEquals("password", prefs.getString(PreferKey.webDavPassword, null))
             assertEquals(WebDavStatus.SERVER_ERROR, AppWebDav.status.value)
@@ -508,10 +501,86 @@ class WebDavSyncV1Test {
                 .remove(PreferKey.webDavAccount)
                 .remove(PreferKey.webDavPassword)
                 .remove(PreferKey.webDavDir)
-                .putBoolean(PreferKey.unsafeWebDav, false)
+                .putBoolean("unsafeWebDav", false)
                 .commit()
             AppWebDav.upConfig()
             LocalConfig.lastWebDavBackupTime = previousRemoteTime
+            val editor = prefs.edit()
+            previous.forEach { (key, value) ->
+                when (value) {
+                    null -> editor.remove(key)
+                    is Boolean -> editor.putBoolean(key, value)
+                    else -> editor.putString(key, value.toString())
+                }
+            }
+            editor.commit()
+        }
+    }
+
+    @Test
+    fun resourceNotFoundAndConflictDoNotPolluteConnectionStatus() = runBlocking {
+        val prefs = appCtx.defaultSharedPreferences
+        val previous = mapOf(
+            PreferKey.webDavUrl to prefs.getString(PreferKey.webDavUrl, null),
+            PreferKey.webDavAccount to prefs.getString(PreferKey.webDavAccount, null),
+            PreferKey.webDavPassword to prefs.getString(PreferKey.webDavPassword, null),
+            PreferKey.webDavDir to prefs.getString(PreferKey.webDavDir, null),
+            "unsafeWebDav" to prefs.getBoolean("unsafeWebDav", false)
+        )
+        val zipFile = File(Backup.zipFilePath)
+        zipFile.parentFile?.mkdirs()
+        zipFile.writeBytes(byteArrayOf(1, 2, 3))
+        try {
+            prefs.edit()
+                .putString(PreferKey.webDavUrl, server.url("/").toString())
+                .putString(PreferKey.webDavAccount, "account")
+                .putString(PreferKey.webDavPassword, "password")
+                .putString(PreferKey.webDavDir, "backup")
+                .putBoolean("unsafeWebDav", true)
+                .commit()
+            repeat(5) { server.enqueue(MockResponse().setResponseCode(200)) }
+            AppWebDav.upConfig()
+            assertEquals(WebDavStatus.AVAILABLE, AppWebDav.status.value)
+            assertEquals(server.url("backup/").toString(), AppWebDav.activeConfig.value?.rootUrl)
+
+            server.enqueue(MockResponse().setResponseCode(404))
+            val missing = AppWebDav.backUpWebDav("missing.zip") as WebDavUploadResult.Failed
+            assertEquals(404, (missing.cause as WebDavHttpException).code)
+            assertEquals("/backup/missing.zip", server.takeRequest().path)
+            assertEquals(WebDavStatus.AVAILABLE, AppWebDav.status.value)
+            assertEquals("password", prefs.getString(PreferKey.webDavPassword, null))
+
+            server.enqueue(MockResponse().setResponseCode(409))
+            val conflict = AppWebDav.backUpWebDav("conflict.zip") as WebDavUploadResult.Failed
+            assertEquals(409, (conflict.cause as WebDavHttpException).code)
+            assertEquals(WebDavStatus.AVAILABLE, AppWebDav.status.value)
+            assertEquals("password", prefs.getString(PreferKey.webDavPassword, null))
+
+            server.enqueue(MockResponse().setResponseCode(429))
+            val limited = AppWebDav.backUpWebDav("rate-limited.zip") as WebDavUploadResult.Failed
+            assertEquals(429, (limited.cause as WebDavHttpException).code)
+            assertEquals(WebDavStatus.SERVER_ERROR, AppWebDav.status.value)
+            assertEquals("password", prefs.getString(PreferKey.webDavPassword, null))
+
+            server.enqueue(MockResponse().setResponseCode(404))
+            val missingAgain = AppWebDav.backUpWebDav("missing-again.zip") as WebDavUploadResult.Failed
+            assertEquals(404, (missingAgain.cause as WebDavHttpException).code)
+            assertEquals(WebDavStatus.SERVER_ERROR, AppWebDav.status.value)
+            assertEquals("password", prefs.getString(PreferKey.webDavPassword, null))
+
+            server.enqueue(MockResponse().setResponseCode(200))
+            assertEquals(WebDavUploadResult.Uploaded, AppWebDav.backUpWebDav("recovered.zip"))
+            assertEquals(WebDavStatus.AVAILABLE, AppWebDav.status.value)
+        } finally {
+            zipFile.delete()
+            prefs.edit()
+                .remove(PreferKey.webDavUrl)
+                .remove(PreferKey.webDavAccount)
+                .remove(PreferKey.webDavPassword)
+                .remove(PreferKey.webDavDir)
+                .putBoolean("unsafeWebDav", false)
+                .commit()
+            AppWebDav.upConfig()
             val editor = prefs.edit()
             previous.forEach { (key, value) ->
                 when (value) {
@@ -532,7 +601,7 @@ class WebDavSyncV1Test {
             PreferKey.webDavAccount to prefs.getString(PreferKey.webDavAccount, null),
             PreferKey.webDavPassword to prefs.getString(PreferKey.webDavPassword, null),
             PreferKey.webDavDir to prefs.getString(PreferKey.webDavDir, null),
-            PreferKey.unsafeWebDav to prefs.getBoolean(PreferKey.unsafeWebDav, false)
+            "unsafeWebDav" to prefs.getBoolean("unsafeWebDav", false)
         )
         val zipFile = File(Backup.zipFilePath)
         zipFile.parentFile?.mkdirs()
@@ -543,7 +612,7 @@ class WebDavSyncV1Test {
                 .putString(PreferKey.webDavAccount, "account")
                 .putString(PreferKey.webDavPassword, "password")
                 .putString(PreferKey.webDavDir, "backup")
-                .putBoolean(PreferKey.unsafeWebDav, true)
+                .putBoolean("unsafeWebDav", true)
                 .commit()
             repeat(5) { server.enqueue(MockResponse().setResponseCode(200)) }
             AppWebDav.upConfig()
@@ -562,7 +631,7 @@ class WebDavSyncV1Test {
                 .remove(PreferKey.webDavAccount)
                 .remove(PreferKey.webDavPassword)
                 .remove(PreferKey.webDavDir)
-                .putBoolean(PreferKey.unsafeWebDav, false)
+                .putBoolean("unsafeWebDav", false)
                 .commit()
             AppWebDav.upConfig()
             val editor = prefs.edit()
@@ -585,7 +654,7 @@ class WebDavSyncV1Test {
             PreferKey.webDavAccount to prefs.getString(PreferKey.webDavAccount, null),
             PreferKey.webDavPassword to prefs.getString(PreferKey.webDavPassword, null),
             PreferKey.webDavDir to prefs.getString(PreferKey.webDavDir, null),
-            PreferKey.unsafeWebDav to prefs.getBoolean(PreferKey.unsafeWebDav, false)
+            "unsafeWebDav" to prefs.getBoolean("unsafeWebDav", false)
         )
         try {
             prefs.edit()
@@ -593,7 +662,7 @@ class WebDavSyncV1Test {
                 .putString(PreferKey.webDavAccount, "account")
                 .putString(PreferKey.webDavPassword, "password")
                 .putString(PreferKey.webDavDir, "backup")
-                .putBoolean(PreferKey.unsafeWebDav, true)
+                .putBoolean("unsafeWebDav", true)
                 .commit()
             repeat(5) { server.enqueue(MockResponse().setResponseCode(200)) }
             AppWebDav.upConfig()
@@ -625,7 +694,7 @@ class WebDavSyncV1Test {
                 .remove(PreferKey.webDavAccount)
                 .remove(PreferKey.webDavPassword)
                 .remove(PreferKey.webDavDir)
-                .putBoolean(PreferKey.unsafeWebDav, false)
+                .putBoolean("unsafeWebDav", false)
                 .commit()
             AppWebDav.upConfig()
             val editor = prefs.edit()
@@ -648,7 +717,7 @@ class WebDavSyncV1Test {
             PreferKey.webDavAccount to prefs.getString(PreferKey.webDavAccount, null),
             PreferKey.webDavPassword to prefs.getString(PreferKey.webDavPassword, null),
             PreferKey.webDavDir to prefs.getString(PreferKey.webDavDir, null),
-            PreferKey.unsafeWebDav to prefs.getBoolean(PreferKey.unsafeWebDav, false)
+            "unsafeWebDav" to prefs.getBoolean("unsafeWebDav", false)
         )
         try {
             prefs.edit()
@@ -656,7 +725,7 @@ class WebDavSyncV1Test {
                 .putString(PreferKey.webDavAccount, "account")
                 .putString(PreferKey.webDavPassword, "password")
                 .putString(PreferKey.webDavDir, "backup")
-                .putBoolean(PreferKey.unsafeWebDav, true)
+                .putBoolean("unsafeWebDav", true)
                 .commit()
 
             server.enqueue(
@@ -681,7 +750,7 @@ class WebDavSyncV1Test {
             assertEquals(WebDavStatus.AVAILABLE, AppWebDav.status.value)
             assertEquals(
                 AppWebDav.webDavConfigIdentity(
-                    server.url("/backup/").toString(), "account", "password", true
+                    server.url("/backup/").toString(), "account", "password"
                 ),
                 AppWebDav.activeConfig.value?.configIdentity
             )
@@ -707,7 +776,7 @@ class WebDavSyncV1Test {
             PreferKey.webDavAccount to prefs.getString(PreferKey.webDavAccount, null),
             PreferKey.webDavPassword to prefs.getString(PreferKey.webDavPassword, null),
             PreferKey.webDavDir to prefs.getString(PreferKey.webDavDir, null),
-            PreferKey.unsafeWebDav to prefs.getBoolean(PreferKey.unsafeWebDav, false)
+            "unsafeWebDav" to prefs.getBoolean("unsafeWebDav", false)
         )
         val newServer = MockWebServer().apply { start() }
         try {
@@ -716,7 +785,7 @@ class WebDavSyncV1Test {
                 .putString(PreferKey.webDavAccount, "old-account")
                 .putString(PreferKey.webDavPassword, "old-password")
                 .putString(PreferKey.webDavDir, "old")
-                .putBoolean(PreferKey.unsafeWebDav, true)
+                .putBoolean("unsafeWebDav", true)
                 .commit()
             server.enqueue(
                 MockResponse().setResponseCode(200)
@@ -752,7 +821,7 @@ class WebDavSyncV1Test {
                 .remove(PreferKey.webDavAccount)
                 .remove(PreferKey.webDavPassword)
                 .remove(PreferKey.webDavDir)
-                .putBoolean(PreferKey.unsafeWebDav, false)
+                .putBoolean("unsafeWebDav", false)
                 .commit()
             AppWebDav.upConfig()
             val editor = prefs.edit()
@@ -773,12 +842,59 @@ class WebDavSyncV1Test {
     }
 
     @Test
-    fun configurationIdentityIncludesAllEndpointAndSecurityInputs() {
+    fun configurationIdentityIncludesEndpointAndCredentialsOnly() {
         val rootUrl = "https://example.invalid/dav/"
-        val base = AppWebDav.webDavConfigIdentity(rootUrl, "account", "password", false)
-        assertFalse(base == AppWebDav.webDavConfigIdentity("https://other.invalid/dav/", "account", "password", false))
-        assertFalse(base == AppWebDav.webDavConfigIdentity(rootUrl, "other-account", "password", false))
-        assertFalse(base == AppWebDav.webDavConfigIdentity(rootUrl, "account", "other-password", false))
-        assertFalse(base == AppWebDav.webDavConfigIdentity(rootUrl, "account", "password", true))
+        val base = AppWebDav.webDavConfigIdentity(rootUrl, "account", "password")
+        assertFalse(base == AppWebDav.webDavConfigIdentity("https://other.invalid/dav/", "account", "password"))
+        assertFalse(base == AppWebDav.webDavConfigIdentity(rootUrl, "other-account", "password"))
+        assertFalse(base == AppWebDav.webDavConfigIdentity(rootUrl, "account", "other-password"))
+    }
+
+    @Test
+    fun legacyUnsafePreferenceDoesNotAffectHttpOrConfigIdentity() = runBlocking {
+        val prefs = appCtx.defaultSharedPreferences
+        val legacyPreference = "unsafeWebDav"
+        val previous = mapOf(
+            PreferKey.webDavUrl to prefs.getString(PreferKey.webDavUrl, null),
+            PreferKey.webDavAccount to prefs.getString(PreferKey.webDavAccount, null),
+            PreferKey.webDavPassword to prefs.getString(PreferKey.webDavPassword, null),
+            PreferKey.webDavDir to prefs.getString(PreferKey.webDavDir, null),
+            legacyPreference to prefs.getBoolean(legacyPreference, false)
+        )
+        try {
+            prefs.edit()
+                .putString(PreferKey.webDavUrl, server.url("/").toString())
+                .putString(PreferKey.webDavAccount, "account")
+                .putString(PreferKey.webDavPassword, "password")
+                .putString(PreferKey.webDavDir, "")
+                .putBoolean(legacyPreference, true)
+                .commit()
+            repeat(5) { server.enqueue(MockResponse().setResponseCode(200)) }
+            AppWebDav.upConfig()
+            val verifiedIdentity = AppWebDav.activeConfig.value?.configIdentity
+            assertEquals(
+                AppWebDav.webDavConfigIdentity(server.url("/").toString(), "account", "password"),
+                verifiedIdentity
+            )
+
+            prefs.edit().putBoolean(legacyPreference, false).commit()
+            repeat(5) { server.enqueue(MockResponse().setResponseCode(200)) }
+            AppWebDav.upConfig()
+
+            assertEquals(WebDavStatus.AVAILABLE, AppWebDav.status.value)
+            assertEquals(verifiedIdentity, AppWebDav.activeConfig.value?.configIdentity)
+            assertEquals("password", prefs.getString(PreferKey.webDavPassword, null))
+        } finally {
+            val editor = prefs.edit()
+            previous.forEach { (key, value) ->
+                when (value) {
+                    null -> editor.remove(key)
+                    is Boolean -> editor.putBoolean(key, value)
+                    else -> editor.putString(key, value.toString())
+                }
+            }
+            editor.commit()
+            AppWebDav.upConfig()
+        }
     }
 }

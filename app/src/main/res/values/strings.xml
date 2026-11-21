@@ -669,8 +669,6 @@
     <string name="web_dav_url">WebDav server address</string>
     <string name="web_dav_account">WebDav account</string>
     <string name="web_dav_account_s">Input your WebDav account</string>
-    <string name="unsafe_webdav_title">Allow insecure WebDAV</string>
-    <string name="unsafe_webdav_summary">Off by default. Prefer HTTPS with system certificates. Enable only for a trusted custom WebDAV server to allow HTTP or self-signed certificates; HTTPS will not be downgraded by redirects.</string>
     <string name="rss_source">RSS source</string>
     <string name="rss_source_edit">Edit RSS source</string>
     <string name="screen">Filter</string>
@@ -1338,12 +1336,16 @@
     <string name="sync_v1_bindings_not_processed">No binding requests processed</string>
     <string name="sync_v1_bindings_running">Scanning ready devices and publishing acknowledgements…</string>
     <string name="sync_v1_bindings_result">Devices %1$d · events %2$d · bound %3$d · ambiguous %4$d · not found %5$d · rejected %6$d · unprocessed %7$d · ack published %8$d · pending %9$d · event conflicts %10$d · code %11$s</string>
+    <string name="sync_v1_process_progress">Initialize and process Sync-v1 reading progress</string>
+    <string name="sync_v1_process_progress_summary">Publish confirmed progress baselines, then process ready-device progress events</string>
+    <string name="sync_v1_processing_progress">Initializing baselines and processing progress events…</string>
+    <string name="sync_v1_progress_state_title">Sync-v1 progress status</string>
+    <string name="sync_v1_progress_not_processed">No progress baselines or events processed</string>
+    <string name="sync_v1_progress_result">Phase %1$s · baselines %2$s · states published %3$d · state pending %4$d · catalog pending %5$d · failed %6$d · stale TOC %7$d · events %8$d · applied %9$d · stale TOC %10$d · stale progress %11$d · rejected %12$d · event pending %13$d · event conflicts %14$d · ack pending %15$d · code %16$s</string>
     <string name="web_service_wake_lock">WebService Wake up Lock</string>
     <string name="web_service_wake_lock_summary">The wake-up lock is enabled when the web service is enabled, and some phones will be killed when the wake-up lock is enabled.</string>
     <string name="unsafe_ssl_title">Skip SSL Verification</string>
     <string name="unsafe_ssl_summary">Allow custom book-source and WebView requests to skip SSL verification. This exposes traffic to man-in-the-middle attacks; official update, sync and backup links remain protected.</string>
-    <string name="webdav_https_required">WebDAV uses HTTPS by default. Enable “Allow insecure WebDAV” only for a trusted custom server to use HTTP or a self-signed certificate.</string>
-    <string name="webdav_insecure_warning">Insecure WebDAV is enabled: HTTP or untrusted certificates may expose your account and data. Use only on a trusted network.</string>
     <string name="need_restart_app">This change requires restarting the app to take effect. Restart now?</string>
 <string name="change_search_scope">Toggle search scope</string>
     <string name="copy_rule">Copy Rule</string>
@@ -2133,6 +2135,9 @@
     <string name="homepage_webdav_backup">Backup</string>
     <string name="homepage_webdav_backing_up">Backing up…</string>
     <string name="homepage_webdav_restore">Restore</string>
+    <string name="homepage_webdav_downloading_backup">Downloading backup…</string>
+    <string name="homepage_webdav_restoring">Restoring…</string>
+    <string name="homepage_webdav_restore_failed">WebDAV restore failed</string>
     <string name="homepage_webdav_settings">Settings</string>
     <string name="homepage_webdav_configure">Set up WebDAV backup</string>
     <string name="homepage_webdav_restore_confirm">Will restore backup \"%s\". Current data will be overwritten. Confirm?</string>

@@ -639,13 +639,6 @@ object AppConfig : SharedPreferences.OnSharedPreferenceChangeListener {
             appCtx.putPrefBoolean(PreferKey.unsafeSsl, value)
         }
 
-    /** 仅对用户自定义 WebDAV 生效，允许 HTTP 和不受信任的服务器证书。 */
-    var unsafeWebDav: Boolean
-        get() = appCtx.getPrefBoolean(PreferKey.unsafeWebDav, false)
-        set(value) {
-            appCtx.putPrefBoolean(PreferKey.unsafeWebDav, value)
-        }
-
     private fun isFreshInstall(): Boolean = runCatching {
         val packageInfo = appCtx.packageManager.getPackageInfo(appCtx.packageName, 0)
         packageInfo.firstInstallTime == packageInfo.lastUpdateTime

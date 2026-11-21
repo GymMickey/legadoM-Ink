@@ -61,12 +61,19 @@ data class HomepageDashboardState(
     val recentBooks: List<Book> = emptyList(),
     val webDavStatus: WebDavStatus = WebDavStatus.UNCONFIGURED,
     val isBackingUp: Boolean = false,
+    val isRestoring: Boolean = false,
+    val restorePhase: HomepageRestorePhase? = null,
     val lastBackupTime: Long = 0L,
     val isBooksLoaded: Boolean = false,
 ) {
     /** Compatibility getter for existing UI callers. */
     val webDavConfigured: Boolean
         get() = webDavStatus.isConfigured
+}
+
+enum class HomepageRestorePhase {
+    DOWNLOADING_BACKUP,
+    RESTORING,
 }
 
 // ==================== 旧模块系统类型（Phase 3+ 清理移除） ====================

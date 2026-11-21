@@ -83,7 +83,6 @@ fun HomepageScreen(
     onWebDavSettingsClick: () -> Unit,
     onReadRecordClick: () -> Unit = {},
     onBookshelfClick: () -> Unit = {},
-    onRestoreConfirm: (backupName: String) -> Unit = {},
 ) {
     val state by viewModel.dashboardState.collectAsStateWithLifecycle()
     val context = LocalContext.current
@@ -184,6 +183,8 @@ fun HomepageScreen(
                     WebDavCard(
                         status = state.webDavStatus,
                         isBackingUp = state.isBackingUp,
+                        isRestoring = state.isRestoring,
+                        restorePhase = state.restorePhase,
                         lastBackupTime = state.lastBackupTime,
                         onBackup = { viewModel.onBackup() },
                         onRestore = { viewModel.onRestore() },
@@ -208,7 +209,7 @@ fun HomepageScreen(
                 confirmButton = {
                     TextButton(onClick = {
                         restoreDialogName = null
-                        onRestoreConfirm(name)
+                        viewModel.restoreFromWebDav(name)
                     }) {
                         Text(stringResource(android.R.string.ok))
                     }
@@ -492,6 +493,8 @@ private fun RecentBookItem(book: Book, onClick: () -> Unit) {
 private fun WebDavCard(
     status: WebDavStatus,
     isBackingUp: Boolean,
+    isRestoring: Boolean,
+    restorePhase: HomepageRestorePhase?,
     lastBackupTime: Long,
     onBackup: () -> Unit,
     onRestore: () -> Unit,
@@ -561,6 +564,19 @@ private fun WebDavCard(
                 }
             }
             if (isConfigured) {
+                restorePhase?.let { phase ->
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = stringResource(
+                            when (phase) {
+                                HomepageRestorePhase.DOWNLOADING_BACKUP -> R.string.homepage_webdav_downloading_backup
+                                HomepageRestorePhase.RESTORING -> R.string.homepage_webdav_restoring
+                            }
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = pageSecondaryTextColor()
+                    )
+                }
                 Spacer(modifier = Modifier.height(12.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -578,6 +594,7 @@ private fun WebDavCard(
                     }
                     TextButton(
                         onClick = onRestore,
+                        enabled = !isRestoring,
                         modifier = Modifier.weight(1f)
                     ) {
                         Text(stringResource(R.string.homepage_webdav_restore))

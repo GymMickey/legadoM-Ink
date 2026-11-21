@@ -12,5 +12,7 @@ sealed interface WebDavUploadResult {
     /** Credentials or endpoint changed and the new configuration has not been verified. */
     data object NotVerified : WebDavUploadResult
 
-    data class Failed(val status: WebDavStatus) : WebDavUploadResult
+    data class Failed(val status: WebDavStatus, val cause: Throwable? = null) : WebDavUploadResult {
+        override fun toString(): String = "Failed(status=$status)"
+    }
 }

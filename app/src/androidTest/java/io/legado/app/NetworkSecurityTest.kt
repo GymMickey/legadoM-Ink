@@ -1,9 +1,12 @@
 package io.legado.app
 
-import io.legado.app.help.config.AppConfig
 import io.legado.app.help.http.secureOkHttpClient
 import io.legado.app.help.http.sourceHttpClient
 import io.legado.app.help.http.getWebDavClient
+import io.legado.app.help.http.installWebDavRedirectProtection
+import io.legado.app.lib.webdav.Authorization
+import io.legado.app.lib.webdav.WebDav
+import io.legado.app.lib.webdav.WebDavCheckResult
 import okhttp3.Request
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
@@ -11,6 +14,8 @@ import okhttp3.tls.HandshakeCertificates
 import okhttp3.tls.HeldCertificate
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Before
 import org.junit.Test
 import java.io.IOException
@@ -59,25 +64,11 @@ class NetworkSecurityTest {
     }
 
     @Test
-    fun webDavClientRejectsHttpByDefault() {
-        val request = Request.Builder().url(server.url("/webdav")).build()
-
-        try {
-            getWebDavClient(allowInsecure = false).newCall(request).execute()
-                .use { error("HTTP WebDAV request unexpectedly succeeded") }
-        } catch (_: IOException) {
-            // Expected: WebDAV uses HTTPS unless the dedicated option is enabled.
-        }
-
-        assertEquals(0, server.requestCount)
-    }
-
-    @Test
-    fun webDavClientAllowsHttpOnlyWithExplicitOption() {
+    fun webDavClientAllowsHttpWithoutPreferenceToggle() {
         server.enqueue(MockResponse().setResponseCode(200))
         val request = Request.Builder().url(server.url("/webdav")).build()
 
-        getWebDavClient(allowInsecure = true).newCall(request).execute().use { response ->
+        getWebDavClient().newCall(request).execute().use { response ->
             assertEquals(200, response.code)
         }
         assertEquals(1, server.requestCount)
@@ -90,25 +81,12 @@ class NetworkSecurityTest {
         val request = Request.Builder().url(server.url("/webdav")).build()
 
         try {
-            getWebDavClient(allowInsecure = false).newCall(request).execute()
+            getWebDavClient().newCall(request).execute()
                 .use { error("自签证书 WebDAV 请求不应成功") }
         } catch (_: IOException) {
             // Expected: the default WebDAV client trusts system certificates only.
         }
         assertEquals(0, server.requestCount)
-    }
-
-    @Test
-    fun webDavClientAllowsSelfSignedCertificateOnlyWithExplicitOption() {
-        val certificates = selfSignedCertificates()
-        server.useHttps(certificates.sslSocketFactory(), false)
-        server.enqueue(MockResponse().setResponseCode(200))
-        val request = Request.Builder().url(server.url("/webdav")).build()
-
-        getWebDavClient(allowInsecure = true).newCall(request).execute().use { response ->
-            assertEquals(200, response.code)
-        }
-        assertEquals(1, server.requestCount)
     }
 
     @Test
@@ -143,46 +121,64 @@ class NetworkSecurityTest {
     }
 
     @Test
-    fun httpsWebDavDoesNotFollowRedirectToHttp() {
-        val certificates = selfSignedCertificates()
+    fun httpsWebDavDoesNotFollowRedirectToHttpOrSendAuthorization() {
+        val certificate = HeldCertificate.Builder()
+            .addSubjectAlternativeName("localhost")
+            .addSubjectAlternativeName("127.0.0.1")
+            .build()
+        val certificates = HandshakeCertificates.Builder().heldCertificate(certificate).build()
+        val trustedClientCertificates = HandshakeCertificates.Builder()
+            .addTrustedCertificate(certificate.certificate)
+            .build()
         server.useHttps(certificates.sslSocketFactory(), false)
         server.enqueue(
             MockResponse()
                 .setResponseCode(302)
                 .addHeader("Location", redirectTarget.url("/downgrade").toString())
         )
-        val request = Request.Builder().url(server.url("/webdav")).build()
-
-        // The test certificate needs the explicit test-only trust option. The redirect policy
-        // remains strict because getWebDavClient never follows an HTTPS-to-HTTP redirect.
-        getWebDavClient(allowInsecure = true).newCall(request).execute().use { response ->
-            assertEquals(302, response.code)
+        val builder = okhttp3.OkHttpClient.Builder()
+            .sslSocketFactory(
+                trustedClientCertificates.sslSocketFactory(),
+                trustedClientCertificates.trustManager
+            )
+            .followSslRedirects(true)
+        installWebDavRedirectProtection(builder)
+        val client = builder.build()
+        try {
+            val request = Request.Builder()
+                .url(server.url("/webdav"))
+                .header("Authorization", "Basic test-only")
+                .build()
+            try {
+                client.newCall(request).execute().use { error("HTTPS downgrade must be rejected") }
+            } catch (_: IOException) {
+                // The network interceptor refuses the redirect before it reaches HTTP.
+            }
+            assertEquals(1, server.requestCount)
+            assertEquals(0, redirectTarget.requestCount)
+        } finally {
+            client.dispatcher.executorService.shutdownNow()
+            client.connectionPool.evictAll()
         }
-        assertEquals(0, redirectTarget.requestCount)
     }
 
     @Test
-    fun webDavUnsafeOptionIsIndependentAndCanBeClosedImmediately() {
-        server.enqueue(MockResponse().setResponseCode(200))
-        val previous = AppConfig.unsafeWebDav
-        try {
-            AppConfig.unsafeWebDav = true
-            val request = Request.Builder().url(server.url("/webdav")).build()
-            getWebDavClient(AppConfig.unsafeWebDav).newCall(request).execute().use { response ->
-                assertEquals(200, response.code)
-            }
+    fun webDavRedirectDoesNotForwardAuthorizationAcrossOrigin() = kotlinx.coroutines.runBlocking {
+        server.enqueue(
+            MockResponse()
+                .setResponseCode(302)
+                .addHeader("Location", redirectTarget.url("/redirected").toString())
+        )
+        redirectTarget.enqueue(MockResponse().setResponseCode(200))
 
-            AppConfig.unsafeWebDav = false
-            try {
-                getWebDavClient(AppConfig.unsafeWebDav).newCall(request).execute()
-                    .use { error("关闭不安全 WebDAV 后不应继续访问 HTTP") }
-            } catch (_: IOException) {
-                // Expected: turning the dedicated option off restores the HTTPS boundary.
-            }
-            assertEquals(1, server.requestCount)
-        } finally {
-            AppConfig.unsafeWebDav = previous
-        }
+        val result = WebDav(
+            server.url("/dav/").toString(),
+            Authorization("account", "test-secret")
+        ).check()
+
+        assertEquals(WebDavCheckResult.Available, result)
+        assertNotNull(server.takeRequest().getHeader("Authorization"))
+        assertNull(redirectTarget.takeRequest().getHeader("Authorization"))
     }
 
     private fun selfSignedCertificates(): HandshakeCertificates {

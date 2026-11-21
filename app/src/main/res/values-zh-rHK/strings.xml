@@ -1104,6 +1104,12 @@
     <string name="sync_v1_bindings_not_processed">尚未處理綁定請求</string>
     <string name="sync_v1_bindings_running">正在掃描就緒裝置並發佈確認…</string>
     <string name="sync_v1_bindings_result">裝置 %1$d · 事件 %2$d · 已綁定 %3$d · 待選擇 %4$d · 找不到 %5$d · 已拒絕 %6$d · 未處理 %7$d · 確認已發佈 %8$d · 待發佈 %9$d · 事件衝突 %10$d · 錯誤碼 %11$s</string>
+    <string name="sync_v1_process_progress">初始化並處理 Sync-v1 閱讀進度</string>
+    <string name="sync_v1_process_progress_summary">發佈已確認的進度基線，然後處理就緒裝置的進度事件</string>
+    <string name="sync_v1_processing_progress">正在初始化基線並處理進度事件…</string>
+    <string name="sync_v1_progress_state_title">Sync-v1 進度狀態</string>
+    <string name="sync_v1_progress_not_processed">尚未處理進度基線或事件</string>
+    <string name="sync_v1_progress_result">階段 %1$s · 基線 %2$s · 新發佈狀態 %3$d · 狀態待發布 %4$d · 目錄待發布 %5$d · 失敗 %6$d · 目錄過期 %7$d · 事件 %8$d · 已套用 %9$d · 目錄過期 %10$d · 進度過期 %11$d · 已拒絕 %12$d · 事件待處理 %13$d · 事件衝突 %14$d · ack待發布 %15$d · 錯誤碼 %16$s</string>
     <string name="web_service_wake_lock">WebService唤醒锁</string>
     <string name="web_service_wake_lock_summary">开启web服务的时候启用唤醒锁,有些手机开启唤醒锁会被杀后台</string>
 <string name="change_search_scope">切换搜索範圍</string>
@@ -1576,6 +1582,9 @@
     <string name="homepage_webdav_backup">備份</string>
     <string name="homepage_webdav_backing_up">備份中…</string>
     <string name="homepage_webdav_restore">恢復</string>
+    <string name="homepage_webdav_downloading_backup">正在下載備份…</string>
+    <string name="homepage_webdav_restoring">正在恢復…</string>
+    <string name="homepage_webdav_restore_failed">WebDAV 恢復失敗</string>
     <string name="homepage_webdav_settings">設定</string>
     <string name="homepage_webdav_configure">設定 WebDAV 備份</string>
     <string name="homepage_backup_done">備份完成</string>

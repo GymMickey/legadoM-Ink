@@ -22,7 +22,6 @@ class RemoteBookWebDav(
     val rootBookUrl: String,
     val authorization: Authorization,
     val serverID: Long? = null,
-    private val allowInsecure: Boolean = false,
     private val onOperationResult: ((Throwable?) -> Unit)? = null
 ) : RemoteBookManager() {
 
@@ -38,13 +37,7 @@ class RemoteBookWebDav(
     }
 
     private fun webDav(path: String): WebDav {
-        val isHttps = path.startsWith("https://", true) || path.startsWith("davs://", true)
-        return WebDav(
-            path,
-            authorization,
-            requireHttps = !allowInsecure && isHttps,
-            allowInsecure = allowInsecure
-        )
+        return WebDav(path, authorization, authorizationOriginPath = rootBookUrl)
     }
 
     suspend fun ensureRootDirectory() {

@@ -492,7 +492,7 @@ internal class SyncV1ChaptersRepository(
     }
 
     private fun validateIntent(session: SyncV1Session, intent: SyncV1ChapterPublicationIntent) {
-        if (intent.configIdentity != session.configIdentity || intent.serviceIdentity != session.serviceIdentity
+        if (!session.acceptsConfigIdentity(intent.configIdentity) || intent.serviceIdentity != session.serviceIdentity
             || intent.rootIdentity != session.rootIdentity || !session.isCurrent()
         ) throw SyncV1Failure(SyncV1ErrorCode.CONFIG_CHANGED)
     }

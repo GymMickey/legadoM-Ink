@@ -20,7 +20,7 @@ private fun syncV1AckRemotePath(deviceId: String, eventId: String) =
 class SyncV1SQLiteStore(
     context: Context,
     databaseName: String = SYNC_V1_DATABASE_NAME
-) : SyncV1Store, SyncV1CatalogStore, SyncV1ChaptersStore, SyncV1BindingStore {
+) : SyncV1Store, SyncV1CatalogStore, SyncV1ChaptersStore, SyncV1BindingStore, SyncV1ProgressStore {
     private val helper = SyncV1DatabaseHelper(context.applicationContext, databaseName)
     private val bindingGson = GsonBuilder().disableHtmlEscaping().create()
 
@@ -133,7 +133,7 @@ class SyncV1SQLiteStore(
             } ?: throw SyncV1Failure(SyncV1ErrorCode.INVALID_REGISTRATION)
             val timestamp = when {
                 current.first == catalogFieldsSha256 -> current.second
-                current.first == null && initialUpdatedAt != null -> initialUpdatedAt
+                initialUpdatedAt != null -> initialUpdatedAt
                 else -> now
             }
             if (current.first != catalogFieldsSha256) {
@@ -436,6 +436,415 @@ class SyncV1SQLiteStore(
             "SELECT COUNT(*) FROM ack_publication_intent WHERE publication_status = 'pending' AND service_identity = ? AND root_identity = ?",
             arrayOf(serviceIdentity, rootIdentity)
         ).use { cursor -> cursor.moveToFirst(); cursor.getInt(0) }
+    }
+
+    override suspend fun progressCatalogValue(
+        serviceIdentity: String,
+        rootIdentity: String,
+        workId: String
+    ): SyncV1ProgressCatalogValue = withContext(IO) {
+        helper.readableDatabase.rawQuery(
+            "SELECT baseline_status, progress_revision FROM progress_baseline WHERE service_identity = ? AND root_identity = ? AND work_id = ?",
+            arrayOf(serviceIdentity, rootIdentity, workId)
+        ).use { cursor ->
+            if (!cursor.moveToFirst()) SyncV1ProgressCatalogValue(SyncV1ProgressBaseline.UNAVAILABLE, 0)
+            else SyncV1ProgressCatalogValue(
+                SyncV1ProgressBaseline.entries.first { it.wireValue == cursor.getString(0) },
+                cursor.getLong(1)
+            )
+        }
+    }
+
+    override suspend fun progressState(
+        serviceIdentity: String,
+        rootIdentity: String,
+        workId: String
+    ): SyncV1ProgressState? = withContext(IO) {
+        helper.readableDatabase.rawQuery(
+            "SELECT * FROM progress_state_publication_intent WHERE service_identity = ? AND root_identity = ? AND work_id = ? AND publication_status = 'published' ORDER BY progress_revision DESC LIMIT 1",
+            arrayOf(serviceIdentity, rootIdentity, workId)
+        ).use { cursor -> if (cursor.moveToFirst()) cursor.toProgressState() else null }
+    }
+
+    override suspend fun hasPendingProgressProjection(
+        serviceIdentity: String,
+        rootIdentity: String,
+        workId: String
+    ): Boolean = withContext(IO) {
+        helper.readableDatabase.rawQuery(
+            "SELECT 1 FROM progress_import_receipt WHERE service_identity = ? AND root_identity = ? AND work_id = ? AND projection_stage = 'projection_pending' LIMIT 1",
+            arrayOf(serviceIdentity, rootIdentity, workId)
+        ).use { it.moveToFirst() }
+    }
+
+    override suspend fun pendingProgressIntents(
+        serviceIdentity: String,
+        rootIdentity: String
+    ): List<SyncV1ProgressPublicationIntent> = withContext(IO) {
+        helper.readableDatabase.rawQuery(
+            "SELECT * FROM progress_state_publication_intent WHERE service_identity = ? AND root_identity = ? AND publication_status = 'pending' ORDER BY created_at, work_id",
+            arrayOf(serviceIdentity, rootIdentity)
+        ).use { cursor -> buildList { while (cursor.moveToNext()) add(cursor.toProgressIntent()) } }
+    }
+
+    override suspend fun createProgressIntentIfAbsent(
+        intent: SyncV1ProgressPublicationIntent
+    ): SyncV1ProgressPublicationIntent = withContext(IO) {
+        validateProgressIntent(intent)
+        val db = helper.writableDatabase
+        db.beginTransaction()
+        try {
+            val sameRevision = db.rawQuery(
+                "SELECT * FROM progress_state_publication_intent WHERE service_identity = ? AND root_identity = ? AND work_id = ? AND progress_revision = ? LIMIT 1",
+                arrayOf(intent.serviceIdentity, intent.rootIdentity, intent.workId, intent.progressRevision.toString())
+            ).use { cursor -> if (cursor.moveToFirst()) cursor.toProgressIntent() else null }
+            if (sameRevision != null) {
+                if (sameRevision.remotePath != intent.remotePath || sameRevision.rawSha256 != intent.rawSha256
+                    || !sameRevision.rawJsonBytes.contentEquals(intent.rawJsonBytes)
+                ) throw SyncV1Failure(SyncV1ErrorCode.REVISION_CONFLICT)
+                db.setTransactionSuccessful()
+                return@withContext sameRevision
+            }
+            val pending = db.rawQuery(
+                "SELECT * FROM progress_state_publication_intent WHERE service_identity = ? AND root_identity = ? AND work_id = ? AND publication_status = 'pending' LIMIT 1",
+                arrayOf(intent.serviceIdentity, intent.rootIdentity, intent.workId)
+            ).use { cursor -> if (cursor.moveToFirst()) cursor.toProgressIntent() else null }
+            if (pending != null) {
+                db.setTransactionSuccessful()
+                if (pending.remotePath != intent.remotePath || pending.rawSha256 != intent.rawSha256
+                    || !pending.rawJsonBytes.contentEquals(intent.rawJsonBytes)
+                ) throw SyncV1Failure(SyncV1ErrorCode.PROGRESS_PROJECTION_PENDING)
+                return@withContext pending
+            }
+            db.insertOrThrow("progress_state_publication_intent", null, ContentValues().apply {
+                put("service_identity", intent.serviceIdentity); put("root_identity", intent.rootIdentity)
+                put("work_id", intent.workId); put("toc_revision", intent.tocRevision)
+                put("progress_revision", intent.progressRevision); put("snapshot_id", intent.snapshotId.toString())
+                put("remote_path", intent.remotePath); put("raw_json_bytes", intent.rawJsonBytes)
+                put("raw_sha256", intent.rawSha256); put("put_attempt_count", intent.putAttemptCount)
+                put("config_identity", intent.configIdentity); put("create_mode", intent.createMode)
+                put("source_event_id", intent.sourceEventId); put("publication_status", "pending")
+                put("created_at", intent.createdAt); put("updated_at", intent.updatedAt)
+            })
+            db.setTransactionSuccessful()
+            intent
+        } finally { db.endTransaction() }
+    }
+
+    override suspend fun incrementProgressPutAttempt(
+        intent: SyncV1ProgressPublicationIntent,
+        now: Long
+    ): Int = withContext(IO) {
+        val db = helper.writableDatabase
+        db.beginTransaction()
+        try {
+            val count = db.rawQuery(
+                "SELECT put_attempt_count FROM progress_state_publication_intent WHERE service_identity = ? AND root_identity = ? AND remote_path = ? AND publication_status = 'pending'",
+                arrayOf(intent.serviceIdentity, intent.rootIdentity, intent.remotePath)
+            ).use { if (it.moveToFirst()) it.getInt(0) else throw SyncV1Failure(SyncV1ErrorCode.RETRY_LIMIT) }
+            if (count >= 2) throw SyncV1Failure(SyncV1ErrorCode.RETRY_LIMIT)
+            db.update("progress_state_publication_intent", ContentValues().apply {
+                put("put_attempt_count", count + 1); put("updated_at", now)
+            }, "service_identity = ? AND root_identity = ? AND remote_path = ?", arrayOf(intent.serviceIdentity, intent.rootIdentity, intent.remotePath))
+            db.setTransactionSuccessful(); count + 1
+        } finally { db.endTransaction() }
+    }
+
+    override suspend fun markProgressIntentPublished(
+        intent: SyncV1ProgressPublicationIntent,
+        now: Long
+    ) = withContext(IO) {
+        val db = helper.writableDatabase
+        db.beginTransaction()
+        try {
+            val changed = db.update("progress_state_publication_intent", ContentValues().apply {
+                put("publication_status", "published"); put("updated_at", now)
+            }, "service_identity = ? AND root_identity = ? AND remote_path = ? AND raw_sha256 = ? AND publication_status = 'pending'",
+                arrayOf(intent.serviceIdentity, intent.rootIdentity, intent.remotePath, intent.rawSha256))
+            if (changed != 1) {
+                val same = db.rawQuery("SELECT 1 FROM progress_state_publication_intent WHERE service_identity = ? AND root_identity = ? AND remote_path = ? AND raw_sha256 = ? AND publication_status = 'published'",
+                    arrayOf(intent.serviceIdentity, intent.rootIdentity, intent.remotePath, intent.rawSha256)).use { it.moveToFirst() }
+                if (!same) throw SyncV1Failure(SyncV1ErrorCode.PROGRESS_STATE_INVALID)
+            }
+            db.insertWithOnConflict("progress_catalog_publication_state", null, ContentValues().apply {
+                put("service_identity", intent.serviceIdentity); put("root_identity", intent.rootIdentity); put("catalog_dirty", 1)
+            }, SQLiteDatabase.CONFLICT_REPLACE)
+            db.setTransactionSuccessful()
+        } finally { db.endTransaction() }
+    }
+
+    override suspend fun adoptConfirmedProgressState(
+        state: SyncV1ProgressState,
+        configIdentity: String,
+        now: Long
+    ) = withContext(IO) {
+        if (state.rawSha256 != SyncV1Protocol.sha256(state.rawJsonBytes)
+            || state.remotePath != "legadom_ink_sync/v1/android/progress/${state.workId}/${state.progressRevision}-${state.snapshotId}.json"
+        ) throw SyncV1Failure(SyncV1ErrorCode.PROGRESS_STATE_INVALID)
+        val parsed = SyncV1ProgressProtocol.parseState(state.rawJsonBytes)
+            ?: throw SyncV1Failure(SyncV1ErrorCode.PROGRESS_STATE_INVALID)
+        val db = helper.writableDatabase
+        db.beginTransaction()
+        try {
+            val existing = db.rawQuery("SELECT raw_sha256, raw_json_bytes FROM progress_state_publication_intent WHERE service_identity = ? AND root_identity = ? AND remote_path = ?", arrayOf(state.serviceIdentity, state.rootIdentity, state.remotePath)).use {
+                if (it.moveToFirst()) it.getString(0) to it.getBlob(1) else null
+            }
+            if (existing != null && (existing.first != state.rawSha256 || !existing.second.contentEquals(state.rawJsonBytes))) {
+                throw SyncV1Failure(SyncV1ErrorCode.REVISION_CONFLICT)
+            }
+            if (existing == null) db.insertOrThrow("progress_state_publication_intent", null, ContentValues().apply {
+                put("service_identity", state.serviceIdentity); put("root_identity", state.rootIdentity); put("work_id", state.workId)
+                put("toc_revision", state.tocRevision); put("progress_revision", state.progressRevision); put("snapshot_id", state.snapshotId)
+                put("remote_path", state.remotePath); put("raw_json_bytes", state.rawJsonBytes); put("raw_sha256", state.rawSha256)
+                put("put_attempt_count", 0); put("config_identity", configIdentity); put("create_mode", SYNC_V1_CREATE_MODE)
+                put("source_event_id", parsed.sourceEventId); put("publication_status", "published"); put("created_at", now); put("updated_at", now)
+            })
+            val values = ContentValues().apply {
+                put("service_identity", state.serviceIdentity); put("root_identity", state.rootIdentity); put("work_id", state.workId)
+                put("baseline_status", "available"); put("progress_revision", state.progressRevision); put("toc_revision", state.tocRevision)
+                put("snapshot_id", state.snapshotId); put("remote_path", state.remotePath); put("raw_json_bytes", state.rawJsonBytes)
+                put("raw_sha256", state.rawSha256); put("updated_at", now)
+            }
+            db.insertWithOnConflict("progress_baseline", null, values, SQLiteDatabase.CONFLICT_REPLACE)
+            db.setTransactionSuccessful()
+        } finally { db.endTransaction() }
+    }
+
+    override suspend fun progressIntentForEvent(
+        eventId: String,
+        serviceIdentity: String,
+        rootIdentity: String
+    ): SyncV1ProgressPublicationIntent? = withContext(IO) {
+        helper.readableDatabase.rawQuery(
+            "SELECT * FROM progress_state_publication_intent WHERE source_event_id = ? AND service_identity = ? AND root_identity = ?",
+            arrayOf(eventId, serviceIdentity, rootIdentity)
+        ).use { if (it.moveToFirst()) it.toProgressIntent() else null }
+    }
+
+    override suspend fun persistAppliedProgress(
+        eventRawBytes: ByteArray,
+        intent: SyncV1ProgressPublicationIntent,
+        receipt: SyncV1ProgressReceipt
+    ) = withContext(IO) {
+        validateProgressIntent(intent)
+        if (receipt.eventId != intent.sourceEventId || receipt.workId != intent.workId
+            || receipt.payloadSha256 != SyncV1Protocol.sha256(eventRawBytes)
+            || !receipt.eventRawJsonBytes.contentEquals(eventRawBytes)
+            || receipt.projectionStage != "projection_pending"
+            || receipt.serviceIdentity != intent.serviceIdentity || receipt.rootIdentity != intent.rootIdentity
+            || receipt.ackSha256 != SyncV1Protocol.sha256(receipt.ackRawJsonBytes)
+        ) throw SyncV1Failure(SyncV1ErrorCode.PROGRESS_EVENT_INVALID)
+        val parsedEvent = SyncV1ProgressProtocol.parseEvent(receipt.deviceId, receipt.eventId, eventRawBytes)
+        val event = (parsedEvent as? SyncV1ProgressEventParseResult.Valid)?.event
+            ?: throw SyncV1Failure(SyncV1ErrorCode.PROGRESS_EVENT_INVALID)
+        val proposedState = SyncV1ProgressProtocol.parseState(intent.rawJsonBytes)
+            ?: throw SyncV1Failure(SyncV1ErrorCode.PROGRESS_STATE_INVALID)
+        if (proposedState.workId != event.workId || proposedState.tocRevision != event.basedOnTocRevision
+            || proposedState.progressRevision != event.basedOnProgressRevision + 1
+            || proposedState.chapterTitle != event.chapterTitle || proposedState.localTocIndex != event.localTocIndex
+            || proposedState.sourceEventId != event.eventId || proposedState.updatedByDeviceId != event.deviceId
+            || proposedState.chapterFractionPpm != event.chapterFractionPpm
+            || proposedState.visibleCharOffset != event.visibleCharOffset
+            || proposedState.visibleCharCount != event.visibleCharCount
+            || proposedState.chapterTextFingerprint != event.chapterTextFingerprint
+            || proposedState.locatorConfidence != event.locatorConfidence
+        ) throw SyncV1Failure(SyncV1ErrorCode.PROGRESS_STATE_INVALID)
+        val db = helper.writableDatabase
+        db.beginTransaction()
+        try {
+            if (receipt.terminalStatus != "applied" || event.deviceId != receipt.deviceId
+                || event.workId != receipt.workId || event.counterEpoch.isBlank()
+                || event.basedOnTocRevision != intent.tocRevision
+                || intent.progressRevision != event.basedOnProgressRevision + 1
+                || intent.createMode != SYNC_V1_CREATE_MODE
+            ) throw SyncV1Failure(SyncV1ErrorCode.PROGRESS_EVENT_INVALID)
+            val existing = db.rawQuery("SELECT payload_sha256 FROM progress_event_ledger WHERE event_id = ?", arrayOf(receipt.eventId))
+                .use { if (it.moveToFirst()) it.getString(0) else null }
+            if (existing != null) {
+                if (existing != receipt.payloadSha256) throw SyncV1Failure(SyncV1ErrorCode.EVENT_ID_CONFLICT)
+                val saved = db.rawQuery("SELECT ack_raw_json_bytes FROM progress_import_receipt WHERE event_id = ?", arrayOf(receipt.eventId))
+                    .use { if (it.moveToFirst()) it.getBlob(0) else null }
+                val savedEvent = db.rawQuery("SELECT event_raw_json_bytes FROM progress_import_receipt WHERE event_id = ?", arrayOf(receipt.eventId))
+                    .use { if (it.moveToFirst()) it.getBlob(0) else null }
+                if (saved == null || !saved.contentEquals(receipt.ackRawJsonBytes)
+                    || savedEvent == null || !savedEvent.contentEquals(receipt.eventRawJsonBytes)
+                ) throw SyncV1Failure(SyncV1ErrorCode.EVENT_ID_CONFLICT)
+                db.setTransactionSuccessful()
+                return@withContext
+            }
+            val pending = db.rawQuery("SELECT 1 FROM progress_import_receipt WHERE work_id = ? AND service_identity = ? AND root_identity = ? AND projection_stage = 'projection_pending' LIMIT 1",
+                arrayOf(intent.workId, intent.serviceIdentity, intent.rootIdentity)).use { it.moveToFirst() }
+            if (pending) throw SyncV1Failure(SyncV1ErrorCode.PROGRESS_PROJECTION_PENDING)
+            val priorA4Receipt = db.rawQuery("SELECT 1 FROM sync_import_receipt WHERE event_id = ? LIMIT 1", arrayOf(event.eventId)).use { it.moveToFirst() }
+            if (priorA4Receipt) throw SyncV1Failure(SyncV1ErrorCode.EVENT_ID_CONFLICT)
+            val hasBinding = db.rawQuery(
+                "SELECT 1 FROM kindle_content_binding WHERE device_id = ? AND counter_epoch = ? AND work_id = ? LIMIT 1",
+                arrayOf(event.deviceId, event.counterEpoch, event.workId)
+            ).use { it.moveToFirst() }
+            if (!hasBinding) throw SyncV1Failure(SyncV1ErrorCode.INVALID_EVENT)
+            val baseline = db.rawQuery(
+                "SELECT baseline_status, progress_revision, toc_revision FROM progress_baseline WHERE service_identity = ? AND root_identity = ? AND work_id = ?",
+                arrayOf(intent.serviceIdentity, intent.rootIdentity, intent.workId)
+            ).use { cursor ->
+                if (cursor.moveToFirst()) Triple(cursor.getString(0), cursor.getLong(1), cursor.getLong(2)) else null
+            } ?: throw SyncV1Failure(SyncV1ErrorCode.PROGRESS_BASELINE_UNAVAILABLE)
+            if (baseline.first !in setOf("zero_confirmed", "available")
+                || baseline.second != event.basedOnProgressRevision
+                || baseline.third != event.basedOnTocRevision
+                || intent.tocRevision != baseline.third
+            ) throw SyncV1Failure(SyncV1ErrorCode.PROGRESS_EVENT_CONFLICT)
+            val intentValues = ContentValues().apply {
+                put("service_identity", intent.serviceIdentity); put("root_identity", intent.rootIdentity); put("work_id", intent.workId)
+                put("toc_revision", intent.tocRevision); put("progress_revision", intent.progressRevision); put("snapshot_id", intent.snapshotId.toString())
+                put("remote_path", intent.remotePath); put("raw_json_bytes", intent.rawJsonBytes); put("raw_sha256", intent.rawSha256)
+                put("put_attempt_count", 0); put("config_identity", intent.configIdentity); put("create_mode", intent.createMode)
+                put("source_event_id", intent.sourceEventId); put("publication_status", "pending"); put("created_at", intent.createdAt); put("updated_at", intent.updatedAt)
+            }
+            db.insertOrThrow("progress_state_publication_intent", null, intentValues)
+            db.insertOrThrow("progress_event_ledger", null, ContentValues().apply {
+                put("event_id", event.eventId); put("service_identity", intent.serviceIdentity); put("root_identity", intent.rootIdentity)
+                put("device_id", event.deviceId); put("counter_epoch", event.counterEpoch); put("sequence", event.sequence)
+                put("work_id", event.workId); put("payload_sha256", receipt.payloadSha256); put("raw_json_bytes", eventRawBytes)
+                put("applied_progress_revision", intent.progressRevision); put("created_at", intent.createdAt)
+            })
+            db.insertOrThrow("progress_import_receipt", null, progressReceiptValues(receipt, intent.remotePath))
+            db.insertWithOnConflict("progress_catalog_publication_state", null, ContentValues().apply {
+                put("service_identity", intent.serviceIdentity); put("root_identity", intent.rootIdentity); put("catalog_dirty", 1)
+            }, SQLiteDatabase.CONFLICT_REPLACE)
+            db.setTransactionSuccessful()
+        } finally { db.endTransaction() }
+    }
+
+    override suspend fun updateProgressReceipt(
+        receipt: SyncV1ProgressReceipt,
+        catalogPath: String?,
+        stage: String
+    ) = withContext(IO) {
+        require(stage in setOf("projection_pending", "projection_confirmed", "ack_publishable", "ack_pending", "ack_published"))
+        val values = ContentValues().apply {
+            put("projection_stage", stage)
+            if (catalogPath != null) put("catalog_remote_path", catalogPath)
+            if (stage == "ack_published") put("ack_publication_status", "published")
+            else if (stage == "ack_pending" || stage == "ack_publishable") put("ack_publication_status", "pending")
+        }
+        val changed = helper.writableDatabase.update("progress_import_receipt", values,
+            "event_id = ? AND payload_sha256 = ? AND ack_sha256 = ?",
+            arrayOf(receipt.eventId, receipt.payloadSha256, receipt.ackSha256))
+        if (changed != 1) throw SyncV1Failure(SyncV1ErrorCode.EVENT_ID_CONFLICT)
+    }
+
+    override suspend fun incrementProgressAckAttempt(eventId: String): Int = withContext(IO) {
+        val db = helper.writableDatabase
+        db.beginTransaction()
+        try {
+            val count = db.rawQuery("SELECT ack_put_attempt_count FROM progress_import_receipt WHERE event_id = ? AND projection_stage IN ('ack_publishable','ack_pending')",
+                arrayOf(eventId)).use { if (it.moveToFirst()) it.getInt(0) else throw SyncV1Failure(SyncV1ErrorCode.ACK_CONFLICT) }
+            if (count >= 2) throw SyncV1Failure(SyncV1ErrorCode.RETRY_LIMIT)
+            db.update("progress_import_receipt", ContentValues().apply { put("ack_put_attempt_count", count + 1); put("projection_stage", "ack_pending") },
+                "event_id = ?", arrayOf(eventId))
+            db.setTransactionSuccessful(); count + 1
+        } finally { db.endTransaction() }
+    }
+
+    override suspend fun setProgressBaseline(
+        serviceIdentity: String,
+        rootIdentity: String,
+        workId: String,
+        status: SyncV1ProgressBaseline,
+        revision: Long,
+        tocRevision: Long,
+        now: Long
+    ) = withContext(IO) {
+        if (status == SyncV1ProgressBaseline.LEGACY_UNKNOWN
+            || !SyncV1ProgressSemantics.isValidCatalogBaseline(status, revision)
+            || tocRevision !in 0..SYNC_V1_MAX_SAFE_INTEGER
+        ) throw SyncV1Failure(SyncV1ErrorCode.PROGRESS_STATE_INVALID)
+        val currentState = if (status == SyncV1ProgressBaseline.AVAILABLE) {
+            helper.readableDatabase.rawQuery(
+                "SELECT * FROM progress_state_publication_intent WHERE service_identity = ? AND root_identity = ? AND work_id = ? AND progress_revision = ? AND publication_status = 'published'",
+                arrayOf(serviceIdentity, rootIdentity, workId, revision.toString())
+            ).use { if (it.moveToFirst()) it.toProgressState() else null }
+                ?: throw SyncV1Failure(SyncV1ErrorCode.PROGRESS_STATE_INVALID)
+        } else null
+        val db = helper.writableDatabase
+        val values = ContentValues().apply {
+            put("service_identity", serviceIdentity); put("root_identity", rootIdentity); put("work_id", workId)
+            put("baseline_status", status.wireValue); put("progress_revision", revision); put("toc_revision", tocRevision)
+            put("snapshot_id", currentState?.snapshotId); put("remote_path", currentState?.remotePath)
+            put("raw_json_bytes", currentState?.rawJsonBytes); put("raw_sha256", currentState?.rawSha256)
+            put("updated_at", now)
+        }
+        db.insertWithOnConflict("progress_baseline", null, values, SQLiteDatabase.CONFLICT_REPLACE)
+        Unit
+    }
+
+    override suspend fun setProgressCatalogDirty(serviceIdentity: String, rootIdentity: String, dirty: Boolean) = withContext(IO) {
+        helper.writableDatabase.insertWithOnConflict("progress_catalog_publication_state", null, ContentValues().apply {
+            put("service_identity", serviceIdentity); put("root_identity", rootIdentity); put("catalog_dirty", if (dirty) 1 else 0)
+        }, SQLiteDatabase.CONFLICT_REPLACE)
+        Unit
+    }
+
+    override suspend fun isProgressCatalogDirty(serviceIdentity: String, rootIdentity: String): Boolean = withContext(IO) {
+        helper.readableDatabase.rawQuery(
+            "SELECT catalog_dirty FROM progress_catalog_publication_state WHERE service_identity = ? AND root_identity = ?",
+            arrayOf(serviceIdentity, rootIdentity)
+        ).use { it.moveToFirst() && it.getInt(0) != 0 }
+    }
+
+    override suspend fun readyProgressDevices(
+        serviceIdentity: String,
+        rootIdentity: String
+    ): List<SyncV1ProgressDevice> = withContext(IO) {
+        helper.readableDatabase.rawQuery(
+            """SELECT s.device_id, i.raw_json_bytes FROM sync_state s
+                JOIN device_state_publication_intent i ON i.device_id = s.device_id
+                WHERE s.processing_status = 'ready' AND s.remote_status = 'ready'
+                AND i.service_identity = ? AND i.root_identity = ? AND i.publication_status = 'published'
+                AND i.state_revision = s.highest_confirmed_state_revision ORDER BY s.device_id""".trimIndent(),
+            arrayOf(serviceIdentity, rootIdentity)
+        ).use { cursor -> buildList {
+            val seen = HashSet<String>()
+            while (cursor.moveToNext()) {
+                val id = cursor.getString(0)
+                if (!seen.add(id)) continue
+                val state = SyncV1Protocol.parseDeviceState(cursor.getBlob(1)) ?: continue
+                if (state.deviceId == id && state.status == "ready" && state.createMode == SYNC_V1_CREATE_MODE
+                    && state.locatorCapability in setOf("chapter_only", "character_exact")
+                ) add(SyncV1ProgressDevice(id, state.locatorCapability!!, "", state.registrationPayloadSha256))
+            }
+        } }
+    }
+
+    override suspend fun hasProgressBinding(deviceId: String, counterEpoch: String, workId: String): Boolean = withContext(IO) {
+        helper.readableDatabase.rawQuery(
+            "SELECT 1 FROM kindle_content_binding WHERE device_id = ? AND counter_epoch = ? AND work_id = ? LIMIT 1",
+            arrayOf(deviceId, counterEpoch, workId)
+        ).use { it.moveToFirst() }
+    }
+
+    override suspend fun progressReceipt(eventId: String): SyncV1ProgressReceipt? = withContext(IO) {
+        helper.readableDatabase.rawQuery("SELECT * FROM progress_import_receipt WHERE event_id = ?", arrayOf(eventId))
+            .use { if (it.moveToFirst()) it.toProgressReceipt() else null }
+    }
+
+    override suspend fun persistProgressReceipt(receipt: SyncV1ProgressReceipt) = withContext(IO) {
+        if (receipt.ackSha256 != SyncV1Protocol.sha256(receipt.ackRawJsonBytes)
+            || receipt.payloadSha256 != SyncV1Protocol.sha256(receipt.eventRawJsonBytes)
+        ) throw SyncV1Failure(SyncV1ErrorCode.ACK_CONFLICT)
+        helper.writableDatabase.insertOrThrow("progress_import_receipt", null, progressReceiptValues(receipt, null))
+        Unit
+    }
+
+    override suspend fun pendingProgressReceipts(serviceIdentity: String, rootIdentity: String): List<SyncV1ProgressReceipt> = withContext(IO) {
+        helper.readableDatabase.rawQuery("SELECT * FROM progress_import_receipt WHERE service_identity = ? AND root_identity = ? AND projection_stage != 'ack_published' ORDER BY created_at", arrayOf(serviceIdentity, rootIdentity))
+            .use { cursor -> buildList { while (cursor.moveToNext()) add(cursor.toProgressReceipt()) } }
+    }
+
+    override suspend fun markProgressReceiptStage(eventId: String, stage: String) = withContext(IO) {
+        require(stage in setOf("projection_pending", "projection_confirmed", "ack_publishable", "ack_pending", "ack_published"))
+        val changed = helper.writableDatabase.update("progress_import_receipt", ContentValues().apply { put("projection_stage", stage) }, "event_id = ?", arrayOf(eventId))
+        if (changed != 1) throw SyncV1Failure(SyncV1ErrorCode.PROGRESS_EVENT_INVALID)
     }
 
     override suspend fun pendingCatalogIntent(
@@ -1027,6 +1436,99 @@ class SyncV1SQLiteStore(
         ) throw SyncV1Failure(SyncV1ErrorCode.ACK_CONFLICT)
     }
 
+    private fun validateProgressIntent(intent: SyncV1ProgressPublicationIntent) {
+        val expected = "legadom_ink_sync/v1/android/progress/${intent.workId}/${intent.progressRevision}-${intent.snapshotId}.json"
+        val parsed = SyncV1ProgressProtocol.parseState(intent.rawJsonBytes)
+        if (!SyncV1Protocol.isUuidV4(intent.workId) || intent.tocRevision < 1 || intent.progressRevision < 1
+            || intent.createMode != SYNC_V1_CREATE_MODE || intent.remotePath != expected
+            || intent.rawSha256 != SyncV1Protocol.sha256(intent.rawJsonBytes)
+            || parsed == null || parsed.workId != intent.workId || parsed.tocRevision != intent.tocRevision
+            || parsed.progressRevision != intent.progressRevision || parsed.snapshotId != intent.snapshotId.toString()
+        ) throw SyncV1Failure(SyncV1ErrorCode.PROGRESS_STATE_INVALID)
+    }
+
+    private fun progressReceiptValues(receipt: SyncV1ProgressReceipt, statePath: String?): ContentValues = ContentValues().apply {
+        put("event_id", receipt.eventId); put("processor_owner", "progress"); put("device_id", receipt.deviceId)
+        put("work_id", receipt.workId); put("payload_sha256", receipt.payloadSha256); put("terminal_status", receipt.terminalStatus)
+        put("event_raw_json_bytes", receipt.eventRawJsonBytes)
+        put("acknowledged_at", receipt.acknowledgedAt); put("ack_raw_json_bytes", receipt.ackRawJsonBytes)
+        put("ack_sha256", receipt.ackSha256); put("ack_remote_path", "legadom_ink_sync/v1/acks/${receipt.deviceId}/${receipt.eventId}.json")
+        put("projection_stage", receipt.projectionStage); put("progress_state_path", statePath)
+        put("ack_put_attempt_count", 0); put("ack_publication_status", "pending")
+        put("service_identity", receipt.serviceIdentity); put("root_identity", receipt.rootIdentity)
+        put("created_at", System.currentTimeMillis())
+    }
+
+    private fun Cursor.toProgressIntent() = SyncV1ProgressPublicationIntent(
+        workId = getString(getColumnIndexOrThrow("work_id")),
+        tocRevision = getLong(getColumnIndexOrThrow("toc_revision")),
+        progressRevision = getLong(getColumnIndexOrThrow("progress_revision")),
+        snapshotId = UUID.fromString(getString(getColumnIndexOrThrow("snapshot_id"))),
+        remotePath = getString(getColumnIndexOrThrow("remote_path")),
+        rawJsonBytes = getBlob(getColumnIndexOrThrow("raw_json_bytes")),
+        rawSha256 = getString(getColumnIndexOrThrow("raw_sha256")),
+        putAttemptCount = getInt(getColumnIndexOrThrow("put_attempt_count")),
+        configIdentity = getString(getColumnIndexOrThrow("config_identity")),
+        serviceIdentity = getString(getColumnIndexOrThrow("service_identity")),
+        rootIdentity = getString(getColumnIndexOrThrow("root_identity")),
+        sourceEventId = nullableString("source_event_id"),
+        createMode = getString(getColumnIndexOrThrow("create_mode")),
+        publicationStatus = getString(getColumnIndexOrThrow("publication_status")),
+        createdAt = getLong(getColumnIndexOrThrow("created_at")),
+        updatedAt = getLong(getColumnIndexOrThrow("updated_at"))
+    )
+
+    private fun Cursor.toProgressState(): SyncV1ProgressState {
+        val bytes = getBlob(getColumnIndexOrThrow("raw_json_bytes"))
+        val parsed = SyncV1ProgressProtocol.parseState(bytes) ?: throw SyncV1Failure(SyncV1ErrorCode.PROGRESS_STATE_INVALID)
+        val workId = getString(getColumnIndexOrThrow("work_id"))
+        val revision = getLong(getColumnIndexOrThrow("progress_revision"))
+        val snapshot = getString(getColumnIndexOrThrow("snapshot_id"))
+        val path = getString(getColumnIndexOrThrow("remote_path"))
+        val digest = getString(getColumnIndexOrThrow("raw_sha256"))
+        if (parsed.workId != workId || parsed.progressRevision != revision || parsed.snapshotId != snapshot
+            || digest != SyncV1Protocol.sha256(bytes)
+            || path != "legadom_ink_sync/v1/android/progress/$workId/$revision-$snapshot.json"
+        ) throw SyncV1Failure(SyncV1ErrorCode.PROGRESS_STATE_INVALID)
+        return SyncV1ProgressState(
+            workId = parsed.workId,
+            tocRevision = parsed.tocRevision,
+            progressRevision = parsed.progressRevision,
+            snapshotId = parsed.snapshotId,
+            chapterTitle = parsed.chapterTitle,
+            localTocIndex = parsed.localTocIndex,
+            chapterFractionPpm = parsed.chapterFractionPpm,
+            visibleCharOffset = parsed.visibleCharOffset,
+            visibleCharCount = parsed.visibleCharCount,
+            chapterTextFingerprint = parsed.chapterTextFingerprint,
+            locatorConfidence = parsed.locatorConfidence,
+            sourceEventId = parsed.sourceEventId,
+            updatedByDeviceId = parsed.updatedByDeviceId,
+            updatedAt = parsed.updatedAt,
+            rawJsonBytes = bytes,
+            rawSha256 = digest,
+            remotePath = path,
+            serviceIdentity = getString(getColumnIndexOrThrow("service_identity")),
+            rootIdentity = getString(getColumnIndexOrThrow("root_identity"))
+        )
+    }
+
+    private fun Cursor.toProgressReceipt() = SyncV1ProgressReceipt(
+        eventId = getString(getColumnIndexOrThrow("event_id")),
+        deviceId = getString(getColumnIndexOrThrow("device_id")),
+        workId = getString(getColumnIndexOrThrow("work_id")),
+        payloadSha256 = getString(getColumnIndexOrThrow("payload_sha256")),
+        eventRawJsonBytes = getBlob(getColumnIndexOrThrow("event_raw_json_bytes")),
+        terminalStatus = getString(getColumnIndexOrThrow("terminal_status")),
+        acknowledgedAt = getString(getColumnIndexOrThrow("acknowledged_at")),
+        ackRawJsonBytes = getBlob(getColumnIndexOrThrow("ack_raw_json_bytes")),
+        ackSha256 = getString(getColumnIndexOrThrow("ack_sha256")),
+        projectionStage = getString(getColumnIndexOrThrow("projection_stage")),
+        serviceIdentity = getString(getColumnIndexOrThrow("service_identity")),
+        rootIdentity = getString(getColumnIndexOrThrow("root_identity")),
+        ackPutAttemptCount = getInt(getColumnIndexOrThrow("ack_put_attempt_count"))
+    )
+
     private fun insertImportReceipt(db: SQLiteDatabase, receipt: SyncV1ImportReceipt) {
         db.insertOrThrow(
             "sync_import_receipt",
@@ -1051,6 +1553,7 @@ class SyncV1SQLiteStore(
                 put("acknowledged_at", receipt.acknowledgedAt)
                 put("ack_raw_json_bytes", receipt.ackRawJsonBytes)
                 put("ack_sha256", receipt.ackSha256)
+            put("ack_remote_path", "legadom_ink_sync/v1/acks/${receipt.deviceId}/${receipt.eventId}.json")
                 put("service_identity", receipt.serviceIdentity)
                 put("root_identity", receipt.rootIdentity)
                 put("created_at", System.currentTimeMillis())
@@ -1275,6 +1778,7 @@ private class SyncV1DatabaseHelper(context: Context, databaseName: String) :
         createVersionTwoSchema(db)
         createVersionThreeSchema(db)
         createVersionFourSchema(db)
+        createVersionFiveSchema(db)
     }
 
     private fun createVersionOneSchema(db: SQLiteDatabase) {
@@ -1499,14 +2003,101 @@ private class SyncV1DatabaseHelper(context: Context, databaseName: String) :
         )
     }
 
+    private fun createVersionFiveSchema(db: SQLiteDatabase) {
+        db.execSQL(
+            """CREATE TABLE progress_baseline (
+                service_identity TEXT NOT NULL,
+                root_identity TEXT NOT NULL,
+                work_id TEXT NOT NULL REFERENCES work_identity(work_id) ON DELETE RESTRICT,
+                baseline_status TEXT NOT NULL CHECK (baseline_status IN ('zero_confirmed','available','unavailable')),
+                progress_revision INTEGER NOT NULL CHECK (progress_revision >= 0),
+                toc_revision INTEGER NOT NULL CHECK (toc_revision >= 0),
+                snapshot_id TEXT,
+                remote_path TEXT,
+                raw_json_bytes BLOB,
+                raw_sha256 TEXT,
+                updated_at INTEGER NOT NULL,
+                PRIMARY KEY(service_identity, root_identity, work_id),
+                CHECK ((baseline_status = 'available' AND progress_revision > 0 AND snapshot_id IS NOT NULL
+                    AND remote_path IS NOT NULL AND raw_json_bytes IS NOT NULL AND raw_sha256 IS NOT NULL)
+                    OR (baseline_status != 'available' AND progress_revision = 0))
+            )""".trimIndent()
+        )
+        db.execSQL(
+            """CREATE TABLE progress_state_publication_intent (
+                service_identity TEXT NOT NULL,
+                root_identity TEXT NOT NULL,
+                work_id TEXT NOT NULL,
+                toc_revision INTEGER NOT NULL CHECK (toc_revision > 0),
+                progress_revision INTEGER NOT NULL CHECK (progress_revision > 0),
+                snapshot_id TEXT NOT NULL,
+                remote_path TEXT NOT NULL,
+                raw_json_bytes BLOB NOT NULL,
+                raw_sha256 TEXT NOT NULL,
+                put_attempt_count INTEGER NOT NULL CHECK (put_attempt_count BETWEEN 0 AND 2),
+                config_identity TEXT NOT NULL,
+                create_mode TEXT NOT NULL CHECK (create_mode = 'uuid_verified'),
+                source_event_id TEXT,
+                publication_status TEXT NOT NULL,
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL,
+                PRIMARY KEY(service_identity, root_identity, remote_path)
+            )""".trimIndent()
+        )
+        db.execSQL("CREATE INDEX sync_v1_pending_progress_state ON progress_state_publication_intent(service_identity, root_identity, publication_status, created_at)")
+        db.execSQL("CREATE UNIQUE INDEX sync_v1_progress_state_revision ON progress_state_publication_intent(service_identity, root_identity, work_id, progress_revision)")
+        db.execSQL("CREATE TABLE progress_catalog_publication_state (service_identity TEXT NOT NULL, root_identity TEXT NOT NULL, catalog_dirty INTEGER NOT NULL, PRIMARY KEY(service_identity, root_identity))")
+        db.execSQL(
+            """CREATE TABLE progress_event_ledger (
+                event_id TEXT PRIMARY KEY NOT NULL,
+                service_identity TEXT NOT NULL,
+                root_identity TEXT NOT NULL,
+                device_id TEXT NOT NULL,
+                counter_epoch TEXT NOT NULL,
+                sequence INTEGER NOT NULL CHECK (sequence >= 0),
+                work_id TEXT NOT NULL,
+                payload_sha256 TEXT NOT NULL,
+                raw_json_bytes BLOB NOT NULL,
+                applied_progress_revision INTEGER NOT NULL,
+                created_at INTEGER NOT NULL
+            )""".trimIndent()
+        )
+        db.execSQL("CREATE INDEX sync_v1_progress_ledger_work ON progress_event_ledger(service_identity, root_identity, work_id, applied_progress_revision)")
+        db.execSQL(
+            """CREATE TABLE progress_import_receipt (
+                event_id TEXT PRIMARY KEY NOT NULL,
+                processor_owner TEXT NOT NULL CHECK (processor_owner = 'progress'),
+                device_id TEXT NOT NULL,
+                work_id TEXT NOT NULL,
+                payload_sha256 TEXT NOT NULL,
+                event_raw_json_bytes BLOB NOT NULL,
+                terminal_status TEXT NOT NULL,
+                acknowledged_at TEXT NOT NULL,
+                ack_raw_json_bytes BLOB NOT NULL,
+                ack_sha256 TEXT NOT NULL,
+                ack_remote_path TEXT NOT NULL,
+                projection_stage TEXT NOT NULL CHECK (projection_stage IN ('projection_pending','projection_confirmed','ack_publishable','ack_pending','ack_published')),
+                progress_state_path TEXT,
+                catalog_remote_path TEXT,
+                ack_put_attempt_count INTEGER NOT NULL DEFAULT 0 CHECK (ack_put_attempt_count BETWEEN 0 AND 2),
+                ack_publication_status TEXT NOT NULL DEFAULT 'pending',
+                service_identity TEXT NOT NULL,
+                root_identity TEXT NOT NULL,
+                created_at INTEGER NOT NULL
+            )""".trimIndent()
+        )
+        db.execSQL("CREATE INDEX sync_v1_pending_progress_receipt ON progress_import_receipt(service_identity, root_identity, projection_stage, created_at)")
+    }
+
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
         if (oldVersion < 1) createVersionOneSchema(db)
         if (oldVersion < 2) createVersionTwoSchema(db)
         if (oldVersion < 3) createVersionThreeSchema(db)
         if (oldVersion < 4) createVersionFourSchema(db)
+        if (oldVersion < 5) createVersionFiveSchema(db)
     }
 
     private companion object {
-        const val DATABASE_VERSION = 4
+        const val DATABASE_VERSION = 5
     }
 }

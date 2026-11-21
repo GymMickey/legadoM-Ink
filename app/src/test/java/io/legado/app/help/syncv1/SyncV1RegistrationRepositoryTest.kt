@@ -392,7 +392,14 @@ class SyncV1RegistrationRepositoryTest {
     ) = SyncV1RegistrationRepository(
         store = store,
         sessionProvider = {
-            SyncV1Session(configIdentity, "service-A", "root-A", transport, current)
+            SyncV1Session(
+                configIdentity = configIdentity,
+                serviceIdentity = "service-A",
+                rootIdentity = "root-A",
+                transport = transport,
+                compatibleConfigIdentities = setOf(configIdentity),
+                isCurrent = current
+            )
         },
         nowMillis = { 1_794_240_000_000L },
         uuidProvider = { UUID.fromString(snapshotId) }

@@ -103,7 +103,7 @@ class SyncV1CatalogRepositoryTest {
     }
 
     @Test
-    fun remoteIdenticalCatalogIsAdoptedWithoutPut() = kotlinx.coroutines.runBlocking {
+    fun legacyCatalogWithoutProgressBaselineIsPromotedImmutably() = kotlinx.coroutines.runBlocking {
         val store = MemoryStore()
         val transport = FakeTransport()
         val remoteBytes = catalogBytes()
@@ -112,10 +112,13 @@ class SyncV1CatalogRepositoryTest {
 
         val outcome = repository(store, transport).publish(listOf(book()))
 
-        assertEquals(SyncV1CatalogPhase.UNCHANGED, outcome.phase)
-        assertEquals(4L, outcome.catalogRevision)
-        assertEquals(0, transport.putBodies.size)
-        assertArrayEquals(remoteBytes, store.latestPublishedCatalogIntent("service", "root")!!.rawJsonBytes)
+        assertEquals(SyncV1CatalogPhase.PUBLISHED, outcome.phase)
+        assertEquals(5L, outcome.catalogRevision)
+        assertEquals(1, transport.putBodies.size)
+        assertTrue(transport.remote.containsKey(path))
+        val published = SyncV1Protocol.parseCatalog(store.latestPublishedCatalogIntent("service", "root")!!.rawJsonBytes)
+        assertEquals("unavailable", published!!.works.single().progressBaselineStatus)
+        assertFalse(transport.remote[path]!!.contentEquals(store.latestPublishedCatalogIntent("service", "root")!!.rawJsonBytes))
     }
 
     @Test
@@ -243,9 +246,42 @@ class SyncV1CatalogRepositoryTest {
         assertTrue(store.states.isEmpty())
     }
 
-    private fun repository(store: MemoryStore, transport: FakeTransport) = SyncV1CatalogRepository(
+    @Test
+    fun pendingCatalogIntentWithLegacyConfigIdentityResumesUnchangedBytes() = kotlinx.coroutines.runBlocking {
+        val store = MemoryStore()
+        val transport = FakeTransport()
+        val rootUrl = "https://dav.example/sync/"
+        val configIdentity = SyncV1ConfigIdentity.current(rootUrl, "account", "password")
+        val compatibleIdentities = SyncV1ConfigIdentity.acceptedForRecovery(rootUrl, "account", "password")
+        val legacyIdentity = compatibleIdentities.first { it != configIdentity }
+        val bytes = catalogBytes(revision = 5, snapshotId = snapshotOne.toString())
+        val path = "legadom_ink_sync/v1/android/catalog/5-$snapshotOne.json"
+        store.seedPending(intent(bytes, 5, snapshotOne, path, legacyIdentity))
+        transport.remote[path] = bytes.copyOf()
+
+        val outcome = repository(store, transport, configIdentity, compatibleIdentities).publish(listOf(book()))
+
+        assertEquals(SyncV1CatalogPhase.PUBLISHED, outcome.phase)
+        assertEquals(5L, outcome.catalogRevision)
+        assertEquals(legacyIdentity, store.publishedIntents.single().configIdentity)
+        assertArrayEquals(bytes, store.publishedIntents.single().rawJsonBytes)
+        assertEquals(path, store.publishedIntents.single().remotePath)
+        assertTrue(transport.putBodies.isEmpty())
+        assertArrayEquals(bytes, transport.remote[path])
+    }
+
+    private fun repository(
+        store: MemoryStore,
+        transport: FakeTransport,
+        configIdentity: String = "config",
+        compatibleConfigIdentities: Set<String> = setOf(configIdentity)
+    ) = SyncV1CatalogRepository(
         store = store,
-        sessionProvider = { SyncV1Session("config", "service", "root", transport) { true } },
+        sessionProvider = {
+            SyncV1Session(
+                configIdentity, "service", "root", transport, compatibleConfigIdentities, { true }
+            )
+        },
         nowMillis = { baseTime },
         uuidProvider = { UUID.randomUUID() }
     )
@@ -255,10 +291,16 @@ class SyncV1CatalogRepositoryTest {
         bookUrl: String = url
     ) = SyncV1CatalogBook(bookUrl, title, "Author")
 
-    private fun intent(raw: ByteArray, revision: Long, snapshotId: UUID, path: String) =
+    private fun intent(
+        raw: ByteArray,
+        revision: Long,
+        snapshotId: UUID,
+        path: String,
+        configIdentity: String = "config"
+    ) =
         SyncV1CatalogPublicationIntent(
             revision, snapshotId, path, raw, SyncV1Protocol.sha256(raw), "a".repeat(64), 0,
-            "config", "service", "root", "pending", baseTime, baseTime
+            configIdentity, "service", "root", "pending", baseTime, baseTime
         )
 
     private fun catalogBytes(

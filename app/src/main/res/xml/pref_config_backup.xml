@@ -27,15 +27,6 @@
             android:title="@string/web_dav_pw"
             app:iconSpaceReserved="false" />
 
-        <io.legado.app.lib.prefs.SwitchPreference
-            android:defaultValue="false"
-            android:key="unsafeWebDav"
-            android:summary="@string/unsafe_webdav_summary"
-            android:title="@string/unsafe_webdav_title"
-            app:allowDividerAbove="false"
-            app:allowDividerBelow="false"
-            app:iconSpaceReserved="false" />
-
         <io.legado.app.lib.prefs.EditTextPreference
             android:key="webDavDir"
             android:title="@string/sub_dir"
@@ -110,6 +101,22 @@
             android:key="sync_v1_binding_state"
             android:summary="@string/sync_v1_bindings_not_processed"
             android:title="@string/sync_v1_binding_state_title"
+            app:allowDividerAbove="false"
+            app:allowDividerBelow="false"
+            app:iconSpaceReserved="false" />
+
+        <io.legado.app.lib.prefs.Preference
+            android:key="sync_v1_process_progress"
+            android:summary="@string/sync_v1_process_progress_summary"
+            android:title="@string/sync_v1_process_progress"
+            app:allowDividerAbove="false"
+            app:allowDividerBelow="false"
+            app:iconSpaceReserved="false" />
+
+        <io.legado.app.lib.prefs.Preference
+            android:key="sync_v1_progress_state"
+            android:summary="@string/sync_v1_progress_not_processed"
+            android:title="@string/sync_v1_progress_state_title"
             app:allowDividerAbove="false"
             app:allowDividerBelow="false"
             app:iconSpaceReserved="false" />

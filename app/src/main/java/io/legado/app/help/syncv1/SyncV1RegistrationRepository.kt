@@ -536,7 +536,7 @@ class SyncV1RegistrationRepository(
 
     private fun requireIntentConfig(session: SyncV1Session, intent: DeviceStatePublicationIntent) {
         requireCurrent(session)
-        if (intent.configIdentity != session.configIdentity
+        if (!session.acceptsConfigIdentity(intent.configIdentity)
             || intent.serviceIdentity != session.serviceIdentity
             || intent.rootIdentity != session.rootIdentity
         ) throw SyncV1Failure(SyncV1ErrorCode.CONFIG_CHANGED)
